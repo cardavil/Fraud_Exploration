@@ -1,0 +1,32 @@
+table,issue,treatment,rows_affected
+customers,Leading/trailing whitespace in text fields,str.strip() on all text columns,5
+customers,Inconsistent casing in nationality,Normalized to Title Case,3
+customers,Empty pep_flag values,Recoded as 'Unknown' (not assumed 'No'),3
+customers,Missing nationality,Recoded as 'Unknown',4
+customers,Missing occupation,Recoded as 'Unknown',5
+customers,Duplicate customer_id values,"Kept first occurrence, dropped rest",4
+accounts,Leading/trailing whitespace in text fields,str.strip() on all text columns,7
+accounts,Inconsistent casing in status,Normalized to Title Case,3
+accounts,Inconsistent casing in branch_country,Normalized to Title Case,2
+accounts,Missing currency,Recoded as 'Unknown',5
+accounts,Negative account balances,"Kept — flagged as data-quality/overdraft finding, not altered",3
+accounts,Missing account_balance,Kept as NULL — excluded from balance aggregations,4
+accounts,Duplicate account_id values,"Kept first occurrence, dropped rest",5
+transactions,Leading/trailing whitespace in text fields,str.strip() on all text columns,7
+transactions,Inconsistent casing in transaction_type,Normalized to Title Case,240
+transactions,Zero/negative amounts,Kept — flagged for review (possible reversals/errors),5
+transactions,Missing amounts,Kept as NULL — excluded from value aggregations,8
+transactions,Missing counterparty_country,Recoded as 'Unknown' — treated as elevated risk (KYC gap),10
+transactions,Duplicate transaction_id values,"Kept first occurrence, dropped rest",18
+compliance_alerts,Leading/trailing whitespace in text fields,str.strip() on all text columns,5
+compliance_alerts,Inconsistent severity casing,Normalized to Title Case,1
+compliance_alerts,Inconsistent status casing,Normalized,0
+compliance_alerts,Alerts with no assigned analyst,Recoded 'Unassigned' — operational finding,4
+compliance_alerts,Duplicate alert_id values,"Kept first occurrence, dropped rest",3
+sanctions_screening,Leading/trailing whitespace in text fields,str.strip() on all text columns,1
+sanctions_screening,Inconsistent match_result casing,Normalized to Title Case,0
+sanctions_screening,Screenings with no reviewer,Recoded 'Unreviewed' — control finding,4
+sanctions_screening,Duplicate screening_id values,"Kept first occurrence, dropped rest",3
+chargebacks,Leading/trailing whitespace in text fields,str.strip() on all text columns,2
+chargebacks,Inconsistent casing in merchant_name,Normalized to Title Case,44
+chargebacks,Duplicate chargeback_id values,"Kept first occurrence, dropped rest",3

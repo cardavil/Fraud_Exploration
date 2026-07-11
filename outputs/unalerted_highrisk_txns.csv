@@ -1,0 +1,148 @@
+transaction_id,account_id,transaction_date,amount,transaction_type,channel,counterparty_name,counterparty_country,is_international,flagged_for_review,hr,off,cash,struct,intl,alerted
+TXN000440,ACC00103,2026-04-25,10246.32,ACH Transfer,ATM,Silverline Logistics,Iran,No,Yes,True,False,False,False,False,False
+TXN000085,ACC00048,2026-02-20,10461.57,ACH Transfer,Wire Desk,Acme Trading LLC,Iran,No,Yes,True,False,False,False,False,False
+TXN000245,ACC00038,2026-06-25,325393.11,Wire Transfer,Branch,Wei Larsen,Syria,No,Yes,True,False,False,False,False,False
+TXN000151,ACC00040,2026-03-25,5540.1,Deposit,Wire Desk,Horizon Holdings,Afghanistan,No,Yes,True,False,False,False,False,False
+TXN000715,ACC00082,2026-01-13,8353.37,Cash Deposit,Online,Lisa Johnson,Myanmar,No,Yes,True,False,True,False,False,False
+TXN001211,ACC00021,2026-05-24,4225.71,Card Payment,Mobile App,,North Korea,No,Yes,True,False,False,False,False,False
+TXN001179,ACC00085,2026-06-17,351400.75,Wire Transfer,Wire Desk,Kwame Larsen,Iran,No,Yes,True,False,False,False,False,False
+TXN000034,ACC00071,2026-05-05,11468.42,Deposit,Mobile App,Silverline Logistics,Syria,No,Yes,True,False,False,False,False,False
+TXN000270,ACC00104,2026-03-22,3700.17,ACH Transfer,Branch,Blue Ocean Partners,Iran,Yes,Yes,True,False,False,False,True,False
+TXN000170,ACC00046,2026-02-14,12095.09,Withdrawal,Branch,Sofia Johnson,Myanmar,No,Yes,True,False,False,False,False,False
+TXN000947,ACC00085,2026-06-04,479.28,Card Payment,Online,Mary Yamamoto,Afghanistan,No,Yes,True,False,False,False,False,False
+TXN000336,ACC00002,2025-06-21,3683.11,Cash Withdrawal,ATM,Diego Okafor,Syria,No,Yes,True,False,True,False,False,False
+TXN001085,ACC00032,2026-02-28,9632.62,Cash Deposit,Mobile App,Global Import Co,Russia,No,Yes,True,False,True,True,False,False
+TXN001010,ACC00014,2025-05-29,9664.75,Cash Withdrawal,Wire Desk,Ingrid Tanaka,North Korea,No,Yes,True,False,True,True,False,False
+TXN001102,ACC00089,2025-06-28,10491.78,Withdrawal,Online,Lisa Costa,Afghanistan,No,Yes,True,False,False,False,False,False
+TXN000563,ACC00011,2026-05-12,14616.24,ACH Transfer,Branch,Susan Singh,Myanmar,No,Yes,True,False,False,False,False,False
+TXN001004,ACC00038,2026-07-04,5612.88,Cash Deposit,ATM,Silverline Logistics,Syria,No,Yes,True,False,True,False,False,False
+TXN000883,ACC00028,2026-04-25,9604.12,Cash Withdrawal,Mobile App,Karen Muller,Iran,No,Yes,True,False,True,True,False,False
+TXN000942,ACC00057,2025-11-06,327168.29,Wire Transfer,Wire Desk,Sarah Petrov,Myanmar,No,Yes,True,False,False,False,False,False
+TXN000386,ACC00084,2026-07-02,9556.97,Cash Withdrawal,Branch,Jennifer Osei,Myanmar,No,Yes,True,False,True,True,False,False
+TXN001171,ACC00024,2025-09-24,14784.68,ACH Transfer,Branch,Nancy Costa,Afghanistan,No,Yes,True,False,False,False,False,False
+TXN000010,ACC00016,2026-05-29,13420.62,ACH Transfer,Mobile App,Barbara Mensah,Syria,No,Yes,True,False,False,False,False,False
+TXN000774,ACC00048,2025-11-03,268677.26,Wire Transfer,Mobile App,Northstar Ventures,Iran,No,Yes,True,False,False,False,False,False
+TXN000760,ACC00002,2025-05-19,1583.99,ACH Transfer,Branch,Barbara Osei,Russia,No,Yes,True,False,False,False,False,False
+TXN001054,ACC00093,2025-07-15,9784.88,Cash Withdrawal,Mobile App,Ivan Taylor,Syria,No,Yes,True,False,True,True,False,False
+TXN000821,ACC00072,2025-07-29,9702.14,Cash Withdrawal,Mobile App,Horizon Holdings,Iran,No,Yes,True,False,True,True,False,False
+TXN000022,ACC00041,2025-12-02,5174.28,ACH Transfer,Mobile App,Chioma Kowalski,Iran,No,Yes,True,False,False,False,False,False
+TXN000815,ACC00018,2026-01-31,9981.49,Cash Deposit,Branch,Acme Trading LLC,North Korea,No,Yes,True,False,True,True,False,False
+TXN000106,ACC00102,2026-03-17,3337.8,Deposit,Online,Olga Novak,Syria,Yes,Yes,True,False,False,False,True,False
+TXN001482,ACC00018,2026-07-05,8948.72,ACH Transfer,Mobile App,Olga Garcia,Afghanistan,No,Yes,True,False,False,False,False,False
+TXN001107,ACC00084,2026-02-18,9638.16,Cash Withdrawal,Online,Ingrid Martinez,Iran,No,Yes,True,False,True,True,False,False
+TXN000604,ACC00099,2026-01-12,946.05,Cash Deposit,Wire Desk,Betty Williams,North Korea,No,Yes,True,False,True,False,False,False
+TXN000747,ACC00084,2026-04-08,60880.19,Wire Transfer,Mobile App,Northstar Ventures,Iran,No,Yes,True,False,False,False,False,False
+TXN000983,ACC00079,2026-06-28,3268.59,Cash Deposit,Wire Desk,Joseph Jackson,North Korea,No,Yes,True,False,True,False,False,False
+TXN000480,ACC00008,2026-06-12,1176.51,Cash Deposit,ATM,Barbara Kowalski,Myanmar,No,Yes,True,False,True,False,False,False
+TXN000974,ACC00037,2025-10-08,2548.12,ACH Transfer,Mobile App,Thomas Yamamoto,Afghanistan,No,Yes,True,False,False,False,False,False
+TXN000858,ACC00100,2026-05-30,3334.11,Withdrawal,Branch,Global Import Co,Russia,No,Yes,True,False,False,False,False,False
+TXN001496,ACC00019,2026-01-31,5736.74,Cash Deposit,Branch,Northstar Ventures,Syria,No,Yes,True,False,True,False,False,False
+TXN001535,ACC00016,2026-06-15,10315.37,ACH Transfer,Branch,Blue Ocean Partners,Russia,Yes,Yes,True,False,False,False,True,False
+TXN000104,ACC00089,2026-03-05,5399.35,Card Payment,Online,Ivan Yamamoto,Iran,No,Yes,True,False,False,False,False,False
+TXN000028,ACC00008,2025-08-29,3068.3,ACH Transfer,Mobile App,Daniel Petrov,Russia,No,Yes,True,False,False,False,False,False
+TXN000199,ACC00059,2025-11-17,411929.64,Wire Transfer,Branch,Noah Davis,Syria,No,Yes,True,False,False,False,False,False
+TXN000240,ACC00044,2026-04-18,5772.52,Cash Withdrawal,Mobile App,Paul Muller,North Korea,Yes,Yes,True,False,True,False,True,False
+TXN000714,ACC00073,2025-06-16,11571.34,Withdrawal,Mobile App,Matthew Haddad,Myanmar,No,Yes,True,False,False,False,False,False
+TXN000414,ACC00088,2026-06-20,9571.72,Cash Deposit,Mobile App,Betty Lopez,Myanmar,No,Yes,True,False,True,True,False,False
+TXN000867,ACC00102,2025-11-16,7322.6,Withdrawal,Branch,Margaret Yamamoto,Afghanistan,No,Yes,True,False,False,False,False,False
+TXN001015,ACC00056,2026-06-16,183477.9,Wire Transfer,Branch,Yusuf Kim,Russia,Yes,Yes,True,False,False,False,True,False
+TXN000742,ACC00068,2025-11-29,274457.01,Wire Transfer,Branch,Horizon Holdings,Afghanistan,No,Yes,True,False,False,False,False,False
+TXN001187,ACC00032,2026-06-09,9784.7,Cash Deposit,ATM,Blue Ocean Partners,Afghanistan,No,Yes,True,False,True,True,False,False
+TXN000416,ACC00078,2025-11-14,10716.95,Card Payment,Online,Silverline Logistics,Iran,No,Yes,True,False,False,False,False,False
+TXN000982,ACC00067,2026-07-05,791.9,Cash Deposit,Branch,Robert Ivanov,Syria,Yes,Yes,True,False,True,False,True,False
+TXN001534,ACC00105,2026-06-21,5987.57,Cash Deposit,Mobile App,Olga Lopez,Russia,No,Yes,True,False,True,False,False,False
+TXN000521,ACC00014,2026-02-10,1284.24,ACH Transfer,Wire Desk,Northstar Ventures,Syria,No,Yes,True,False,False,False,False,False
+TXN000219,ACC00047,2025-10-10,9350.79,ACH Transfer,ATM,Patricia Miller,Iran,No,Yes,True,False,False,True,False,False
+TXN000130,ACC00089,2025-06-28,9636.74,Cash Deposit,ATM,Horizon Holdings,North Korea,No,Yes,True,False,True,True,False,False
+TXN000429,ACC00065,2025-10-03,511.59,ACH Transfer,Wire Desk,Northstar Ventures,Myanmar,No,Yes,True,False,False,False,False,False
+TXN000092,ACC00101,2026-04-26,14117.73,ACH Transfer,Branch,Elena Novak,North Korea,No,Yes,True,False,False,False,False,False
+TXN000194,ACC00084,2026-05-05,2591.27,Card Payment,Wire Desk,Aisha Yamamoto,Syria,No,Yes,True,False,False,False,False,False
+TXN001394,ACC00018,2026-04-14,4322.06,Card Payment,Mobile App,Acme Trading LLC,Myanmar,No,Yes,True,False,False,False,False,False
+TXN001395,ACC00033,2026-06-15,1728.01,Card Payment,Mobile App,Ingrid Thomas,Syria,Yes,Yes,True,False,False,False,True,False
+TXN000553,ACC00011,2026-05-12,4997.51,ACH Transfer,Mobile App,Michael Hernandez,Myanmar,No,Yes,True,False,False,False,False,False
+TXN000017,ACC00067,2026-04-10,3911.74,Card Payment,Online,Aisha Jackson,Syria,No,Yes,True,False,False,False,False,False
+TXN000062,ACC00104,2026-03-20,7384.79,Cash Deposit,Online,Horizon Holdings,Myanmar,No,Yes,True,False,True,False,False,False
+TXN001031,ACC00067,2026-06-18,9661.17,Cash Deposit,Branch,Robert Petrov,Myanmar,No,Yes,True,False,True,True,False,False
+TXN000395,ACC00027,2026-06-06,14690.46,Deposit,Online,Jennifer Okafor,Russia,No,Yes,True,False,False,False,False,False
+TXN001047,ACC00055,2026-05-17,9503.47,Cash Withdrawal,Mobile App,Silverline Logistics,Russia,No,Yes,True,False,True,True,False,False
+TXN000401,ACC00081,2026-04-28,4269.74,Cash Withdrawal,Wire Desk,Karen Rossi,Russia,No,Yes,True,False,True,False,False,False
+TXN000766,ACC00012,2026-02-22,4294.9,Card Payment,Online,James Silva,Syria,Yes,Yes,True,False,False,False,True,False
+TXN000053,ACC00064,2025-11-11,1896.74,Cash Withdrawal,Wire Desk,Priya Thomas,Russia,No,Yes,True,False,True,False,False,False
+TXN000835,ACC00012,2026-03-31,13502.9,ACH Transfer,Mobile App,Jennifer Lopez,Russia,No,Yes,True,False,False,False,False,False
+TXN000654,ACC00019,2026-05-01,185046.17,Wire Transfer,Wire Desk,Silverline Logistics,North Korea,No,Yes,True,False,False,False,False,False
+TXN001219,ACC00049,2026-05-22,5041.17,Deposit,ATM,Margaret Ivanov,Myanmar,No,Yes,True,False,False,False,False,False
+TXN001230,ACC00012,2026-03-23,9086.55,Card Payment,ATM,Carlos Thomas,Russia,No,Yes,True,False,False,True,False,False
+TXN000371,ACC00105,2026-03-23,5133.37,Card Payment,ATM,David Garcia,Russia,No,Yes,True,False,False,False,False,False
+TXN001538,ACC00032,2026-05-28,9653.72,Cash Withdrawal,Wire Desk,Blue Ocean Partners,Iran,No,Yes,True,False,True,True,False,False
+TXN001334,ACC00039,2026-04-06,11257.17,Deposit,ATM,Blue Ocean Partners,Afghanistan,No,Yes,True,False,False,False,False,False
+TXN000058,ACC00059,2026-01-18,11362.68,ACH Transfer,Wire Desk,Susan Taylor,Syria,No,Yes,True,False,False,False,False,False
+TXN000423,ACC00079,2026-06-28,945.53,ACH Transfer,Branch,Patricia Smith,Myanmar,No,Yes,True,False,False,False,False,False
+TXN000831,ACC00046,2026-01-23,6916.51,Deposit,Branch,Thomas Costa,Iran,No,Yes,True,False,False,False,False,False
+TXN000132,ACC00001,2026-02-24,3400.6,ACH Transfer,Online,James Smith,Syria,Yes,Yes,True,False,False,False,True,False
+TXN000047,ACC00084,2026-03-07,9635.3,Cash Deposit,Mobile App,Silverline Logistics,Afghanistan,No,Yes,True,False,True,True,False,False
+TXN000622,ACC00022,2026-07-01,11576.21,Deposit,Wire Desk,Priya Davis,Iran,No,Yes,True,False,False,False,False,False
+TXN000793,ACC00021,2026-05-27,13188.53,Withdrawal,Wire Desk,Sandra Haddad,Myanmar,No,Yes,True,False,False,False,False,False
+TXN000131,ACC00084,2026-02-12,10892.57,Deposit,Mobile App,Margaret Garcia,Myanmar,No,Yes,True,False,False,False,False,False
+TXN000492,ACC00020,2026-03-26,9852.02,Cash Deposit,Wire Desk,Kwame Rossi,North Korea,No,Yes,True,False,True,True,False,False
+TXN000801,ACC00051,2025-11-11,3686.35,Deposit,Branch,Betty Miller,Russia,Yes,Yes,True,False,False,False,True,False
+TXN001582,ACC00021,2026-06-19,6011.87,Cash Deposit,Online,Blue Ocean Partners,Myanmar,No,Yes,True,False,True,False,False,False
+TXN001265,ACC00003,2026-03-25,2858.04,Cash Withdrawal,Online,Blue Ocean Partners,Afghanistan,No,Yes,True,False,True,False,False,False
+TXN000912,ACC00066,2025-12-26,5146.03,Cash Deposit,Branch,Blue Ocean Partners,Iran,No,Yes,True,False,True,False,False,False
+TXN001553,ACC00026,2026-06-09,9715.29,Cash Deposit,Branch,Acme Trading LLC,North Korea,Yes,Yes,True,False,True,True,True,False
+TXN000201,ACC00034,2025-07-14,82290.8,Wire Transfer,Online,Susan Anderson,Iran,No,Yes,True,False,False,False,False,False
+TXN001576,ACC00086,2025-10-12,305668.64,Wire Transfer,Branch,Sofia Martin,Iran,Yes,Yes,True,False,False,False,True,False
+TXN000740,ACC00020,2026-07-03,797.97,Withdrawal,Branch,Barbara Mensah,Russia,No,Yes,True,False,False,False,False,False
+TXN001547,ACC00021,2026-02-24,7834.81,Cash Withdrawal,Wire Desk,William Novak,Afghanistan,No,Yes,True,False,True,False,False,False
+TXN000286,ACC00059,2025-11-17,1637.47,Withdrawal,Mobile App,Silverline Logistics,Syria,No,Yes,True,False,False,False,False,False
+TXN000508,ACC00053,2026-06-10,7555.71,Withdrawal,Online,Olga Tanaka,Syria,No,Yes,True,False,False,False,False,False
+TXN001536,ACC00073,2025-07-10,1718.39,Cash Withdrawal,Online,William Miller,Russia,No,Yes,True,False,True,False,False,False
+TXN000441,ACC00056,2026-06-06,9549.04,Cash Deposit,ATM,Elena Taylor,Russia,No,Yes,True,False,True,True,False,False
+TXN000689,ACC00065,2025-08-28,10420.34,ACH Transfer,Online,Anthony Zhang,Afghanistan,Yes,Yes,True,False,False,False,True,False
+TXN000154,ACC00095,2025-12-25,3580.13,Deposit,Branch,Patricia Martinez,Myanmar,No,Yes,True,False,False,False,False,False
+TXN000987,ACC00042,2026-03-08,9712.17,Cash Deposit,ATM,Sarah Mensah,Russia,No,Yes,True,False,True,True,False,False
+TXN000179,ACC00054,2026-05-15,5274.96,ACH Transfer,Mobile App,Ahmed Rossi,Iran,No,Yes,True,False,False,False,False,False
+TXN000143,ACC00031,2025-04-20,1748.64,Withdrawal,Online,Patricia Martin,North Korea,No,Yes,True,False,False,False,False,False
+TXN000842,ACC00050,2025-08-01,10843.63,Card Payment,Wire Desk,Elizabeth Petrov,North Korea,No,Yes,True,False,False,False,False,False
+TXN000267,ACC00025,2026-03-31,12772.3,Withdrawal,Wire Desk,Olga Muller,Iran,No,Yes,True,False,False,False,False,False
+TXN001182,ACC00068,2025-11-29,8816.17,Withdrawal,Online,Ivan Lopez,Iran,No,Yes,True,False,False,False,False,False
+TXN001396,ACC00074,2026-05-24,6105.01,Cash Withdrawal,Wire Desk,Global Import Co,Afghanistan,Yes,Yes,True,False,True,False,True,False
+TXN001066,ACC00021,2026-02-24,12449.7,ACH Transfer,ATM,Priya Lopez,Syria,Yes,Yes,True,False,False,False,True,False
+TXN000272,ACC00078,2025-11-14,9768.77,Cash Withdrawal,ATM,Noah Jones,Russia,No,Yes,True,False,True,True,False,False
+TXN000836,ACC00051,2026-03-20,4766.1,Withdrawal,Mobile App,Fatima Wilson,Myanmar,No,Yes,True,False,False,False,False,False
+TXN001165,ACC00093,2025-10-10,10919.13,Card Payment,ATM,Fatima Silva,Myanmar,No,Yes,True,False,False,False,False,False
+TXN001506,ACC00052,2025-09-29,9940.63,Cash Deposit,Branch,Anthony Singh,Russia,No,Yes,True,False,True,True,False,False
+TXN000560,ACC00059,2026-05-22,2866.26,Deposit,Branch,Sarah Jackson,Afghanistan,No,Yes,True,False,False,False,False,False
+TXN000013,ACC00046,2026-06-07,11874.25,ACH Transfer,ATM,Blue Ocean Partners,Iran,No,Yes,True,False,False,False,False,False
+TXN001070,ACC00023,2026-05-15,2778.24,Cash Deposit,Branch,Sandra Taylor,Syria,No,Yes,True,False,True,False,False,False
+TXN000729,ACC00104,2026-03-25,4463.92,Cash Deposit,Mobile App,Ahmed Miller,Russia,No,Yes,True,False,True,False,False,False
+TXN001574,ACC00004,2026-01-24,5378.93,Cash Withdrawal,Online,Robert Johnson,Afghanistan,Yes,Yes,True,False,True,False,True,False
+TXN000319,ACC00057,2026-01-07,4162.54,Cash Deposit,Wire Desk,Global Import Co,North Korea,No,Yes,True,False,True,False,False,False
+TXN000374,ACC00099,2026-02-07,2993.97,Cash Deposit,Wire Desk,Global Import Co,Russia,No,Yes,True,False,True,False,False,False
+TXN000005,ACC00101,2026-05-10,7057.32,Card Payment,Online,Lisa Thomas,Afghanistan,No,Yes,True,False,False,False,False,False
+TXN000437,ACC00019,2026-06-02,9706.06,Cash Withdrawal,Branch,Northstar Ventures,Russia,No,Yes,True,False,True,True,False,False
+TXN000566,ACC00023,2026-05-15,5094.26,Withdrawal,Wire Desk,Jennifer Petrov,Myanmar,No,Yes,True,False,False,False,False,False
+TXN000824,ACC00073,2025-05-12,4725.56,Card Payment,Mobile App,James Kim,Afghanistan,Yes,Yes,True,False,False,False,True,False
+TXN000880,ACC00018,2026-05-30,12929.8,ACH Transfer,Online,Mark Costa,North Korea,Yes,Yes,True,False,False,False,True,False
+TXN001360,ACC00037,2025-12-07,6524.04,Cash Deposit,ATM,Yusuf Kowalski,Russia,No,Yes,True,False,True,False,False,False
+TXN000457,ACC00095,2025-12-25,13771.11,ACH Transfer,Online,Blue Ocean Partners,Iran,No,Yes,True,False,False,False,False,False
+TXN000750,ACC00101,2026-05-16,8774.98,ACH Transfer,Online,Priya Davis,Afghanistan,No,Yes,True,False,False,False,False,False
+TXN000916,ACC00082,2025-11-27,9865.41,Withdrawal,Branch,Blue Ocean Partners,Myanmar,No,Yes,True,False,False,True,False,False
+TXN000660,ACC00098,2026-04-05,4268.67,Deposit,Online,Horizon Holdings,Russia,No,Yes,True,False,False,False,False,False
+TXN000846,ACC00074,2026-05-24,448430.8,Wire Transfer,ATM,Linda Mensah,Iran,Yes,Yes,True,False,False,False,True,False
+TXN000692,ACC00022,2026-02-12,1871.03,Card Payment,Online,William Jones,North Korea,No,Yes,True,False,False,False,False,False
+TXN001266,ACC00088,2026-06-20,1300.57,ACH Transfer,Branch,Silverline Logistics,Syria,Yes,Yes,True,False,False,False,True,False
+TXN000048,ACC00031,2025-09-06,3500.22,Deposit,Wire Desk,Horizon Holdings,Russia,No,Yes,True,False,False,False,False,False
+TXN000071,ACC00045,2026-06-14,3004.86,Cash Deposit,Mobile App,Global Import Co,Afghanistan,No,Yes,True,False,True,False,False,False
+TXN001353,ACC00064,2025-11-11,218.37,Cash Withdrawal,Branch,Horizon Holdings,Syria,No,Yes,True,False,True,False,False,False
+TXN000621,ACC00103,2026-06-09,2248.84,Cash Deposit,Wire Desk,Paul Moore,Iran,No,Yes,True,False,True,False,False,False
+TXN001364,ACC00063,2025-12-09,3607.95,Withdrawal,Online,Sarah Gonzalez,Russia,No,Yes,True,False,False,False,False,False
+TXN001442,ACC00093,2026-01-13,147622.72,Wire Transfer,Wire Desk,Hassan Johnson,North Korea,No,Yes,True,False,False,False,False,False
+TXN000985,ACC00032,2026-06-19,14345.17,ACH Transfer,Online,Matthew Khan,Myanmar,No,Yes,True,False,False,False,False,False
+TXN000614,ACC00076,2026-05-24,8768.71,Card Payment,Mobile App,Paul Mensah,Russia,No,Yes,True,False,False,False,False,False
+TXN000227,ACC00024,2025-09-12,4084.78,ACH Transfer,Mobile App,Ahmed Ivanov,Iran,No,Yes,True,False,False,False,False,False
+TXN000297,ACC00093,2026-01-29,4304.17,ACH Transfer,Wire Desk,Patricia Lopez,Iran,No,Yes,True,False,False,False,False,False
+TXN000817,ACC00020,2026-03-26,10481.47,ACH Transfer,Branch,Northstar Ventures,Russia,No,Yes,True,False,False,False,False,False
+TXN001160,ACC00073,2025-07-16,8717.63,ACH Transfer,Branch,anthony thomas,Myanmar,No,Yes,True,False,False,False,False,False
+TXN000609,ACC00004,2026-05-19,11614.63,Card Payment,ATM,Wei Davis,Russia,No,Yes,True,False,False,False,False,False
+TXN000718,ACC00055,2026-05-06,9982.87,Cash Withdrawal,Mobile App,Hassan Ivanov,Afghanistan,No,Yes,True,False,True,True,False,False
+TXN000643,ACC00089,2026-06-30,13247.7,Card Payment,ATM,Northstar Ventures,Iran,No,Yes,True,False,False,False,False,False
