@@ -1,0 +1,4 @@
+project_id = "tbvuznyawebgrblwlrxy"
+
+[functions.copilot]
+verify_jwt = true
