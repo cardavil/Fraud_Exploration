@@ -92,3 +92,20 @@ historia de git es parte del portfolio y debe leerse como trabajo del propietari
 **La historia es parte del portfolio**: no se reescribe main; los mensajes cuentan la
 evolucion del proyecto (limpieza → modelo → serving → board → copilot) y un revisor debe
 poder auditarla commit a commit.
+
+---
+
+## 5. Copy de UI (v3.1, 2026-07-12)
+
+- Tono profesional y declarativo: hechos con numeros, maximo una frase interpretativa por
+  bloque. Sin metaforas, sin meta-comentario sobre el propio analisis, sin dramatizacion,
+  sin retorica de guiones.
+- Titulos = frases nominales descriptivas ("Parameter sensitivity", "Account detail").
+- El registro de la conversacion de desarrollo NUNCA se traslada al producto.
+- Terminos del glosario, tambien en identificadores de codigo. Filas nuevas:
+
+| Termino | Significado | Evitar |
+|---|---|---|
+| model-only detection | deteccion del modelo sin flag del motor de reglas | needle, aguja |
+| account detail | vista de perfil+actividad+modelo+controles de una cuenta | story, dossier, historia |
+| in-browser verification | recomputo local de scores contra el pipeline | live scoring, demo |

@@ -211,3 +211,8 @@ roll-up; el copilot pasa a analizar CLIENTES (el sujeto legal) agregando todas s
 cuentas; el tab ML se reorganiza por niveles con el ranking de clientes; Findings gana
 "Needles & schemes". Los 24 registros KYC-only se excluyen del scoring y se reportan
 como hallazgo de gobernanza de datos. **Vigente.**
+
+**2026-07-12** — v3.1: andamiaje uniforme del tab ML (un patron: tier-heading + cards
+agrupados, orden 1→2→3, verificacion en navegador dentro del Tier 2) y pase editorial
+completo a copy profesional declarativo, gobernado por CONVENTIONS §5 con gate de grep
+en la verificacion. **Vigente.**
