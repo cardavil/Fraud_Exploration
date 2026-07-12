@@ -92,6 +92,7 @@ window.FE.tabs.data = {
       el.querySelector("#dx-prev").disabled = true;
       el.querySelector("#dx-next").disabled = true;
       el.querySelector("#dx-filters").classList.add("hidden");
+      el.querySelector("#dx-profile-legend").classList.remove("hidden");
     }
 
     /* ---------- rows view (filters + pagination) ---------- */
@@ -168,6 +169,7 @@ window.FE.tabs.data = {
       el.querySelector("#dx-prev").disabled = page === 0;
       el.querySelector("#dx-next").disabled = page >= pages - 1;
       el.querySelector("#dx-filters").classList.remove("hidden");
+      el.querySelector("#dx-profile-legend").classList.add("hidden");
     }
 
     const renderView = () => (view === "profile" ? renderProfile() : renderRows());
@@ -234,6 +236,15 @@ window.FE.tabs.data = {
         <div class="table-wrap">
           <table><thead id="dx-head"></thead><tbody id="dx-body"></tbody></table>
         </div>
+        <details class="notes hidden" id="dx-profile-legend">
+          <summary>Column definitions</summary>
+          <p><strong>Type</strong> — detected from the data: number, date (ISO), categorical
+          (25 or fewer distinct values) or text. <strong>Non-null</strong> — populated cells
+          out of total rows. <strong>Unique</strong> — distinct values.
+          <span class="badge badge-clear">PK</span> — 100% unique identifier column.
+          <span class="badge badge-offshore">N% empty</span> — flagged when more than 20% of
+          the column is empty.</p>
+        </details>
         <div class="table-foot">
           <span id="dx-page" class="muted"></span>
           <div>

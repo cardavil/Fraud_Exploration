@@ -133,6 +133,8 @@ window.FE.tabs.ml = {
           <p>The table shows the <strong>10 highest-scored</strong> of the
           ${fmtInt(t1v.n_flagged)} flagged transactions.
           <a href="#data" class="drill-link" id="t1-see-all">View all ${fmtInt(t1v.n_flagged)} in the Data tab &rarr;</a></p>
+          <p><strong>Score</strong> — the tier-1 anomaly score (higher = more anomalous);
+          the top 5% of transactions flag as anomalous under the model's contamination setting.</p>
           <p>The chips name the strongest signals behind each score (up to 3 shown; the model
           uses all 11 features):</p>
           <dl>
@@ -255,6 +257,9 @@ window.FE.tabs.ml = {
           red below). <span class="anom-alert-gap">Never alerted</span> the rules engine has no
           alert on this account. The bar length is the anomaly score relative to the highest
           detection.</p>
+          <p><strong>Why</strong> — the chips name the account's features that deviate most from
+          the population median (shown when at least 2.5× the median, top 4 listed); the model
+          scores on all 16 features.</p>
         </details>
       </div>
 
@@ -300,17 +305,24 @@ window.FE.tabs.ml = {
             <td class="num">${fmtInt(r.n_accounts)}</td>
             <td class="num">${r.n_anomalous_accounts ? `<strong>${fmtInt(r.n_anomalous_accounts)}</strong>` : "0"}</td>
             <td class="num">${r.structuring_days ? `<span class="badge badge-offshore">${fmtInt(r.structuring_days)}</span>` : "0"}</td>
-            <td>${r.never_screened ? '<span class="badge badge-sanctioned">never screened</span>' : "screened"}</td>
+            <td>${r.never_screened ? '<span class="badge badge-sanctioned">never screened</span>' : '<span class="badge badge-clear">screened</span>'}</td>
             <td class="num">${fmtMoney(r.total_value, true)}</td>
             <td>${r.anomaly === -1 ? '<span class="badge badge-sanctioned">anomalous</span>' : ""}</td></tr>`).join("")}
           </tbody>
         </table></div>
         <details class="notes">
-          <summary>Method and cross-tier consistency</summary>
+          <summary>Column definitions, method and cross-tier consistency</summary>
+          <dl>
+            <dt>Score</dt><dd>tier-3 anomaly score (higher = more anomalous); the red badge marks the ${t3v.n_flagged} customers the model flags</dd>
+            <dt>Accounts / Anomalous accts</dt><dd>accounts held by the customer, and how many of them the tier-2 account model flags</dd>
+            <dt>Structuring days</dt><dd>calendar days where the customer's combined transactions total $10,000 or more while every individual transaction stays under the threshold and at least two of their own accounts are used — the cross-account structuring signal</dd>
+            <dt>Screening</dt><dd><span class="badge badge-clear">screened</span> at least one sanctions screening on record · <span class="badge badge-sanctioned">never screened</span> none</dd>
+            <dt>Total value</dt><dd>value moved across all of the customer's accounts</dd>
+          </dl>
           <p>The customer model combines account structure (number of accounts, anomalous
-          accounts, peak account score), cross-account signals (structuring split across the
-          customer's own accounts, value through non-active accounts) and KYC attributes
-          (rating, PEP, screening state, post-match activity). Cross-tier consistency:
+          accounts, peak account score), cross-account signals (structuring days, value through
+          non-active accounts) and KYC attributes (rating, PEP, screening state, post-match
+          activity). Cross-tier consistency:
           ${fmtPct(t3v.cross_tier.anomalous_account_customers_in_top15)} of anomalous-account
           customers rank in this top-15; Spearman between customer score and peak account score
           is ${t3v.cross_tier.spearman_score_vs_max_account_score} — the customer tier re-ranks
@@ -368,6 +380,8 @@ window.FE.tabs.ml = {
           ? `${fmtInt(screenings.length)} screening(s)${match
               ? `; <strong>confirmed match on ${escapeHtml(match.screening_date)} (${escapeHtml(match.review_status)})</strong>` : "; no confirmed matches"}.`
           : '<span class="badge badge-sanctioned">never screened</span>'}</p>
+        <p class="muted">Structuring days = calendar days with combined transactions of $10,000+
+        split under the threshold across at least two of the customer's own accounts.</p>
         <p><a href="#engine" class="modal-link" id="ov-run-sentinel">Run Sentinel on this customer &rarr;</a></p>`);
 
       document.getElementById("ov-run-sentinel")?.addEventListener("click", (e) => {

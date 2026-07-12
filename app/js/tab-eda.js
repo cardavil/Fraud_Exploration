@@ -196,7 +196,10 @@ window.FE.tabs.eda = {
         <p><strong>Risk in this dataset is categorical and geographic; the static KYC rating is
         disconnected from observed behavior.</strong></p>
         <details class="notes">
-          <summary>Supporting detail: Spearman correlations vs assigned rating</summary>
+          <summary>Definitions and supporting detail</summary>
+          <p><strong>Cramér's V</strong> measures the strength of association between two
+          categorical variables, from 0 (none) to 1 (perfect); <strong>p</strong> is the
+          probability of seeing an association at least this strong by chance.</p>
           <p>Per-customer correlations between the assigned rating and observed behavior:
           ${S.spearman_vs_rating.map((s) => `${escapeHtml(s.feature)} ρ=${s.rho >= 0 ? "+" : ""}${s.rho} (p=${s.p})`).join(", ")}.
           Only % cash reaches statistical significance.</p>
