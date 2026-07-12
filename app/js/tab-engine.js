@@ -70,11 +70,11 @@ window.FE.tabs.engine = {
 
       <div class="card">
         <div class="card-head">
-          <h3>Run it — grounded risk narrative for one account</h3>
-          <span class="muted">~30 s: five sequential model calls</span>
+          <h3>Run it — grounded risk narrative for one customer</h3>
+          <span class="muted">~30 s: five sequential model calls over every account the customer holds</span>
         </div>
         <div class="copilot-controls">
-          <select id="cop-account" aria-label="Account to analyze"><option value="">Select an account…</option></select>
+          <select id="cop-account" aria-label="Customer to analyze"><option value="">Select a customer…</option></select>
           <button class="btn btn-primary" id="cop-run" type="button">Analyze</button>
         </div>
         <div id="cop-progress" class="cop-progress hidden">
@@ -86,10 +86,9 @@ window.FE.tabs.engine = {
 
     /* runner */
     const $q = (sel) => el.querySelector(sel);
-    const anomIds = new Set(state.data.account_scores.filter((s) => s.anomaly === -1).map((s) => s.account_id));
-    const opts = [...state.data.account_scores]
-      .sort((a, b) => (anomIds.has(b.account_id) - anomIds.has(a.account_id)) || b.score - a.score)
-      .map((s) => `<option value="${escapeHtml(s.account_id)}">${escapeHtml(s.account_id)}${anomIds.has(s.account_id) ? " ⚠ anomalous" : ""} · ${escapeHtml(s.risk_rating)} risk</option>`);
+    const opts = [...state.data.customer_scores]
+      .sort((a, b) => (b.anomaly === -1) - (a.anomaly === -1) || b.score - a.score)
+      .map((s) => `<option value="${escapeHtml(s.customer_id)}">${escapeHtml(s.customer_id)}${s.anomaly === -1 ? " ⚠ anomalous" : ""} · ${s.n_accounts} account${s.n_accounts > 1 ? "s" : ""}${s.never_screened ? " · never screened" : ""}</option>`);
     $q("#cop-account").insertAdjacentHTML("beforeend", opts.join(""));
 
     const ACTION_BADGE = {
@@ -110,7 +109,7 @@ window.FE.tabs.engine = {
         const res = await fetch(CFG.COPILOT_URL, {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${CFG.SUPABASE_ANON_KEY}` },
-          body: JSON.stringify({ account_id: accountId }),
+          body: JSON.stringify({ customer_id: accountId }),
         });
         if (!res.ok) {
           const detail = await res.text().catch(() => "");

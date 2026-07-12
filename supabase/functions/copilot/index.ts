@@ -101,7 +101,7 @@ const DATA_FRAME =
 // Pseudonymization happens here by construction: full_name and date_of_birth
 // are never selected, and the customer is referred to as "Customer <id>".
 
-type ToolCtx = { accountId: string; customerId: string };
+type ToolCtx = { accountIds: string[]; customerId: string };
 // deno-lint-ignore no-explicit-any
 type Tool = (ctx: ToolCtx) => Promise<any>;
 
@@ -127,36 +127,50 @@ function summarizeTransactions(txns: any[]) {
   };
 }
 
+const inList = (ids: string[]) => `in.(${ids.join(",")})`;
+
 const TOOLS: Record<string, Tool> = {
-  profileFetcher: async ({ accountId, customerId }) => {
-    const acc = (await supabaseSelect(
-      `accounts?account_id=eq.${accountId}&select=account_id,account_type,currency,open_date,status,branch_country,account_balance`,
-    ))[0];
+  profileFetcher: async ({ accountIds, customerId }) => {
+    const accounts = await supabaseSelect(
+      `accounts?account_id=${inList(accountIds)}&select=account_id,account_type,currency,open_date,status,branch_country,account_balance`,
+    );
     const cust = (await supabaseSelect(
       `customers?customer_id=eq.${customerId}&select=nationality,occupation,customer_type,pep_flag,risk_rating,onboarding_date,onboarding_channel`,
     ))[0];
-    return { account: acc, customer: { pseudonym: `Customer ${customerId}`, ...cust as object } };
+    return { accounts, customer: { pseudonym: `Customer ${customerId}`, ...cust as object } };
   },
   screeningFetcher: ({ customerId }) =>
     supabaseSelect(`sanctions_screening?customer_id=eq.${customerId}&select=screening_date,list_checked,match_result,review_status`),
-  txnAggregator: async ({ accountId }) => {
+  txnAggregator: async ({ accountIds }) => {
     const txns = await supabaseSelect(
-      `transactions?account_id=eq.${accountId}&select=transaction_date,amount,transaction_type,counterparty_country,flagged_for_review&order=transaction_date.desc`,
+      `transactions?account_id=${inList(accountIds)}&select=transaction_date,amount,transaction_type,counterparty_country,flagged_for_review&order=transaction_date.desc`,
     );
     return summarizeTransactions(txns);
   },
-  txnSampler: ({ accountId }) =>
+  txnSampler: ({ accountIds }) =>
     supabaseSelect(
-      `transactions?account_id=eq.${accountId}&select=transaction_date,amount,transaction_type,counterparty_country,flagged_for_review&order=amount.desc.nullslast&limit=12`,
+      `transactions?account_id=${inList(accountIds)}&select=transaction_date,amount,transaction_type,counterparty_country,flagged_for_review&order=amount.desc.nullslast&limit=12`,
     ),
-  scoreFetcher: async ({ accountId }) => {
-    const s = (await supabaseSelect(
-      `account_scores?account_id=eq.${accountId}&select=n_tx,avg_amt,std_amt,max_amt,total,pct_hr,pct_off,pct_cash,pct_struct,pct_intl,tx_per_month,velocity_value,anomaly,score,has_alert`,
+  txnNeedleFetcher: ({ accountIds }) =>   // tier-1: the subject's worst transactions in context
+    supabaseSelect(
+      `transaction_scores?account_id=${inList(accountIds)}&select=transaction_id,amount,score,anomaly,rel_amount,nonactive_status,band_9k,hr_country,flagged_by_rules&anomaly=eq.-1&order=score.desc&limit=10`,
+    ),
+  scoreFetcher: async ({ accountIds, customerId }) => {
+    const accountModels = await supabaseSelect(
+      `account_scores?account_id=${inList(accountIds)}&select=account_id,n_tx,total,pct_hr,pct_cash,pct_struct,tx_per_month,velocity_value,pct_txn_anomalous,max_day_share,anomaly,score,has_alert`,
+    );
+    const customerModel = (await supabaseSelect(
+      `customer_scores?customer_id=eq.${customerId}&select=n_accounts,n_anomalous_accounts,structuring_days,hr_value_share,nonactive_value_share,never_screened,post_match_value,anomaly,score`,
     ))[0];
-    return { isolation_forest: s ?? null, note: "anomaly=-1 means anomalous; higher score = more anomalous" };
+    return {
+      account_models: accountModels,
+      customer_model: customerModel ?? null,
+      note: "three-tier Isolation Forests; anomaly=-1 means anomalous; higher score = worse; " +
+        "structuring_days = customer-days over $10k split under-threshold across own accounts",
+    };
   },
-  alertFetcher: ({ accountId }) =>
-    supabaseSelect(`compliance_alerts?account_id=eq.${accountId}&select=alert_date,alert_type,severity,status,sar_filed`),
+  alertFetcher: ({ accountIds }) =>
+    supabaseSelect(`compliance_alerts?account_id=${inList(accountIds)}&select=alert_date,alert_type,severity,status,sar_filed`),
 };
 
 /* ---------------- model wrapper: retry + backoff + fallback ---------------- */
@@ -269,20 +283,21 @@ const AGENTS: Agent[] = [
   },
   {
     name: "behavior_analyst", model: MODEL_FAST,
-    tools: ["txnAggregator", "txnSampler", "alertFetcher"], outputKey: "behavior_risk",
+    tools: ["txnAggregator", "txnSampler", "txnNeedleFetcher", "alertFetcher"], outputKey: "behavior_risk",
     schema: NOTE_SCHEMA,
-    instruction: "Assess TRANSACTIONAL behavior only: structuring (9,000-9,999 band under the " +
-      "10k reporting threshold), single-day bursts, sanctioned-country and offshore exposure, " +
-      "flagged share, existing alert history. Do not assess KYC/profile.",
+    instruction: "Assess TRANSACTIONAL behavior across ALL of the subject's accounts: " +
+      "structuring (9,000-9,999 band under the 10k reporting threshold), single-day bursts, " +
+      "sanctioned-country and offshore exposure, flagged share, the tier-1 needle transactions " +
+      "provided, and existing alert history. Do not assess KYC/profile.",
   },
   {
     name: "anomaly_interpreter", model: MODEL_FAST,
     tools: ["scoreFetcher"], outputKey: "ml_reading",
     schema: NOTE_SCHEMA,
-    instruction: "Interpret the Isolation Forest output for this account: is it flagged " +
-      "anomalous (anomaly=-1)? How extreme is the score? Which behavioral features " +
-      "(velocity, totals, pct_hr, pct_cash, pct_struct...) plausibly drive it? Note that " +
-      "has_alert=false on an anomalous account means the rules engine missed it.",
+    instruction: "Interpret the three-tier Isolation Forest output: the customer-level model " +
+      "(cross-account structuring days, never-screened, post-match activity) and each account " +
+      "model (velocity, totals, pct_txn_anomalous, max_day_share...). anomaly=-1 means flagged. " +
+      "An anomalous account or customer with has_alert=false means the rules engine missed it.",
   },
   {
     name: "risk_synthesizer", model: MODEL_HEAVY,
@@ -306,8 +321,8 @@ const AGENTS: Agent[] = [
 
 /* ---------------- pipeline runner ---------------- */
 
-async function runPipeline(accountId: string, customerId: string) {
-  const ctx: ToolCtx = { accountId, customerId };
+async function runPipeline(accountIds: string[], customerId: string) {
+  const ctx: ToolCtx = { accountIds, customerId };
   // deno-lint-ignore no-explicit-any
   const outputs: Record<string, any> = {};
   const audit: AuditEntry[] = [];
@@ -320,7 +335,7 @@ async function runPipeline(accountId: string, customerId: string) {
     }
     const upstream = agent.tools.length === 0 ? outputs : undefined;
     const user =
-      `Account under review: ${accountId} (holder: Customer ${customerId}).\n` +
+      `Subject under review: Customer ${customerId} (accounts: ${accountIds.join(", ")}).\n` +
       `Task: ${agent.instruction}\n\n<data>\n` +
       JSON.stringify(upstream ?? toolData, null, 1) + "\n</data>";
     const { result, audit: entry } = await callModel(agent.name, agent.model, PERSONA, user, agent.schema);
@@ -368,15 +383,16 @@ Deno.serve(async (req) => {
       { status: 503, headers: cors });
   }
 
-  let accountId: string;
+  let accountId = "", customerIdInput = "";
   try {
     const body = await req.json();
     accountId = String(body.account_id ?? "");
+    customerIdInput = String(body.customer_id ?? "");
   } catch {
-    return new Response(JSON.stringify({ error: "Body must be JSON: { account_id }" }), { status: 400, headers: cors });
+    return new Response(JSON.stringify({ error: "Body must be JSON: { customer_id } or { account_id }" }), { status: 400, headers: cors });
   }
-  if (!/^ACC\d{5}$/.test(accountId)) {
-    return new Response(JSON.stringify({ error: "account_id must look like ACC00000" }), { status: 400, headers: cors });
+  if (!/^CUST\d{4}$/.test(customerIdInput) && !/^ACC\d{5}$/.test(accountId)) {
+    return new Response(JSON.stringify({ error: "Send customer_id (CUST0000) or account_id (ACC00000)" }), { status: 400, headers: cors });
   }
 
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
@@ -386,20 +402,32 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const accounts = await supabaseSelect(`accounts?account_id=eq.${accountId}&select=customer_id`);
-    if (!accounts.length) {
-      return new Response(JSON.stringify({ error: `Unknown account ${accountId}` }), { status: 404, headers: cors });
+    // The subject of the analysis is always the CUSTOMER: an account_id input
+    // resolves to its holder and the pipeline sees all of the holder's accounts.
+    let customerId = customerIdInput;
+    if (!customerId) {
+      const rows = await supabaseSelect(`accounts?account_id=eq.${accountId}&select=customer_id`);
+      if (!rows.length) {
+        return new Response(JSON.stringify({ error: `Unknown account ${accountId}` }), { status: 404, headers: cors });
+      }
+      customerId = (rows[0] as { customer_id: string }).customer_id;
     }
-    const customerId = (accounts[0] as { customer_id: string }).customer_id;
+    const accountRows = await supabaseSelect(`accounts?customer_id=eq.${customerId}&select=account_id`);
+    if (!accountRows.length) {
+      return new Response(JSON.stringify({ error: `Customer ${customerId} has no accounts to analyze (KYC-only record)` }),
+        { status: 404, headers: cors });
+    }
+    const accountIds = accountRows.map((r) => (r as { account_id: string }).account_id);
 
     const runId = crypto.randomUUID();
-    const { final, audit } = await runPipeline(accountId, customerId);
-    await persistAudit(runId, accountId, audit);
+    const { final, audit } = await runPipeline(accountIds, customerId);
+    await persistAudit(runId, customerId, audit);
 
     return new Response(JSON.stringify({
       ...final,
       run_id: runId,
-      pipeline: "v2",
+      subject: customerId,
+      pipeline: "v3",
       audit: audit.map(({ agent, model_used, attempts, fallback_used, latency_ms, ok }) =>
         ({ agent, model_used, attempts, fallback_used, latency_ms, ok })),
     }), { headers: cors });
