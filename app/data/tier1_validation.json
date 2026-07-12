@@ -1,0 +1,68 @@
+{
+ "n_flagged": 80,
+ "value_flagged": 7923277,
+ "bootstrap": {
+  "n_iterations": 100,
+  "share_of_detections_stable": 0.84
+ },
+ "seed_stability": {
+  "n_seeds": 20,
+  "jaccard_mean": 0.8,
+  "jaccard_min": 0.74
+ },
+ "contamination_sweep": [
+  {
+   "contamination": 0.02,
+   "n_anomalies": 32,
+   "jaccard_vs_base": 0.4
+  },
+  {
+   "contamination": 0.05,
+   "n_anomalies": 80,
+   "jaccard_vs_base": 1.0
+  },
+  {
+   "contamination": 0.08,
+   "n_anomalies": 128,
+   "jaccard_vs_base": 0.62
+  }
+ ],
+ "convergence_vs_rules": {
+  "flagged_by_both": 63,
+  "model_only": 17,
+  "rules_flag_rate_overall": 0.26,
+  "note": "partial overlap is the design goal: the rules are geography/type-driven; tier 1 adds amount-context, burst timing and account-status needles"
+ },
+ "top_needles_outside_rules": [
+  {
+   "transaction_id": "TXN000073",
+   "account_id": "ACC00033",
+   "amount": 423719.56,
+   "score": 0.6594
+  },
+  {
+   "transaction_id": "TXN001473",
+   "account_id": "ACC00089",
+   "amount": 424636.89,
+   "score": 0.6488
+  },
+  {
+   "transaction_id": "TXN001285",
+   "account_id": "ACC00091",
+   "amount": 164.31,
+   "score": 0.6303
+  },
+  {
+   "transaction_id": "TXN001326",
+   "account_id": "ACC00095",
+   "amount": 212208.74,
+   "score": 0.63
+  },
+  {
+   "transaction_id": "TXN000191",
+   "account_id": "ACC00019",
+   "amount": 457172.79,
+   "score": 0.626
+  }
+ ]
+}
