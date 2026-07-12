@@ -1,0 +1,679 @@
+{
+ "1": {
+  "kind": "fixed",
+  "examples": [
+   {
+    "key": "CUST0001",
+    "column": "full_name",
+    "before": "'Noah Davis '",
+    "after": "Noah Davis"
+   },
+   {
+    "key": "CUST0007",
+    "column": "full_name",
+    "before": "'Elena Jones '",
+    "after": "Elena Jones"
+   },
+   {
+    "key": "CUST9002",
+    "column": "nationality",
+    "before": "'  India  '",
+    "after": "India"
+   }
+  ]
+ },
+ "2": {
+  "kind": "fixed",
+  "examples": [
+   {
+    "key": "CUST0065",
+    "column": "nationality",
+    "before": "india",
+    "after": "India"
+   },
+   {
+    "key": "CUST0013",
+    "column": "nationality",
+    "before": "china",
+    "after": "China"
+   },
+   {
+    "key": "CUST0023",
+    "column": "nationality",
+    "before": "UNITED KINGDOM",
+    "after": "United Kingdom"
+   }
+  ]
+ },
+ "3": {
+  "kind": "fixed",
+  "examples": [
+   {
+    "key": "CUST0046",
+    "column": "pep_flag",
+    "before": "''",
+    "after": "Unknown"
+   },
+   {
+    "key": "CUST0047",
+    "column": "pep_flag",
+    "before": "''",
+    "after": "Unknown"
+   },
+   {
+    "key": "CUST0038",
+    "column": "pep_flag",
+    "before": "''",
+    "after": "Unknown"
+   }
+  ]
+ },
+ "4": {
+  "kind": "fixed",
+  "examples": [
+   {
+    "key": "CUST0051",
+    "column": "nationality",
+    "before": "∅ (null)",
+    "after": "Unknown"
+   },
+   {
+    "key": "CUST0025",
+    "column": "nationality",
+    "before": "∅ (null)",
+    "after": "Unknown"
+   },
+   {
+    "key": "CUST0004",
+    "column": "nationality",
+    "before": "∅ (null)",
+    "after": "Unknown"
+   }
+  ]
+ },
+ "5": {
+  "kind": "fixed",
+  "examples": [
+   {
+    "key": "CUST0014",
+    "column": "occupation",
+    "before": "∅ (null)",
+    "after": "Unknown"
+   },
+   {
+    "key": "CUST0079",
+    "column": "occupation",
+    "before": "∅ (null)",
+    "after": "Unknown"
+   },
+   {
+    "key": "CUST0072",
+    "column": "occupation",
+    "before": "∅ (null)",
+    "after": "Unknown"
+   }
+  ]
+ },
+ "6": {
+  "kind": "dropped",
+  "examples": [
+   {
+    "key": "CUST0009",
+    "column": "customer_id",
+    "before": "2 copies",
+    "after": "1 kept"
+   },
+   {
+    "key": "CUST0046",
+    "column": "customer_id",
+    "before": "2 copies",
+    "after": "1 kept"
+   },
+   {
+    "key": "CUST0073",
+    "column": "customer_id",
+    "before": "2 copies",
+    "after": "1 kept"
+   }
+  ]
+ },
+ "7": {
+  "kind": "fixed",
+  "examples": [
+   {
+    "key": "ACC00011",
+    "column": "status",
+    "before": "'Active '",
+    "after": "Active"
+   },
+   {
+    "key": "ACC00060",
+    "column": "status",
+    "before": "'  Dormant  '",
+    "after": "Dormant"
+   },
+   {
+    "key": "ACC00034",
+    "column": "status",
+    "before": "'Active '",
+    "after": "Active"
+   }
+  ]
+ },
+ "8": {
+  "kind": "fixed",
+  "examples": [
+   {
+    "key": "ACC00042",
+    "column": "status",
+    "before": "ACTIVE",
+    "after": "Active"
+   },
+   {
+    "key": "ACC00098",
+    "column": "status",
+    "before": "ACTIVE",
+    "after": "Active"
+   },
+   {
+    "key": "ACC00052",
+    "column": "status",
+    "before": "active",
+    "after": "Active"
+   }
+  ]
+ },
+ "9": {
+  "kind": "fixed",
+  "examples": [
+   {
+    "key": "ACC00076",
+    "column": "branch_country",
+    "before": "UNITED STATES",
+    "after": "United States"
+   },
+   {
+    "key": "ACC00098",
+    "column": "branch_country",
+    "before": "singapore",
+    "after": "Singapore"
+   }
+  ]
+ },
+ "10": {
+  "kind": "fixed",
+  "examples": [
+   {
+    "key": "ACC00045",
+    "column": "currency",
+    "before": "∅ (null)",
+    "after": "Unknown"
+   },
+   {
+    "key": "ACC00054",
+    "column": "currency",
+    "before": "∅ (null)",
+    "after": "Unknown"
+   },
+   {
+    "key": "ACC00098",
+    "column": "currency",
+    "before": "∅ (null)",
+    "after": "Unknown"
+   }
+  ]
+ },
+ "11": {
+  "kind": "kept",
+  "examples": [
+   {
+    "key": "ACC00086",
+    "column": "account_balance",
+    "before": -408218.18,
+    "after": -408218.18
+   },
+   {
+    "key": "ACC00067",
+    "column": "account_balance",
+    "before": -39394.45,
+    "after": -39394.45
+   },
+   {
+    "key": "ACC00053",
+    "column": "account_balance",
+    "before": -43811.71,
+    "after": -43811.71
+   }
+  ]
+ },
+ "12": {
+  "kind": "kept",
+  "examples": [
+   {
+    "key": "ACC00006",
+    "column": "account_balance",
+    "before": "∅ (null)",
+    "after": "∅ (null)"
+   },
+   {
+    "key": "ACC00031",
+    "column": "account_balance",
+    "before": "∅ (null)",
+    "after": "∅ (null)"
+   },
+   {
+    "key": "ACC00039",
+    "column": "account_balance",
+    "before": "∅ (null)",
+    "after": "∅ (null)"
+   }
+  ]
+ },
+ "13": {
+  "kind": "dropped",
+  "examples": [
+   {
+    "key": "ACC00051",
+    "column": "account_id",
+    "before": "2 copies",
+    "after": "1 kept"
+   },
+   {
+    "key": "ACC00005",
+    "column": "account_id",
+    "before": "2 copies",
+    "after": "1 kept"
+   },
+   {
+    "key": "ACC00091",
+    "column": "account_id",
+    "before": "2 copies",
+    "after": "1 kept"
+   }
+  ]
+ },
+ "14": {
+  "kind": "fixed",
+  "examples": [
+   {
+    "key": "TXN000316",
+    "column": "transaction_type",
+    "before": "'  Card Payment  '",
+    "after": "Card Payment"
+   },
+   {
+    "key": "TXN001568",
+    "column": "transaction_type",
+    "before": "'Deposit '",
+    "after": "Deposit"
+   },
+   {
+    "key": "TXN001429",
+    "column": "transaction_type",
+    "before": "'Cash Deposit '",
+    "after": "Cash Deposit"
+   }
+  ]
+ },
+ "15": {
+  "kind": "fixed",
+  "examples": [
+   {
+    "key": "TXN001235",
+    "column": "transaction_type",
+    "before": "wire transfer",
+    "after": "Wire Transfer"
+   },
+   {
+    "key": "TXN000546",
+    "column": "transaction_type",
+    "before": "CARD PAYMENT",
+    "after": "Card Payment"
+   },
+   {
+    "key": "TXN001576",
+    "column": "transaction_type",
+    "before": "WIRE TRANSFER",
+    "after": "Wire Transfer"
+   }
+  ]
+ },
+ "16": {
+  "kind": "kept",
+  "examples": [
+   {
+    "key": "TXN000672",
+    "column": "amount",
+    "before": 0.0,
+    "after": 0.0
+   },
+   {
+    "key": "TXN000003",
+    "column": "amount",
+    "before": 0.0,
+    "after": 0.0
+   },
+   {
+    "key": "TXN001571",
+    "column": "amount",
+    "before": 0.0,
+    "after": 0.0
+   }
+  ]
+ },
+ "17": {
+  "kind": "kept",
+  "examples": [
+   {
+    "key": "TXN000287",
+    "column": "amount",
+    "before": "∅ (null)",
+    "after": "∅ (null)"
+   },
+   {
+    "key": "TXN000928",
+    "column": "amount",
+    "before": "∅ (null)",
+    "after": "∅ (null)"
+   },
+   {
+    "key": "TXN001096",
+    "column": "amount",
+    "before": "∅ (null)",
+    "after": "∅ (null)"
+   }
+  ]
+ },
+ "18": {
+  "kind": "fixed",
+  "examples": [
+   {
+    "key": "TXN001122",
+    "column": "counterparty_country",
+    "before": "∅ (null)",
+    "after": "Unknown"
+   },
+   {
+    "key": "TXN000112",
+    "column": "counterparty_country",
+    "before": "∅ (null)",
+    "after": "Unknown"
+   },
+   {
+    "key": "TXN000080",
+    "column": "counterparty_country",
+    "before": "∅ (null)",
+    "after": "Unknown"
+   }
+  ]
+ },
+ "19": {
+  "kind": "dropped",
+  "examples": [
+   {
+    "key": "TXN000478",
+    "column": "transaction_id",
+    "before": "2 copies",
+    "after": "1 kept"
+   },
+   {
+    "key": "TXN001080",
+    "column": "transaction_id",
+    "before": "2 copies",
+    "after": "1 kept"
+   },
+   {
+    "key": "TXN000001",
+    "column": "transaction_id",
+    "before": "2 copies",
+    "after": "1 kept"
+   }
+  ]
+ },
+ "20": {
+  "kind": "fixed",
+  "examples": [
+   {
+    "key": "ALRT0036",
+    "column": "severity",
+    "before": "'  Medium  '",
+    "after": "Medium"
+   },
+   {
+    "key": "ALRT0005",
+    "column": "severity",
+    "before": "'Medium '",
+    "after": "Medium"
+   },
+   {
+    "key": "ALRT0057",
+    "column": "severity",
+    "before": "'Low '",
+    "after": "Low"
+   }
+  ]
+ },
+ "21": {
+  "kind": "fixed",
+  "examples": [
+   {
+    "key": "ALRT0018",
+    "column": "severity",
+    "before": "high",
+    "after": "High"
+   }
+  ]
+ },
+ "22": {
+  "kind": "fixed",
+  "examples": [
+   {
+    "key": "ALRT0019",
+    "column": "status",
+    "before": "UNDER REVIEW",
+    "after": "Under Review"
+   },
+   {
+    "key": "ALRT0037",
+    "column": "status",
+    "before": "closed - false positive",
+    "after": "Closed - False Positive"
+   },
+   {
+    "key": "ALRT0029",
+    "column": "status",
+    "before": "closed - false positive",
+    "after": "Closed - False Positive"
+   }
+  ]
+ },
+ "23": {
+  "kind": "fixed",
+  "examples": [
+   {
+    "key": "ALRT0019",
+    "column": "assigned_analyst",
+    "before": "∅ (null)",
+    "after": "Unassigned"
+   },
+   {
+    "key": "ALRT0060",
+    "column": "assigned_analyst",
+    "before": "∅ (null)",
+    "after": "Unassigned"
+   },
+   {
+    "key": "ALRT0013",
+    "column": "assigned_analyst",
+    "before": "∅ (null)",
+    "after": "Unassigned"
+   }
+  ]
+ },
+ "24": {
+  "kind": "dropped",
+  "examples": [
+   {
+    "key": "ALRT0019",
+    "column": "alert_id",
+    "before": "2 copies",
+    "after": "1 kept"
+   },
+   {
+    "key": "ALRT0045",
+    "column": "alert_id",
+    "before": "2 copies",
+    "after": "1 kept"
+   },
+   {
+    "key": "ALRT0037",
+    "column": "alert_id",
+    "before": "2 copies",
+    "after": "1 kept"
+   }
+  ]
+ },
+ "25": {
+  "kind": "fixed",
+  "examples": [
+   {
+    "key": "SCRN0021",
+    "column": "match_result",
+    "before": "'No Match '",
+    "after": "No Match"
+   }
+  ]
+ },
+ "26": {
+  "kind": "fixed",
+  "examples": [
+   {
+    "key": "SCRN0056",
+    "column": "match_result",
+    "before": "POTENTIAL MATCH",
+    "after": "Potential Match"
+   },
+   {
+    "key": "SCRN0036",
+    "column": "match_result",
+    "before": "no match",
+    "after": "No Match"
+   },
+   {
+    "key": "SCRN0026",
+    "column": "match_result",
+    "before": "NO MATCH",
+    "after": "No Match"
+   }
+  ]
+ },
+ "27": {
+  "kind": "fixed",
+  "examples": [
+   {
+    "key": "SCRN0069",
+    "column": "reviewed_by",
+    "before": "∅ (null)",
+    "after": "Unreviewed"
+   },
+   {
+    "key": "SCRN0073",
+    "column": "reviewed_by",
+    "before": "∅ (null)",
+    "after": "Unreviewed"
+   },
+   {
+    "key": "SCRN0001",
+    "column": "reviewed_by",
+    "before": "∅ (null)",
+    "after": "Unreviewed"
+   }
+  ]
+ },
+ "28": {
+  "kind": "dropped",
+  "examples": [
+   {
+    "key": "SCRN0069",
+    "column": "screening_id",
+    "before": "2 copies",
+    "after": "1 kept"
+   },
+   {
+    "key": "SCRN0075",
+    "column": "screening_id",
+    "before": "2 copies",
+    "after": "1 kept"
+   },
+   {
+    "key": "SCRN0067",
+    "column": "screening_id",
+    "before": "2 copies",
+    "after": "1 kept"
+   }
+  ]
+ },
+ "29": {
+  "kind": "fixed",
+  "examples": [
+   {
+    "key": "CHB0049",
+    "column": "merchant_name",
+    "before": "'GreenLeaf Grocers '",
+    "after": "GreenLeaf Grocers"
+   },
+   {
+    "key": "CHB0007",
+    "column": "merchant_name",
+    "before": "'  QuickMart Online  '",
+    "after": "QuickMart Online"
+   }
+  ]
+ },
+ "30": {
+  "kind": "fixed",
+  "examples": [
+   {
+    "key": "CHB0023",
+    "column": "merchant_name",
+    "before": "technest electronics",
+    "after": "TechNest Electronics"
+   },
+   {
+    "key": "CHB0060",
+    "column": "merchant_name",
+    "before": "Acme Trading LLC",
+    "after": "Acme Trading Llc"
+   },
+   {
+    "key": "CHB0043",
+    "column": "merchant_name",
+    "before": "skyway airlines",
+    "after": "SkyWay Airlines"
+   }
+  ]
+ },
+ "31": {
+  "kind": "dropped",
+  "examples": [
+   {
+    "key": "CHB0067",
+    "column": "chargeback_id",
+    "before": "2 copies",
+    "after": "1 kept"
+   },
+   {
+    "key": "CHB0032",
+    "column": "chargeback_id",
+    "before": "2 copies",
+    "after": "1 kept"
+   },
+   {
+    "key": "CHB0001",
+    "column": "chargeback_id",
+    "before": "2 copies",
+    "after": "1 kept"
+   }
+  ]
+ }
+}
