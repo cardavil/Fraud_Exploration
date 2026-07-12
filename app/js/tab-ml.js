@@ -226,14 +226,6 @@ window.FE.tabs.ml = {
           <h3>Results — ${anoms.length} anomalous accounts, ${anoms.filter((a) => !a.has_alert).length} never alerted</h3>
           <span class="muted">bootstrap confidence: share of ${val.bootstrap.n_iterations} refits on ${fmtPct(val.bootstrap.subsample)} subsamples that flag the account</span>
         </div>
-        <details class="notes">
-          <summary>Badge definitions</summary>
-          <p><span class="badge badge-clear">flagged in N% of refits</span> bootstrap confidence:
-          share of 200 refits on 80% subsamples that flag the account (green ≥ 90%, amber ≥ 60%,
-          red below). <span class="anom-alert-gap">Never alerted</span> the rules engine has no
-          alert on this account. The bar length is the anomaly score relative to the highest
-          detection.</p>
-        </details>
         <div id="ml-anomalies">
           ${anoms.map((a) => `
             <div class="anom-item">
@@ -256,6 +248,14 @@ window.FE.tabs.ml = {
               <div class="anom-why">Why: ${explainDeviations(a) || "broad multi-feature deviation"}</div>
             </div>`).join("")}
         </div>
+        <details class="notes">
+          <summary>Badge definitions</summary>
+          <p><span class="badge badge-clear">flagged in N% of refits</span> bootstrap confidence:
+          share of 200 refits on 80% subsamples that flag the account (green ≥ 90%, amber ≥ 60%,
+          red below). <span class="anom-alert-gap">Never alerted</span> the rules engine has no
+          alert on this account. The bar length is the anomaly score relative to the highest
+          detection.</p>
+        </details>
       </div>
 
       <div class="card" id="ml-live">
@@ -273,6 +273,7 @@ window.FE.tabs.ml = {
           </div>
           <div id="detail-body"></div>
         </div>
+        <div id="ml-live-notes"></div>
       </div>
 
       <h3 class="tier-heading">Tier 3 — Customer-level detection</h3>
@@ -287,17 +288,6 @@ window.FE.tabs.ml = {
         level. CUST0054 illustrates the tier's coverage: no anomalous accounts and every
         transaction under the reporting threshold, flagged on 2 cross-account structuring days,
         no screening on record, ${fmtMoney(3888353, true)} across 4 accounts.</p>
-        <details class="notes">
-          <summary>Method and cross-tier consistency</summary>
-          <p>The customer model combines account structure (number of accounts, anomalous
-          accounts, peak account score), cross-account signals (structuring split across the
-          customer's own accounts, value through non-active accounts) and KYC attributes
-          (rating, PEP, screening state, post-match activity). Cross-tier consistency:
-          ${fmtPct(t3v.cross_tier.anomalous_account_customers_in_top15)} of anomalous-account
-          customers rank in this top-15; Spearman between customer score and peak account score
-          is ${t3v.cross_tier.spearman_score_vs_max_account_score} — the customer tier re-ranks
-          with information of its own rather than duplicating the account tier.</p>
-        </details>
         <div class="table-wrap"><table>
           <thead><tr><th>#</th><th>Customer</th><th class="num">Score</th><th class="num">Accounts</th>
           <th class="num">Anomalous accts</th><th class="num">Structuring days</th><th>Screening</th>
@@ -314,6 +304,17 @@ window.FE.tabs.ml = {
             <td>${r.anomaly === -1 ? '<span class="badge badge-sanctioned">anomalous</span>' : ""}</td></tr>`).join("")}
           </tbody>
         </table></div>
+        <details class="notes">
+          <summary>Method and cross-tier consistency</summary>
+          <p>The customer model combines account structure (number of accounts, anomalous
+          accounts, peak account score), cross-account signals (structuring split across the
+          customer's own accounts, value through non-active accounts) and KYC attributes
+          (rating, PEP, screening state, post-match activity). Cross-tier consistency:
+          ${fmtPct(t3v.cross_tier.anomalous_account_customers_in_top15)} of anomalous-account
+          customers rank in this top-15; Spearman between customer score and peak account score
+          is ${t3v.cross_tier.spearman_score_vs_max_account_score} — the customer tier re-ranks
+          with information of its own rather than duplicating the account tier.</p>
+        </details>
       </div>`;
 
     el.querySelector("#t1-see-all").addEventListener("click", (e) => {
@@ -387,7 +388,8 @@ window.FE.tabs.ml = {
       el.querySelector("#ml-verify").className = "";
       el.querySelector("#ml-verify").innerHTML = `
         <span class="badge ${allMatch ? "badge-clear" : "badge-sanctioned"}">
-        ${matches}/${byAccount.size} account scores recomputed in your browser match the pipeline${allMatch ? " ✓" : ""}</span>
+        ${matches}/${byAccount.size} account scores recomputed in your browser match the pipeline${allMatch ? " ✓" : ""}</span>`;
+      el.querySelector("#ml-live-notes").innerHTML = `
         <details class="notes">
           <summary>How this verification works</summary>
           <p>The 16 features are rebuilt in the browser from the served transactions and

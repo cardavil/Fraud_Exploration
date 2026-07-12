@@ -111,3 +111,6 @@ poder auditarla commit a commit.
 | in-browser verification | recomputo local de scores contra el pipeline | live scoring, demo |
 
 | Sentinel | agente IA de analisis de sujetos (pipeline de 5 agentes en Edge Function) | copilot, Compliance Copilot |
+
+- Los bloques colapsables de notas (`details.notes` / `details.criteria-legend`) van SIEMPRE
+  al final del card o seccion, despues de los datos que anotan — nunca antes.
