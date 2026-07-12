@@ -44,14 +44,19 @@ High-risk country set used everywhere: Iran, North Korea, Syria, Russia, Myanmar
 Offshore set: Cayman Islands, British Virgin Islands, Panama, Cyprus, Malta.
 "Now" for age calculations: 2026-07-11.
 
-## Build plan — status 2026-07-12
+## Build plan — status 2026-07-12 (v2)
 
-Steps 1–4 and 6 are BUILT AND DEPLOYED: repo organized, Supabase seeded with
-RLS verified (SELECT-only anon, writes rejected), board live via Cloudflare
-Pages, copilot Edge Function live (model alias `gemini-flash-latest` — pinned
-2.5 ids 404 for new API users; Postgres-enforced rate limit: 8/min/IP + 250/day
-via `copilot_hit` RPC, see `supabase/rate_limit.sql`). Step 5 (Power BI) was
-explicitly EXCLUDED from this build; step 7 (submission package) pending.
+Steps 1–4 and 6 are BUILT AND DEPLOYED, plus the v2 iteration: the board is
+six tabs (Overview with 8 KPI popups, Data explorer, EDA as a 6-step process,
+Findings with evidence charts, ML model card with a real sensitivity sweep,
+AI Engine), the copilot is a **five-agent pipeline** with retry/fallback
+wrapper, PII anonymization, injection defenses, Postgres rate limiting
+(8/min/IP + 250/day) and a per-agent `copilot_audit` trail. Model aliases
+only (`gemini-flash-latest` / `-lite-` — pinned 2.5 ids 404 for new users).
+Design docs live in `docs/` (PRD, TRD, DATABASE, UI, APPFLOW, CONVENTIONS,
+MOCKUPS); the 5-insight deliverable in `reports/EXECUTIVE_SUMMARY.md`.
+Step 5 (Power BI) EXCLUDED from this build; step 7 (submission email + .pbix)
+pending — deadline 2026-07-14.
 
 ### 1. Repo skeleton
 ```

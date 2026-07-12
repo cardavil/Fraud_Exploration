@@ -5,7 +5,9 @@ exploration tool**: cleaning pipeline → interpretable ML anomaly detection →
 serving layer → web board with an AI copilot grounded on the served data.
 
 **Live board:** https://fraud-exploration.pages.dev
-**Full analysis:** [outputs/EDA_FINDINGS.md](outputs/EDA_FINDINGS.md)
+**Executive summary (the 5 headline insights):** [reports/EXECUTIVE_SUMMARY.md](reports/EXECUTIVE_SUMMARY.md)
+**Full analysis:** [outputs/EDA_FINDINGS.md](outputs/EDA_FINDINGS.md) ·
+**Design docs:** [docs/](docs/)
 
 > **Disclaimer** — Personal portfolio project inspired by a hiring assessment, built
 > entirely on a **dummy dataset**. Not affiliated with, or endorsed by, Nuvei or any
@@ -23,7 +25,7 @@ flowchart LR
   subgraph Serving["Serving layer (Supabase)"]
     SEED[generate_seed.py<br/>apply_seed.py] --> PG[(Postgres<br/>RLS: SELECT-only anon)]
     PG --- REST[PostgREST API]
-    FN[Edge Function<br/>copilot]
+    FN[Edge Function copilot<br/>5-agent pipeline + audit]
   end
 
   subgraph Front["Frontend (Cloudflare Pages)"]
@@ -39,13 +41,24 @@ flowchart LR
   GH[GitHub repo] -->|git integration<br/>auto-deploy| APP
 ```
 
+## The board — six tabs, one narrative
+
+| Tab | What it shows |
+|---|---|
+| **Overview** | 8 live KPIs; every tile opens a popup with the definition, the exact formula (live numerator/denominator) and why it matters. |
+| **Data** | The serving layer raw: all 8 tables, filterable column by column. |
+| **EDA** | The analysis as a six-step process — audited cleaning (live from `cleaning_log`), verified counts, descriptives, distributions, associations. |
+| **Findings** | Thematic deep-dives, each with an evidence chart, per-mark tooltips and a "how to read" note. |
+| **ML Model** | Why Isolation Forest, the 12 features, a real parameter-sensitivity sweep, and the explained anomaly list. |
+| **AI Engine** | The copilot's internals — five-agent pipeline, tools, model wrapper with retry/fallback, anonymization, injection defenses — plus the live runner with a per-agent audit table. |
+
 ## Stack rationale
 
 | Choice | Why |
 |---|---|
 | **Supabase (Postgres + PostgREST)** | A serving layer with real row-level security: the anon key shipped to the browser can only `SELECT`. Write privileges are revoked *and* no write policy exists — defense in depth. |
 | **Cloudflare Pages, no build step** | The board is vanilla HTML/JS/CSS; deploys on every push through the GitHub integration. Nothing to compile, nothing to break. |
-| **Supabase Edge Function for the copilot** | The Gemini key must never reach the client. The function holds it as a server-side secret, fetches the account's data itself (grounding), and forces a JSON response schema. |
+| **Supabase Edge Function for the copilot** | The Gemini key must never reach the client. Inside, a **five-agent pipeline** (profile → behavior → ML interpretation → synthesis → compliance QA) with one model wrapper (retry, backoff, fallback chain), PII pseudonymization by construction, prompt-injection framing, Postgres-enforced rate limits and a per-agent audit trail. |
 | **Isolation Forest at account level** | Unsupervised, fits a no-labels compliance setting, and stays **explainable**: every flagged account shows *which* behavioral features deviate and by how much. |
 
 **Production note:** here Postgres serves both roles for simplicity. In a production
@@ -76,20 +89,24 @@ Full statistical detail, methodology and the cleaning audit trail:
 ## Repository layout
 
 ```
-analysis/    clean.py (audited cleaning), anomaly.py (Isolation Forest)
+analysis/    clean.py, anomaly.py, export_eda_stats.py, model_sensitivity.py
 data/        raw + cleaned SQLite (dummy data, safe to commit)
 outputs/     EDA findings, cleaning log, model scores
-app/         static frontend (Cloudflare Pages root)
-supabase/    seed generator + applier, edge function, config
+reports/     EXECUTIVE_SUMMARY.md — the 5-insight deliverable
+app/         static frontend (Cloudflare Pages root; js/ modules, data/ precomputed stats)
+supabase/    seed generator + applier, edge function (5-agent copilot), rate limit, audit
+docs/        PRD, TRD, DATABASE, UI, APPFLOW, CONVENTIONS, MOCKUPS
 ```
 
 ## Reproduce
 
 ```bash
-pip install pandas scikit-learn
-python analysis/clean.py      # rebuilds data/clean.db + cleaning log
-python analysis/anomaly.py    # rebuilds model scores
-python supabase/generate_seed.py           # regenerates supabase/seed.sql
+pip install pandas scikit-learn scipy
+python analysis/clean.py                # rebuilds data/clean.db + cleaning log
+python analysis/anomaly.py              # rebuilds model scores
+python analysis/export_eda_stats.py     # rebuilds app/data/eda_stats.json
+python analysis/model_sensitivity.py    # rebuilds app/data/model_sensitivity.json
+python supabase/generate_seed.py        # regenerates supabase/seed.sql
 SUPABASE_ACCESS_TOKEN=... python supabase/apply_seed.py   # applies it (Management API)
 ```
 
