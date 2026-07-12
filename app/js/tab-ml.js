@@ -117,9 +117,12 @@ window.FE.tabs.ml = {
         detections overlap the rules engine;
         <strong>${t1v.convergence_vs_rules.model_only} are model-only detections</strong>,
         including ${t1v.top_model_only.slice(0, 2).map((t) => fmtMoney(t.amount, true)).join(" and ")} transfers.</p>
+        <p class="muted">The table shows the <strong>10 highest-scored</strong> of the
+        ${fmtInt(t1v.n_flagged)} flagged transactions.
+        <a href="#data" class="drill-link" id="t1-see-all">View all ${fmtInt(t1v.n_flagged)} in the Data tab &rarr;</a></p>
         <div class="table-wrap"><table>
           <thead><tr><th>Transaction</th><th>Account</th><th class="num">Amount</th>
-          <th class="num">Score</th><th>Why</th><th>Rules?</th></tr></thead>
+          <th class="num">Score</th><th>Drivers</th><th>Rules engine</th></tr></thead>
           <tbody>${topTxns.map((t) => `
             <tr><td>${escapeHtml(t.transaction_id)}</td><td>${escapeHtml(t.account_id)}</td>
             <td class="num">${t.amount == null ? "—" : fmtMoney(t.amount)}</td>
@@ -128,6 +131,24 @@ window.FE.tabs.ml = {
                                      : '<span class="badge badge-sanctioned">model only</span>'}</td></tr>`).join("")}
           </tbody>
         </table></div>
+        <div class="criteria-legend">
+          <strong>Driver criteria</strong> — the chips name the strongest signals behind each
+          score (up to 3 shown; the model uses all 11 features):
+          <dl>
+            <dt>N× its account's median</dt><dd>amount at least 5× the median amount of the same account</dd>
+            <dt>non-active account</dt><dd>the account was Closed, Dormant or Frozen at the time</dd>
+            <dt>sanctioned country</dt><dd>counterparty in a sanctioned or high-risk jurisdiction</dd>
+            <dt>9–10k band</dt><dd>amount between $9,000 and $9,999, under the $10,000 reporting threshold</dd>
+            <dt>N txns same day</dt><dd>4 or more transactions on the account that day</dd>
+            <dt>offshore</dt><dd>counterparty in an offshore financial center</dd>
+            <dt>intl flag wrong</dt><dd>sanctioned-country counterparty recorded as domestic</dd>
+          </dl>
+          <p><strong>Rules engine</strong> — comparison with the dataset's rule-based monitoring
+          (<code>flagged_for_review</code>): <span class="badge badge-plain">also flagged</span>
+          the rules marked it too · <span class="badge badge-sanctioned">model only</span>
+          flagged only by the model. The full feature values per transaction are in the
+          <code>transaction_scores</code> table (Data tab).</p>
+        </div>
       </div>
 
       <h3 class="tier-heading">Tier 2 — Account-level detection</h3>
@@ -276,6 +297,14 @@ window.FE.tabs.ml = {
           </tbody>
         </table></div>
       </div>`;
+
+    el.querySelector("#t1-see-all").addEventListener("click", (e) => {
+      e.preventDefault();
+      window.FE.openData("transaction_scores", [
+        { col: "anomaly", kind: "min", value: -1 },
+        { col: "anomaly", kind: "max", value: -1 },
+      ]);
+    });
 
     /* ---------- charts ---------- */
     const byTrees = {};
