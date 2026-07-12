@@ -7,12 +7,15 @@ window.FE.tabs.findings = {
     const d = state.data;
     const k = state.kpis;
 
-    const card = (id, title, lead) => `
+    const card = (id, title, lead, drill = "") => `
       <div class="card finding-card" id="f-${id}">
         <h3>${title}</h3>
         <p>${lead}</p>
+        ${drill ? `<p class="drill-row">${drill}</p>` : ""}
         <div class="chart-slot" id="fc-${id}"></div>
       </div>`;
+    const drillLink = (label, table, filters) =>
+      `<a href="#data" class="drill-link" data-drill='${JSON.stringify({ table, filters })}'>${label} &rarr;</a>`;
 
     // Post-match activity per confirmed sanctions match (live computation).
     const confirmed = d.sanctions_screening.filter((s) => s.match_result === "Confirmed Match");
@@ -40,7 +43,9 @@ window.FE.tabs.findings = {
           `All ${fmtInt(k.hrUnalerted.total)} sanctioned-country transactions were flagged by the rules —
            but only ${fmtInt(k.hrUnalerted.total - k.hrUnalerted.n)} ever became an alert, leaving
            <strong>${fmtMoney(k.hrUnalerted.value, true)} unworked</strong>. Overall,
-           ${fmtPct(k.gap.n / k.gap.of)} of flagged transactions never became a case.`)}
+           ${fmtPct(k.gap.n / k.gap.of)} of flagged transactions never became a case.`,
+          drillLink("See the flagged transactions", "transactions",
+            [{ col: "flagged_for_review", kind: "categorical", value: "Yes" }]))}
         ${card("sanctions", "Confirmed sanctions matches keep transacting",
           `${confirmed.length} confirmed matches, zero resolved. Money kept moving <em>after</em> the
            match was confirmed — and ${fmtInt(k.screening.total - k.screening.done)} of
@@ -54,18 +59,31 @@ window.FE.tabs.findings = {
           `<strong>${fmtMoney(k.nonActive.value, true)}</strong> moved through Closed, Dormant and
            Frozen accounts (${fmtInt(k.nonActive.n)} transactions). The
            <code>is_international</code> flag misclassifies ${fmtInt(k.nonActive.intlMisclassified)}
-           sanctioned-country transactions as domestic — the status data itself is a control failure.`)}
+           sanctioned-country transactions as domestic — the status data itself is a control failure.`,
+          ["Dormant", "Closed", "Frozen"].map((s) => drillLink(`${s} accounts`, "accounts",
+            [{ col: "status", kind: "categorical", value: s }])).join(" · "))}
         ${card("monitoring", "Monitoring never scaled — and is mis-aimed",
           `Volume tripled while alert creation stayed flat; ${fmtPct(k.fp.n / k.fp.of)} of closed
            alerts are false positives, and the KYC risk rating shows no statistical relationship with
            flagged activity (Cramér's V = 0.052). Capacity is spent on noise while the backlog holds
-           ${k.critHigh} unresolved Critical/High alerts (median age 90 days).`)}
+           ${k.critHigh} unresolved Critical/High alerts (median age 90 days).`,
+          drillLink("See the open Critical alerts", "compliance_alerts",
+            [{ col: "status", kind: "categorical", value: "Open" },
+             { col: "severity", kind: "categorical", value: "Critical" }]))}
         ${card("chargebacks", "Chargebacks are accelerating",
           `Monthly chargeback value grew ~${k.chargebacks.ratio.toFixed(0)}× in four months
            (${fmtMoney(k.chargebacks.from, true)} → ${fmtMoney(k.chargebacks.to, true)}).
            Fraud-coded cases (CNP + Unauthorized) account for 21% of disputes; top-6 merchants
            concentrate 64% of cases.`)}
       </div>`;
+
+    el.querySelectorAll(".drill-link").forEach((link) => {
+      link.addEventListener("click", (e) => {
+        e.preventDefault();
+        const { table, filters } = JSON.parse(link.dataset.drill);
+        window.FE.openData(table, filters);
+      });
+    });
 
     hBarChart(el.querySelector("#fc-gap"), {
       title: "The escalation funnel, in transactions",

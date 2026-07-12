@@ -7,7 +7,7 @@ window.FE = (() => {
   const TABLES = ["customers", "accounts", "transactions", "compliance_alerts",
     "sanctions_screening", "chargebacks", "account_scores", "cleaning_log"];
 
-  const state = { data: {}, stats: null, sensitivity: null, kpis: null, ready: false };
+  const state = { data: {}, stats: null, sensitivity: null, examples: null, kpis: null, ready: false };
   const tabs = {};          // name -> { render(el), rendered }
   const $ = (id) => document.getElementById(id);
 
@@ -102,6 +102,21 @@ window.FE = (() => {
   }
   const goTo = (name) => { activateTab(name); window.scrollTo({ top: 0 }); };
 
+  // Deep-link into the Data tab with a table and pre-applied filters.
+  // presetFilters: [{ col, kind: "categorical"|"min"|"max"|"from"|"to"|"contains", value }]
+  let pendingDataPreset = null;
+  function openData(table, presetFilters) {
+    pendingDataPreset = { table, filters: presetFilters ?? [] };
+    goTo("data");
+    if (tabs.data.rendered) tabs.data.applyPreset?.();
+  }
+  const takeDataPreset = () => {
+    const p = pendingDataPreset;
+    pendingDataPreset = null;
+    return p;
+  };
+  const peekDataPreset = () => pendingDataPreset;
+
   /* ---------- boot ---------- */
   async function boot() {
     document.querySelectorAll(".tab-btn").forEach((b) =>
@@ -114,12 +129,14 @@ window.FE = (() => {
     document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeModal(); });
 
     try {
-      const [stats, sensitivity] = await Promise.all([
+      const [stats, sensitivity, examples] = await Promise.all([
         fetch("data/eda_stats.json").then((r) => r.json()),
         fetch("data/model_sensitivity.json").then((r) => r.json()),
+        fetch("data/cleaning_examples.json").then((r) => r.json()),
       ]);
       state.stats = stats;
       state.sensitivity = sensitivity;
+      state.examples = examples;
       const results = await Promise.all(TABLES.map((t) => supabaseFetchAll(
         t === "transactions"
           ? "transactions?select=*&order=transaction_date.desc,transaction_id.asc"
@@ -138,5 +155,6 @@ window.FE = (() => {
   }
 
   return { CFG, HIGH_RISK, OFFSHORE, state, tabs, $, fmtMoney, fmtInt, fmtPct,
-           escapeHtml, supabaseFetch, supabaseFetchAll, openModal, closeModal, goTo, boot };
+           escapeHtml, supabaseFetch, supabaseFetchAll, openModal, closeModal, goTo,
+           openData, takeDataPreset, peekDataPreset, boot };
 })();

@@ -390,3 +390,30 @@ tbody tr:hover { background: var(--row-hover); }
 .filter-row input:focus { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
 .range-pair { display: flex; gap: 6px; }
 .range-pair input { width: 96px; }
+
+/* ================= v2.1: profiler, expandable cleaning log, integrity ================= */
+.view-toggle { display: flex; gap: 0; }
+.view-toggle .btn { border-radius: 0; }
+.view-toggle .btn:first-child { border-radius: 8px 0 0 8px; }
+.view-toggle .btn:last-child { border-radius: 0 8px 8px 0; margin-left: -1px; }
+.view-toggle .btn.active { background: var(--brand-blue); border-color: var(--brand-blue); color: var(--on-brand); }
+
+.sample-cell { max-width: 320px; overflow: hidden; text-overflow: ellipsis; color: var(--muted); }
+
+.eda-chip { margin-left: auto; font-size: .74rem; font-weight: 600; color: var(--muted);
+  background: var(--tint); border-radius: 999px; padding: 3px 12px; white-space: nowrap; }
+
+.log-row.expandable { cursor: pointer; }
+.log-row .chev { color: var(--brand-blue-ink); font-size: .8rem; width: 18px; }
+.example-row > td { background: var(--tint); padding: 10px 14px; }
+.example-table { font-size: .82rem; background: var(--surface); border-radius: 8px; }
+.example-table th, .example-table td { padding: 6px 10px; }
+.ex-before { color: var(--risk-red-ink); font-family: ui-monospace, monospace; font-size: .8rem; }
+.ex-after { color: var(--risk-green-ink); font-family: ui-monospace, monospace; font-size: .8rem; }
+
+.drill-link { color: var(--brand-blue-ink); font-weight: 600; font-size: .84rem; text-decoration: none; }
+.drill-link:hover { text-decoration: underline; }
+.drill-row { margin: 2px 0 6px; }
+.example-row .drill-link { display: inline-block; margin-top: 8px; }
+
+.integrity-title { margin: 16px 0 6px; font-size: .9rem; }

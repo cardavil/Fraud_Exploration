@@ -1,10 +1,14 @@
-/* Data explorer: every served table, filterable column by column. Filters are
-   derived from the data itself — categorical columns become selects, numeric
-   columns min/max, ISO dates a range. All client-side (tables are small). */
+/* Data explorer: every served table, in two views.
+   Rows  — the records, filterable column by column (filters derive from the
+           data itself: categoricals→select, numerics→min/max, dates→range).
+   Profile — one row per COLUMN: detected type, non-null share, uniques,
+           min/median/max, sample values, PK badge and a >20%-empty warning.
+   FE.openData(table, filters) deep-links here with filters pre-applied. */
 window.FE.tabs.data = {
   render(el) {
-    const { state, fmtInt, fmtMoney, escapeHtml } = window.FE;
+    const { state, fmtInt, fmtMoney, fmtPct, escapeHtml, takeDataPreset } = window.FE;
     const PAGE = 25;
+    const NULL_WARN = 0.2;     // empty share above this gets an amber badge
     const TABLE_NOTES = {
       customers: "KYC master — one row per customer.",
       accounts: "Accounts with status and balance; FK to customers.",
@@ -15,7 +19,8 @@ window.FE.tabs.data = {
       account_scores: "Isolation Forest features + scores per account.",
       cleaning_log: "The audit trail of every cleaning treatment applied.",
     };
-    let current = "transactions", filters = {}, page = 0;
+    let current = "transactions", view = "rows", filters = {}, page = 0;
+    const profileCache = new Map();
 
     const isDate = (v) => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v);
     const columnKind = (rows, col) => {
@@ -27,6 +32,67 @@ window.FE.tabs.data = {
       return distinct.size <= 25 ? "categorical" : "text";
     };
 
+    /* ---------- profile view ---------- */
+    function profileFor(table) {
+      if (profileCache.has(table)) return profileCache.get(table);
+      const rows = state.data[table];
+      const cols = Object.keys(rows[0] ?? {});
+      const profile = cols.map((col) => {
+        const values = rows.map((r) => r[col]);
+        const present = values.filter((v) => v !== null && v !== undefined && v !== "");
+        const uniques = new Set(present).size;
+        const kind = columnKind(rows, col);
+        const p = {
+          col, kind,
+          nonNull: present.length, total: values.length,
+          emptyShare: (values.length - present.length) / values.length,
+          uniques,
+          isPk: uniques === present.length && present.length === values.length && col.endsWith("_id")
+            && rows.length > 1 && uniques === rows.length,
+          sample: [...new Set(present)].slice(0, 4),
+        };
+        if (kind === "number") {
+          const nums = [...present].sort((a, b) => a - b);
+          const mid = Math.floor(nums.length / 2);
+          p.min = nums[0];
+          p.median = nums.length % 2 ? nums[mid] : (nums[mid - 1] + nums[mid]) / 2;
+          p.max = nums[nums.length - 1];
+        }
+        return p;
+      });
+      profileCache.set(table, profile);
+      return profile;
+    }
+
+    const fmtNum = (v) => (Math.abs(v) >= 10000 ? fmtMoney(v, true) : fmtInt(Math.round(v * 100) / 100));
+
+    function renderProfile() {
+      const profile = profileFor(current);
+      el.querySelector("#dx-summary").textContent =
+        `${profile.length} columns · ${fmtInt(state.data[current].length)} rows`;
+      el.querySelector("#dx-head").innerHTML = `<tr>
+        <th>Column</th><th>Type</th><th class="num">Non-null</th><th class="num">Unique</th>
+        <th class="num">Min / Median / Max</th><th>Sample</th><th>Flags</th></tr>`;
+      el.querySelector("#dx-body").innerHTML = profile.map((p) => `
+        <tr>
+          <td><strong>${escapeHtml(p.col)}</strong></td>
+          <td><span class="badge badge-plain">${p.kind}</span></td>
+          <td class="num">${fmtInt(p.nonNull)}/${fmtInt(p.total)} (${fmtPct(p.nonNull / p.total)})</td>
+          <td class="num">${fmtInt(p.uniques)}</td>
+          <td class="num">${p.kind === "number" ? `${fmtNum(p.min)} / ${fmtNum(p.median)} / ${fmtNum(p.max)}` : "—"}</td>
+          <td class="sample-cell">${p.sample.map((v) => escapeHtml(String(v))).join(" · ")}</td>
+          <td>
+            ${p.isPk ? '<span class="badge badge-clear">PK</span>' : ""}
+            ${p.emptyShare > NULL_WARN ? `<span class="badge badge-offshore">${fmtPct(p.emptyShare)} empty</span>` : ""}
+          </td>
+        </tr>`).join("");
+      el.querySelector("#dx-page").textContent = "";
+      el.querySelector("#dx-prev").disabled = true;
+      el.querySelector("#dx-next").disabled = true;
+      el.querySelector("#dx-filters").classList.add("hidden");
+    }
+
+    /* ---------- rows view (filters + pagination) ---------- */
     function buildFilters() {
       const rows = state.data[current];
       const cols = Object.keys(rows[0] ?? {});
@@ -99,10 +165,14 @@ window.FE.tabs.data = {
       el.querySelector("#dx-page").textContent = `Page ${page + 1} of ${pages}`;
       el.querySelector("#dx-prev").disabled = page === 0;
       el.querySelector("#dx-next").disabled = page >= pages - 1;
+      el.querySelector("#dx-filters").classList.remove("hidden");
     }
+
+    const renderView = () => (view === "profile" ? renderProfile() : renderRows());
 
     function mountTable() {
       el.querySelector("#dx-note").textContent = TABLE_NOTES[current];
+      el.querySelector("#dx-table").value = current;
       el.querySelector("#dx-filters").innerHTML = buildFilters();
       el.querySelectorAll("#dx-filters [data-col]").forEach((input) => {
         input.addEventListener(input.tagName === "SELECT" ? "change" : "input", () => {
@@ -112,21 +182,49 @@ window.FE.tabs.data = {
         });
       });
       page = 0;
+      renderView();
+    }
+
+    // Consume a deep-link preset from FE.openData (table + expressible filters).
+    function applyPreset() {
+      const preset = takeDataPreset();
+      if (!preset) return;
+      current = preset.table;
+      view = "rows";
+      setViewButtons();
+      mountTable();
+      for (const f of preset.filters) {
+        const input = el.querySelector(`#dx-filters [data-col="${f.col}"][data-kind="${f.kind}"]`);
+        if (!input) continue;
+        input.value = f.value;
+        filters[`${f.col}::${f.kind}`] = String(f.value);
+      }
       renderRows();
+    }
+    window.FE.tabs.data.applyPreset = applyPreset;
+
+    function setViewButtons() {
+      el.querySelector("#dx-view-rows").classList.toggle("active", view === "rows");
+      el.querySelector("#dx-view-profile").classList.toggle("active", view === "profile");
     }
 
     el.innerHTML = `
-      <p class="tab-intro">The serving layer, raw. Every table below is read live from Supabase with
-      the public anon key — row-level security only allows <code>SELECT</code>. Filters are built
-      from the data itself; nothing is precomputed here.</p>
+      <p class="tab-intro">The serving layer, raw. Every table is read live from Supabase with the
+      public anon key — row-level security only allows <code>SELECT</code>. <strong>Rows</strong>
+      shows the records with filters built from the data itself; <strong>Profile</strong> examines
+      the table column by column: type, completeness, cardinality and sample values.</p>
       <div class="card">
         <div class="card-head">
           <label class="table-pick">Table
             <select id="dx-table">
               ${Object.keys(TABLE_NOTES).map((t) =>
-                `<option value="${t}" ${t === current ? "selected" : ""}>${t} (${fmtInt(state.data[t].length)})</option>`).join("")}
+                `<option value="${t}">${t} (${fmtInt(state.data[t].length)})</option>`).join("")}
             </select>
           </label>
+          <div class="view-toggle" role="group" aria-label="View">
+            <button class="btn btn-ghost active" id="dx-view-rows" type="button">Rows</button>
+            <button class="btn btn-ghost" id="dx-view-profile" type="button">Profile</button>
+          </div>
           <span class="muted" id="dx-note"></span>
           <span class="muted" id="dx-summary"></span>
         </div>
@@ -147,8 +245,12 @@ window.FE.tabs.data = {
       current = e.target.value;
       mountTable();
     });
+    el.querySelector("#dx-view-rows").addEventListener("click", () => { view = "rows"; setViewButtons(); renderView(); });
+    el.querySelector("#dx-view-profile").addEventListener("click", () => { view = "profile"; setViewButtons(); renderView(); });
     el.querySelector("#dx-prev").addEventListener("click", () => { page--; renderRows(); });
     el.querySelector("#dx-next").addEventListener("click", () => { page++; renderRows(); });
-    mountTable();
+
+    if (window.FE.peekDataPreset()) applyPreset();
+    else mountTable();
   },
 };
