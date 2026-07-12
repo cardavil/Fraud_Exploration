@@ -117,9 +117,6 @@ window.FE.tabs.ml = {
         detections overlap the rules engine;
         <strong>${t1v.convergence_vs_rules.model_only} are model-only detections</strong>,
         including ${t1v.top_model_only.slice(0, 2).map((t) => fmtMoney(t.amount, true)).join(" and ")} transfers.</p>
-        <p class="muted">The table shows the <strong>10 highest-scored</strong> of the
-        ${fmtInt(t1v.n_flagged)} flagged transactions.
-        <a href="#data" class="drill-link" id="t1-see-all">View all ${fmtInt(t1v.n_flagged)} in the Data tab &rarr;</a></p>
         <div class="table-wrap"><table>
           <thead><tr><th>Transaction</th><th>Account</th><th class="num">Amount</th>
           <th class="num">Score</th><th>Drivers</th><th>Rules engine</th></tr></thead>
@@ -132,7 +129,10 @@ window.FE.tabs.ml = {
           </tbody>
         </table></div>
         <details class="criteria-legend">
-          <summary>Driver criteria and rules-engine definitions</summary>
+          <summary>Table notes — selection, driver criteria and rules-engine definitions</summary>
+          <p>The table shows the <strong>10 highest-scored</strong> of the
+          ${fmtInt(t1v.n_flagged)} flagged transactions.
+          <a href="#data" class="drill-link" id="t1-see-all">View all ${fmtInt(t1v.n_flagged)} in the Data tab &rarr;</a></p>
           <p>The chips name the strongest signals behind each score (up to 3 shown; the model
           uses all 11 features):</p>
           <dl>
