@@ -203,3 +203,28 @@ Implementado en `app/js/core.js::boot`:
 - **Estados por fetch**: cada lectura (`supabaseFetch`) lanza con status y path (`Supabase read failed (status) on <tabla>`), asi el banner dice exactamente que fallo.
 - **Render lazy por tab**: los tabs se registran en `FE.tabs` y renderizan solo en su primera activacion y solo cuando `state.ready` — un tab roto no impide navegar a los demas.
 - **Errores del copiloto**: la Edge Function responde con codigos y mensajes accionables — 400 (body/`account_id` invalido), 404 (cuenta desconocida), 405 (no-POST), 429 (rate limit, TRD §7), 500 (pipeline abortado), 503 (falta `GEMINI_API_KEY`).
+
+---
+
+## 11. Validacion del modelo e inferencia en el navegador (v2.2, 2026-07-12)
+
+Sin labels no existe accuracy; la validacion no supervisada del IF corre en
+`analysis/model_validation.py` → `app/data/model_validation.json`:
+
+| Analisis | Metodo | Resultado base |
+|---|---|---|
+| Memorization check | 50 splits 70/30, score train vs held-out | gap -0.008 ± 0.010 (no memoriza) |
+| Confianza por deteccion | 200 refits bootstrap 80% | 6 cuentas al 100%, ACC00032 al 37% (fragil) |
+| Estabilidad por seed | 50 seeds, Jaccard vs base | media 0.80, min 0.64 |
+| Distribucion de scores | histograma + offset_ real | cutoff 0.525 |
+| Validez convergente | vs alertas de reglas (weak labels) | correlacion ~0: modelo ortogonal a las reglas (por diseno) |
+| Ablacion | leave-one-feature-out | tx_per_month domina (Jaccard 0.38 sin ella) |
+
+**Inferencia en el navegador**: `analysis/export_model.py` exporta el forest entrenado
+(300 arboles + scaler + offset_) a `app/data/isolation_forest.json` (0.64 MB, lazy-load
+al abrir el tab ML) verificando fidelidad contra sklearn (< 1e-9) con un scorer en Python
+puro ANTES de escribir. `app/js/iforest.js` replica el feature engineering de anomaly.py
+y la semantica de score_samples (path length con correccion c(n), score = 2^(-E[h]/c(psi))).
+El tab ML recomputa los 105 scores en el navegador y los verifica contra el pipeline
+(badge 105/105; el smoke exige |delta| < 1e-4, observado ~1e-13), y expone un what-if
+playground con sliders sobre 5 features accionables contra el cutoff real del modelo.

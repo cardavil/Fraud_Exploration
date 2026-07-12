@@ -191,3 +191,10 @@ entregable siguen fuera de la UI (reporte anexo). **Vigente.**
 **2026-07-12** — Se elimina el tab Overview: el board abre directo en Data y el orden queda
 Data / EDA / Findings / ML Model / AI Engine. Los 8 KPI tiles con popup explicativo se mudan
 al tope del tab Findings (son el resumen de resultados, no una portada). **Vigente.**
+
+**2026-07-12** — v2.2: el tab ML gana (a) card de Validacion con los sustitutos honestos de
+accuracy/overfitting para un modelo sin labels (memorization check, confianza bootstrap por
+deteccion, estabilidad por seed, distribucion con cutoff, validez convergente con caveat,
+ablacion) y (b) Live scoring: el forest entrenado corre EN el navegador, verifica 105/105
+scores contra el pipeline y ofrece un what-if playground. Regla mantenida: ninguna metrica
+supervisada fingida. **Vigente.**

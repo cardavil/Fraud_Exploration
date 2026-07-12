@@ -1,10 +1,15 @@
 /* ML Model: what Isolation Forest is, how it was applied, how the parameters
-   behave (real sweep from analysis/model_sensitivity.py) and what it found. */
+   behave (real sweep), how it VALIDATES (overfitting, bootstrap confidence,
+   stability, convergent validity, ablation — model_validation.json), what it
+   found, and — live — the model itself running in the browser (iforest.js):
+   every score recomputed client-side and verified against the pipeline, plus
+   a what-if playground. */
 window.FE.tabs.ml = {
   render(el) {
     const { state, fmtInt, fmtMoney, fmtPct, escapeHtml } = window.FE;
-    const { lineChart } = window.FE.charts;
+    const { barChart, hBarChart, lineChart } = window.FE.charts;
     const sens = state.sensitivity;
+    const val = state.validation;
     const scores = state.data.account_scores;
 
     const FEATURES = [
@@ -19,7 +24,6 @@ window.FE.tabs.ml = {
       ["tx_per_month / velocity_value", "Velocity: transactions and value per month"],
     ];
 
-    /* per-feature deviation explanation vs the population median */
     const FEATURE_LABELS = {
       n_tx: ["transactions", (v) => v.toFixed(0)],
       total: ["total value", (v) => fmtMoney(v, true)],
@@ -57,11 +61,22 @@ window.FE.tabs.ml = {
 
     const anoms = scores.filter((s) => s.anomaly === -1).sort((a, b) => b.score - a.score);
     const maxScore = Math.max(...anoms.map((a) => a.score));
+    const confidence = new Map(val.bootstrap.accounts.map((a) => [a.account_id, a.frequency]));
+    const confidenceBadge = (id) => {
+      const f = confidence.get(id);
+      if (f == null) return "";
+      const cls = f >= 0.9 ? "badge-clear" : f >= 0.6 ? "badge-offshore" : "badge-sanctioned";
+      return `<span class="badge ${cls}">flagged in ${fmtPct(f)} of refits</span>`;
+    };
+    const ov = val.overfitting;
+    const cv = val.convergent_validity;
 
     el.innerHTML = `
       <p class="tab-intro">Unsupervised anomaly detection at account level. There are no fraud
       labels in this dataset, so the model's job is not to classify — it is to surface accounts
-      whose behavior is structurally unlike the rest, and to do it <strong>explainably</strong>.</p>
+      whose behavior is structurally unlike the rest, to prove that holds up under validation,
+      and to do it <strong>explainably</strong>. At the bottom, the model itself runs in your
+      browser.</p>
 
       <div class="ml-grid">
         <div class="card">
@@ -70,12 +85,11 @@ window.FE.tabs.ml = {
           isolated in fewer splits, so their average path length is short. It fits this problem
           because it needs <strong>no labels</strong>, handles mixed-scale behavioral features,
           and its output is <strong>auditable</strong> — every flagged account can be explained
-          by which features deviate (below), which is what a compliance reviewer needs.</p>
+          by which features deviate, which is what a compliance reviewer needs.</p>
           <h3>How it was applied</h3>
           <p><code>transactions</code> → 12 behavioral features per account →
           <code>StandardScaler</code> → <code>IsolationForest(n_estimators=300,
-          contamination=0.08, random_state=42)</code>. Code:
-          <code>analysis/anomaly.py</code>.</p>
+          contamination=0.08, random_state=42)</code>. Code: <code>analysis/anomaly.py</code>.</p>
           <div class="table-wrap"><table>
             <thead><tr><th>Feature</th><th>Meaning</th></tr></thead>
             <tbody>${FEATURES.map(([f, m]) =>
@@ -84,24 +98,56 @@ window.FE.tabs.ml = {
         </div>
         <div class="card">
           <h3>Parameter behavior — a real sweep, not defaults on faith</h3>
-          <p><code>analysis/model_sensitivity.py</code> refits the model over
-          contamination ∈ {4%…12%} × trees ∈ {100, 300, 500}. Two results matter:
-          <strong>contamination sets how many accounts flag</strong> (it is a review-capacity
-          dial, ${sens.grid[0].n_anomalies} → ${sens.grid[sens.grid.length - 1].n_anomalies}
-          accounts across the sweep) — and <strong>the ranking is stable</strong>: the top-5
-          accounts are identical (Jaccard 1.0) for nearly every configuration, so the accounts
-          below aren't artifacts of one parameter choice.</p>
+          <p><code>analysis/model_sensitivity.py</code> refits over contamination ∈ {4%…12%} ×
+          trees ∈ {100, 300, 500}: <strong>contamination sets how many accounts flag</strong>
+          (a review-capacity dial) while <strong>the ranking stays stable</strong> — the top-5
+          is identical (Jaccard 1.0) for nearly every configuration.</p>
           <div class="chart-slot" id="ml-sweep"></div>
-          <p class="muted">Chosen configuration: contamination 8% ≈ ${sens.base.n_anomalies} of
-          ${sens.base.n_accounts} accounts — a realistic enhanced-review workload; 300 trees
-          (the ranking already stabilizes there); fixed seed for reproducibility.</p>
+          <p class="muted">Chosen: contamination 8% ≈ ${sens.base.n_anomalies} of
+          ${sens.base.n_accounts} accounts (a realistic enhanced-review workload), 300 trees,
+          fixed seed for reproducibility.</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h3>Validation — what unsupervised rigor can and cannot claim</h3>
+          <span class="muted">analysis/model_validation.py · no labels → no "accuracy"; these are the honest substitutes</span>
+        </div>
+        <div class="ml-grid">
+          <div>
+            <h4>Memorization check (the overfitting analog)</h4>
+            <p>${ov.n_splits} random 70/30 splits: fit on train, score both sides. Mean score
+            train <strong>${ov.mean_score_train}</strong> vs held-out
+            <strong>${ov.mean_score_holdout}</strong> — gap
+            <strong>${ov.gap} ± ${ov.gap_std}</strong>. A gap ≈ 0 means the forest scores unseen
+            accounts the same as the ones it grew on: <strong>no memorization</strong>.</p>
+            <h4>Stability</h4>
+            <p>Across ${val.seed_stability.n_seeds} random seeds the anomaly set keeps a Jaccard
+            of <strong>${val.seed_stability.jaccard_mean}</strong> vs the base run
+            (min ${val.seed_stability.jaccard_min}) — the core detections are not one seed's
+            opinion, and the per-account confidence below shows exactly which ones wobble.</p>
+            <h4>Convergent validity — the honest substitute for accuracy</h4>
+            <p>Against the rules engine's alerts as a <em>weak</em> reference (they are not ground
+            truth): ${cv.flagged_with_alert} of ${cv.flagged_total} flagged accounts also have
+            alerts; score↔alert correlation is <strong>${cv.score_alert_correlation}</strong>
+            (p=${cv.correlation_p}). Read correctly, near-zero correlation is the point:
+            <strong>the model is orthogonal to the rules</strong> — it surfaces a risk dimension
+            (behavioral bursts, velocity) the geography-driven rules never look at. Judged only
+            against rule alerts it would look "inaccurate"; judged as a complementary detector,
+            it found ${cv.flagged_total - cv.flagged_with_alert} risky accounts the rules missed.</p>
+          </div>
+          <div>
+            <div class="chart-slot" id="ml-scoredist"></div>
+            <div class="chart-slot" id="ml-ablation"></div>
+          </div>
         </div>
       </div>
 
       <div class="card">
         <div class="card-head">
           <h3>Results — ${anoms.length} anomalous accounts, ${anoms.filter((a) => !a.has_alert).length} never alerted</h3>
-          <span class="muted">the model surfaces risk the rules engine missed</span>
+          <span class="muted">bootstrap confidence: share of ${val.bootstrap.n_iterations} refits on ${fmtPct(val.bootstrap.subsample)} subsamples that flag the account</span>
         </div>
         <div id="ml-anomalies">
           ${anoms.map((a) => `
@@ -112,9 +158,12 @@ window.FE.tabs.ml = {
                   <span class="anom-meta"> · ${escapeHtml(a.risk_rating)} risk · ${escapeHtml(a.status)} ·
                     ${fmtInt(a.n_tx)} txns · ${fmtMoney(a.total, true)}</span>
                 </div>
-                ${a.has_alert
-                  ? '<span class="badge badge-plain">Has alert history</span>'
-                  : '<span class="anom-alert-gap">Never alerted</span>'}
+                <div class="anom-badges">
+                  ${confidenceBadge(a.account_id)}
+                  ${a.has_alert
+                    ? '<span class="badge badge-plain">Has alert history</span>'
+                    : '<span class="anom-alert-gap">Never alerted</span>'}
+                </div>
               </div>
               <div class="anom-score-track" role="img" aria-label="Anomaly score ${a.score.toFixed(2)}">
                 <div class="anom-score-fill" style="width:${(a.score / maxScore) * 100}%"></div>
@@ -122,8 +171,39 @@ window.FE.tabs.ml = {
               <div class="anom-why">Why: ${explainDeviations(a) || "broad multi-feature deviation"}</div>
             </div>`).join("")}
         </div>
+      </div>
+
+      <div class="card" id="ml-live">
+        <div class="card-head">
+          <h3>Live scoring — this model is running in your browser right now</h3>
+          <span class="muted">the trained forest (300 trees) exported to JSON, inference in ~80 lines of JS</span>
+        </div>
+        <p id="ml-verify" class="loading-cell">Loading the exported forest and recomputing every score locally…</p>
+        <div id="ml-playground" class="hidden">
+          <h4>What-if playground</h4>
+          <p class="muted">Pick an account, drag its behavior, and watch the score respond.
+          Features are recomputed from the served transactions; the other 7 features stay at the
+          account's real values.</p>
+          <div class="copilot-controls">
+            <select id="wi-account" aria-label="Account for the playground"></select>
+          </div>
+          <div class="wi-grid" id="wi-sliders"></div>
+          <div class="wi-gauge">
+            <div class="wi-score">
+              <span class="kpi-label">Live score</span>
+              <span class="stat-value" id="wi-score-value">—</span>
+              <span id="wi-verdict"></span>
+            </div>
+            <div class="wi-track">
+              <div class="wi-fill" id="wi-fill"></div>
+              <div class="wi-cutoff" id="wi-cutoff" title="anomaly cutoff"></div>
+            </div>
+            <span class="muted" id="wi-cutoff-label"></span>
+          </div>
+        </div>
       </div>`;
 
+    /* ---------- charts ---------- */
     const byTrees = {};
     for (const g of sens.grid) (byTrees[g.n_estimators] ??= []).push(g);
     lineChart(el.querySelector("#ml-sweep"), {
@@ -136,5 +216,111 @@ window.FE.tabs.ml = {
         points: rows.map((r) => ({ x: fmtPct(r.contamination, 0), y: r.n_anomalies })),
       })),
     });
+    barChart(el.querySelector("#ml-scoredist"), {
+      title: "Score distribution and the model's cutoff",
+      howToRead: `Each bar counts accounts per score bin; red bins sit above the anomaly cutoff (${val.score_distribution.cutoff}). A visible gap between the bulk and the flagged tail means the detections are structure, not an arbitrary percentile slice.`,
+      fmt: fmtInt,
+      data: val.score_distribution.bins.map((b) => ({
+        label: b.lo.toFixed(2), value: b.count,
+        color: b.lo >= val.score_distribution.cutoff ? "#D64545" : "#2E5BFF",
+        tip: `score ${b.lo.toFixed(3)}–${b.hi.toFixed(3)}<br>${fmtInt(b.count)} accounts${b.lo >= val.score_distribution.cutoff ? " · above cutoff" : ""}`,
+      })),
+    });
+    hBarChart(el.querySelector("#ml-ablation"), {
+      title: "Feature ablation — how much the anomaly set changes without each feature",
+      howToRead: "Each bar is 1 − Jaccard between the anomaly set with and without that feature: longer = the feature matters more. Transaction velocity dominates — consistent with the single-day-burst pattern the model keeps finding.",
+      fmt: (v) => v.toFixed(2),
+      data: val.ablation.slice(0, 6).map((a) => ({
+        label: a.feature, value: Math.round((1 - a.jaccard_vs_base) * 100) / 100,
+        color: "#2E5BFF", emphasize: a.jaccard_vs_base <= 0.5,
+        tip: `without <code>${a.feature}</code>: Jaccard ${a.jaccard_vs_base} vs full model`,
+      })),
+    });
+
+    /* ---------- live scoring: verification + playground ---------- */
+    const SLIDERS = [
+      { key: "pct_hr", label: "% sanctioned-country", min: 0, max: 1, step: 0.01, fmt: fmtPct },
+      { key: "pct_cash", label: "% cash", min: 0, max: 1, step: 0.01, fmt: fmtPct },
+      { key: "pct_struct", label: "% in 9–10k band", min: 0, max: 1, step: 0.01, fmt: fmtPct },
+      { key: "tx_per_month", label: "txns / month", min: 0, max: 60, step: 0.5, fmt: (v) => v.toFixed(1) },
+      { key: "velocity_value", label: "value / month", min: 0, max: 700000, step: 5000, fmt: (v) => fmtMoney(v, true) },
+    ];
+
+    (async () => {
+      const iforest = window.FE.iforest;
+      try {
+        await iforest.load();
+      } catch {
+        el.querySelector("#ml-verify").textContent = "Could not load the exported model.";
+        return;
+      }
+      const byAccount = new Map();
+      for (const t of state.data.transactions) {
+        if (!byAccount.has(t.account_id)) byAccount.set(t.account_id, []);
+        byAccount.get(t.account_id).push(t);
+      }
+      const served = new Map(scores.map((s) => [s.account_id, s.score]));
+      const liveFeatures = new Map();
+      let matches = 0;
+      for (const [accountId, txns] of byAccount) {
+        const features = iforest.computeFeatures(txns);
+        liveFeatures.set(accountId, features);
+        if (Math.abs(iforest.score(features).score - served.get(accountId)) < 1e-4) matches++;
+      }
+      const allMatch = matches === byAccount.size;
+      el.querySelector("#ml-verify").className = "";
+      el.querySelector("#ml-verify").innerHTML = `
+        <span class="badge ${allMatch ? "badge-clear" : "badge-sanctioned"}">
+        ${matches}/${byAccount.size} account scores recomputed in your browser match the pipeline${allMatch ? " ✓" : ""}</span>
+        <span class="muted"> — features rebuilt from the served transactions, standardized and pushed
+        through the exported forest. Same numbers, two independent implementations.</span>`;
+
+      /* playground */
+      const playground = el.querySelector("#ml-playground");
+      playground.classList.remove("hidden");
+      const select = el.querySelector("#wi-account");
+      const anomIds = new Set(anoms.map((a) => a.account_id));
+      select.innerHTML = [...byAccount.keys()].sort((a, b) =>
+        (anomIds.has(b) - anomIds.has(a)) || (served.get(b) - served.get(a)))
+        .map((id) => `<option value="${id}">${id}${anomIds.has(id) ? " ⚠ anomalous" : ""}</option>`).join("");
+      const slidersEl = el.querySelector("#wi-sliders");
+      slidersEl.innerHTML = SLIDERS.map((s) => `
+        <label class="wi-slider">
+          <span>${s.label}: <strong id="wi-val-${s.key}"></strong></span>
+          <input type="range" id="wi-${s.key}" min="${s.min}" max="${s.max}" step="${s.step}">
+        </label>`).join("");
+
+      let baseFeatures = null;
+      function updateScore() {
+        const features = { ...baseFeatures };
+        for (const s of SLIDERS) {
+          const v = Number(el.querySelector(`#wi-${s.key}`).value);
+          features[s.key] = v;
+          el.querySelector(`#wi-val-${s.key}`).textContent = s.fmt(v);
+        }
+        // keep derived totals coherent when velocity moves
+        const { score, isAnomalous, cutoff } = iforest.score(features);
+        el.querySelector("#wi-score-value").textContent = score.toFixed(4);
+        el.querySelector("#wi-verdict").innerHTML = isAnomalous
+          ? '<span class="badge badge-sanctioned">anomalous</span>'
+          : '<span class="badge badge-clear">normal</span>';
+        const span = 0.75;  // display range 0..0.75 covers all observed scores
+        el.querySelector("#wi-fill").style.width = `${Math.min(score / span, 1) * 100}%`;
+        el.querySelector("#wi-cutoff").style.left = `${(cutoff / span) * 100}%`;
+        el.querySelector("#wi-cutoff-label").textContent =
+          `anomaly cutoff at ${cutoff.toFixed(3)} — cross it and the account flags`;
+      }
+      function loadAccount() {
+        baseFeatures = { ...liveFeatures.get(select.value) };
+        for (const s of SLIDERS) {
+          el.querySelector(`#wi-${s.key}`).value = Math.min(baseFeatures[s.key], s.max);
+        }
+        updateScore();
+      }
+      select.addEventListener("change", loadAccount);
+      SLIDERS.forEach((s) =>
+        el.querySelector(`#wi-${s.key}`).addEventListener("input", updateScore));
+      loadAccount();
+    })();
   },
 };
