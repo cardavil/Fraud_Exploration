@@ -197,14 +197,16 @@ tbody tr:hover { background: var(--row-hover); }
   white-space: nowrap;
 }
 .criteria-legend { font-size: .8rem; color: var(--muted); margin: 10px 0 0; }
-details.criteria-legend summary {
+details.criteria-legend summary, details.notes summary {
   cursor: pointer; font-weight: 600; color: var(--brand-blue-ink);
   padding: 4px 0; list-style-position: inside;
 }
-details.criteria-legend summary:hover { text-decoration: underline; }
-details.criteria-legend[open] {
+details.criteria-legend summary:hover, details.notes summary:hover { text-decoration: underline; }
+details.criteria-legend[open], details.notes[open] {
   background: var(--tint); border-radius: 8px; padding: 10px 14px;
 }
+details.notes { font-size: .84rem; color: var(--muted); margin: 8px 0 0; }
+details.notes p { margin: 8px 0 0; }
 .criteria-legend dt { font-weight: 600; color: var(--text); }
 .criteria-legend dl {
   display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; margin: 8px 0 0;

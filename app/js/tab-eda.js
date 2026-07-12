@@ -152,10 +152,14 @@ window.FE.tabs.eda = {
           : ""}
           <span class="badge badge-clear">every other column &lt; ${fmtPct(NULL_WARN)} empty</span>
         </div>
-        <p class="muted">Empty <code>resolution_date</code> values are unresolved alerts/disputes —
-        expected structurally, but their share is itself the backlog finding. One caveat survives
-        cleaning: <code>is_international</code> is untrustworthy (148 sanctioned-country
-        transactions marked domestic) and is treated as a finding, not a field.</p>`)}
+        <details class="notes">
+          <summary>Notes on the amber items</summary>
+          <p>Empty <code>resolution_date</code> values correspond to unresolved alerts and
+          disputes — structurally expected, and their share is itself the backlog finding.
+          One caveat survives cleaning: <code>is_international</code> is unreliable (148
+          sanctioned-country transactions marked domestic) and is treated as a finding, not a
+          usable field.</p>
+        </details>`)}
 
       ${step(4, "Descriptive statistics", `n = ${fmtInt(S.descriptive.n_valid)}`, `
         <div class="stat-row">
@@ -189,10 +193,14 @@ window.FE.tabs.eda = {
               <td class="num">${a.p < 0.001 ? "&lt;0.001" : a.p.toFixed(3)}</td><td>${reading}</td></tr>`;
           }).join("")}</tbody>
         </table></div>
-        <p>Per-customer Spearman correlations against the assigned rating tell the same story —
-        ${S.spearman_vs_rating.map((s) => `${escapeHtml(s.feature)} ρ=${s.rho >= 0 ? "+" : ""}${s.rho}`).join(", ")}
-        — only % cash reaches significance. <strong>Risk here is categorical and geographic;
-        the static KYC rating is disconnected from observed behavior.</strong></p>`)}
+        <p><strong>Risk in this dataset is categorical and geographic; the static KYC rating is
+        disconnected from observed behavior.</strong></p>
+        <details class="notes">
+          <summary>Supporting detail: Spearman correlations vs assigned rating</summary>
+          <p>Per-customer correlations between the assigned rating and observed behavior:
+          ${S.spearman_vs_rating.map((s) => `${escapeHtml(s.feature)} ρ=${s.rho >= 0 ? "+" : ""}${s.rho} (p=${s.p})`).join(", ")}.
+          Only % cash reaches statistical significance.</p>
+        </details>`)}
     `;
 
     /* expandable treatment rows + drill links */

@@ -165,11 +165,14 @@ window.FE.tabs.ml = {
           <code>StandardScaler</code> → <code>IsolationForest(n_estimators=300,
           contamination=0.08, random_state=42)</code>. Code: <code>analysis/anomaly.py</code>
           + <code>analysis/account_features.py</code>.</p>
-          <div class="table-wrap"><table>
-            <thead><tr><th>Feature</th><th>Meaning</th></tr></thead>
-            <tbody>${FEATURES.map(([f, m]) =>
-              `<tr><td><code>${f}</code></td><td>${m}</td></tr>`).join("")}</tbody>
-          </table></div>
+          <details class="notes">
+            <summary>Feature definitions (16 features)</summary>
+            <div class="table-wrap"><table>
+              <thead><tr><th>Feature</th><th>Meaning</th></tr></thead>
+              <tbody>${FEATURES.map(([f, m]) =>
+                `<tr><td><code>${f}</code></td><td>${m}</td></tr>`).join("")}</tbody>
+            </table></div>
+          </details>
         </div>
         <div class="card">
           <h3>Parameter sensitivity</h3>
@@ -223,6 +226,14 @@ window.FE.tabs.ml = {
           <h3>Results — ${anoms.length} anomalous accounts, ${anoms.filter((a) => !a.has_alert).length} never alerted</h3>
           <span class="muted">bootstrap confidence: share of ${val.bootstrap.n_iterations} refits on ${fmtPct(val.bootstrap.subsample)} subsamples that flag the account</span>
         </div>
+        <details class="notes">
+          <summary>Badge definitions</summary>
+          <p><span class="badge badge-clear">flagged in N% of refits</span> bootstrap confidence:
+          share of 200 refits on 80% subsamples that flag the account (green ≥ 90%, amber ≥ 60%,
+          red below). <span class="anom-alert-gap">Never alerted</span> the rules engine has no
+          alert on this account. The bar length is the anomaly score relative to the highest
+          detection.</p>
+        </details>
         <div id="ml-anomalies">
           ${anoms.map((a) => `
             <div class="anom-item">
@@ -273,14 +284,20 @@ window.FE.tabs.ml = {
             seed stability ${t3v.seed_stability.jaccard_mean}</span>
         </div>
         <p>Regulatory filings concern the customer, and some patterns are only visible at this
-        level. The customer model combines account structure, cross-account signals
-        (structuring split across the customer's own accounts, value through non-active
-        accounts) and KYC attributes (rating, PEP, screening state, post-match activity).
-        CUST0054 illustrates the tier's coverage: no anomalous accounts and every transaction
-        under the reporting threshold, flagged on 2 cross-account structuring days, no
-        screening on record, ${fmtMoney(3888353, true)} across 4 accounts. Cross-tier
-        consistency: ${fmtPct(t3v.cross_tier.anomalous_account_customers_in_top15)} of
-        anomalous-account customers rank in this top-15.</p>
+        level. CUST0054 illustrates the tier's coverage: no anomalous accounts and every
+        transaction under the reporting threshold, flagged on 2 cross-account structuring days,
+        no screening on record, ${fmtMoney(3888353, true)} across 4 accounts.</p>
+        <details class="notes">
+          <summary>Method and cross-tier consistency</summary>
+          <p>The customer model combines account structure (number of accounts, anomalous
+          accounts, peak account score), cross-account signals (structuring split across the
+          customer's own accounts, value through non-active accounts) and KYC attributes
+          (rating, PEP, screening state, post-match activity). Cross-tier consistency:
+          ${fmtPct(t3v.cross_tier.anomalous_account_customers_in_top15)} of anomalous-account
+          customers rank in this top-15; Spearman between customer score and peak account score
+          is ${t3v.cross_tier.spearman_score_vs_max_account_score} — the customer tier re-ranks
+          with information of its own rather than duplicating the account tier.</p>
+        </details>
         <div class="table-wrap"><table>
           <thead><tr><th>#</th><th>Customer</th><th class="num">Score</th><th class="num">Accounts</th>
           <th class="num">Anomalous accts</th><th class="num">Structuring days</th><th>Screening</th>
@@ -371,8 +388,13 @@ window.FE.tabs.ml = {
       el.querySelector("#ml-verify").innerHTML = `
         <span class="badge ${allMatch ? "badge-clear" : "badge-sanctioned"}">
         ${matches}/${byAccount.size} account scores recomputed in your browser match the pipeline${allMatch ? " ✓" : ""}</span>
-        <span class="muted"> — features rebuilt from the served transactions, standardized and pushed
-        through the exported forest. Same numbers, two independent implementations.</span>`;
+        <details class="notes">
+          <summary>How this verification works</summary>
+          <p>The 16 features are rebuilt in the browser from the served transactions and
+          tier-1 scores, standardized with the exported scaler, and scored with the exported
+          300-tree forest. Matching the pipeline's served scores confirms two independent
+          implementations produce the same results.</p>
+        </details>`;
 
       /* account detail — customer profile, activity, model assessment and controls */
       const detail = el.querySelector("#ml-detail");
