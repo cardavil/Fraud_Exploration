@@ -187,3 +187,7 @@ perfilado por columna en el tab Data, ejemplos before/after expandibles en la li
 paso 2), panel de integridad computado live (FKs, duplicados, umbral de vacios 20%) y
 drill-down hallazgo→Data con filtros pre-aplicados (`FE.openData`). Los 5 insights del
 entregable siguen fuera de la UI (reporte anexo). **Vigente.**
+
+**2026-07-12** — Se elimina el tab Overview: el board abre directo en Data y el orden queda
+Data / EDA / Findings / ML Model / AI Engine. Los 8 KPI tiles con popup explicativo se mudan
+al tope del tab Findings (son el resumen de resultados, no una portada). **Vigente.**

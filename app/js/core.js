@@ -89,7 +89,7 @@ window.FE = (() => {
 
   /* ---------- tab router (hash based: #eda, #ml, ...) ---------- */
   function activateTab(name) {
-    if (!tabs[name]) name = "overview";
+    if (!tabs[name]) name = "data";
     document.querySelectorAll(".tab-btn").forEach((b) =>
       b.classList.toggle("active", b.dataset.tab === name));
     document.querySelectorAll(".tab-panel").forEach((p) =>
@@ -145,7 +145,7 @@ window.FE = (() => {
       computeKpis();
       state.ready = true;
       $("global-loading").classList.add("hidden");
-      activateTab(location.hash.slice(1) || "overview");
+      activateTab(location.hash.slice(1) || "data");
     } catch (err) {
       $("global-loading").classList.add("hidden");
       const el = $("global-error");

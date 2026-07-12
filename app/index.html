@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="build" content="2026-07-12-r4">
+  <meta name="build" content="2026-07-12-r5">
   <title>Fraud &amp; Compliance Exploration Board</title>
   <link rel="stylesheet" href="styles.css">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#128737;</text></svg>">
@@ -23,7 +23,6 @@
 
   <nav class="tabbar" aria-label="Sections">
     <div class="tabbar-inner" id="tabbar">
-      <button class="tab-btn" data-tab="overview">Overview</button>
       <button class="tab-btn" data-tab="data">Data</button>
       <button class="tab-btn" data-tab="eda">EDA</button>
       <button class="tab-btn" data-tab="findings">Findings</button>
@@ -36,7 +35,6 @@
     <div id="global-error" class="banner banner-error hidden" role="alert"></div>
     <div id="global-loading" class="loading-cell">Loading the serving layer&hellip;</div>
 
-    <section id="tab-overview" class="tab-panel hidden" aria-label="Overview"></section>
     <section id="tab-data" class="tab-panel hidden" aria-label="Data explorer"></section>
     <section id="tab-eda" class="tab-panel hidden" aria-label="Exploratory data analysis"></section>
     <section id="tab-findings" class="tab-panel hidden" aria-label="Findings"></section>
@@ -67,7 +65,6 @@
   <script src="config.js"></script>
   <script src="js/core.js"></script>
   <script src="js/charts.js"></script>
-  <script src="js/tab-overview.js"></script>
   <script src="js/tab-data.js"></script>
   <script src="js/tab-eda.js"></script>
   <script src="js/tab-findings.js"></script>
