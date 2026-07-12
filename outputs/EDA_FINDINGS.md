@@ -12,7 +12,7 @@
 - Systematic casing/whitespace inconsistencies (`'india'`, `'  Active  '`, `'CARD PAYMENT'`) — 240 transaction-type values normalized.
 - 3 customers with an **empty PEP flag** — recoded as *Unknown*, not assumed *No* (a compliance-relevant distinction).
 - 5 zero/negative transaction amounts and 3 negative balances — retained and flagged, not silently fixed.
-- **The `is_international` flag is unreliable:** 152 transactions with counterparties in sanctioned jurisdictions are marked as domestic. ~83% of all transactions are marked "No" regardless of counterparty country. This field cannot be trusted for monitoring and is itself a control finding.
+- **The `is_international` flag is unreliable:** 148 transactions with counterparties in sanctioned jurisdictions are marked as domestic. ~83% of all transactions are marked "No" regardless of counterparty country. This field cannot be trusted for monitoring and is itself a control finding.
 
 ## 2. Descriptive statistics — transactions
 
@@ -34,7 +34,7 @@ Transaction counts per $1,000 band around the $10,000 reporting threshold:
 |---|---|---|---|---|---|---|---|
 | Count | 91 | 87 | 75 | 90 | **276** | 78 | 52 |
 
-The 9,000–9,999 band holds **17.4% of all transactions — 3.2× its neighboring bands**, collapsing to 78 immediately above $10k. This is the classic structuring pattern (splitting amounts to stay under the reporting threshold). The rule engine partially sees it (83% of these are flagged) but only 9 structuring alerts exist — the flags are not converting into cases.
+The 9,000–9,999 band holds **17.4% of all transactions — 3.3× its neighboring bands**, collapsing to 78 immediately above $10k. This is the classic structuring pattern (splitting amounts to stay under the reporting threshold). The rule engine partially sees it (83% of these are flagged) but only 9 structuring alerts exist — the flags are not converting into cases.
 
 ## 4. Trends (time series)
 
@@ -53,7 +53,7 @@ The 9,000–9,999 band holds **17.4% of all transactions — 3.2× its neighbori
 | **risk_rating × flagged** | **0.052** | 0.117 | **Customer risk rating has NO relationship with flagged activity** |
 | onboarding_channel × risk_rating | 0.200 | <0.001 | Weak but real channel effect |
 
-Spearman correlations between assigned `risk_rating` and actual behavior (per customer): all near zero and non-significant (n_tx ρ=+0.15, %high-risk-country ρ=+0.04, %flagged ρ=+0.13); only %cash reaches significance (ρ=+0.27, p=0.043).
+Spearman correlations between assigned `risk_rating` and actual behavior (per customer): all near zero and non-significant (n_tx ρ=+0.15, %high-risk-country ρ=+0.04, %flagged ρ=+0.13); only %cash reaches significance (ρ=+0.26, p=0.043).
 
 **Interpretation: the KYC risk rating is disconnected from observed transactional behavior.** 9 of 31 "Low"-rated customers show elevated-risk behavior (>15% sanctioned-country transactions or >40% flagged), including one Low-rated customer with $2.57M in volume and 35% flagged activity.
 
@@ -114,6 +114,6 @@ Features per account: volume, amount μ/σ/max, % high-risk-country, % offshore,
 
 1. **$4.3M in transactions to sanctioned jurisdictions were flagged but never alerted** (147 of 170); overall, 87% of flagged transactions ($7.7M) never became a case. Detection works; escalation doesn't.
 2. **Confirmed sanctions matches keep transacting:** 4 confirmed matches, zero resolved, ~$1.85M moved after matching; 34% of the customer base — including sanctioned-nationality and PEP customers — has never been screened.
-3. **A structuring pattern hides in plain sight:** 276 transactions (17%) sit in the $9,000–9,999 band — 3.2× the expected rate — yet only 9 structuring alerts exist.
-4. **Controls on account status are not enforced:** $15.3M flowed through Closed, Dormant, and Frozen accounts; the `is_international` flag misclassifies 152 sanctioned-country transactions as domestic.
+3. **A structuring pattern hides in plain sight:** 276 transactions (17%) sit in the $9,000–9,999 band — 3.3× the expected rate — yet only 9 structuring alerts exist.
+4. **Controls on account status are not enforced:** $15.3M flowed through Closed, Dormant, and Frozen accounts; the `is_international` flag misclassifies 148 sanctioned-country transactions as domestic.
 5. **Monitoring hasn't scaled and is mis-aimed:** volume tripled while alerting stayed flat; the false-positive rate is 77%; the KYC risk rating shows no statistical relationship to actual behavior (Cramér's V = 0.05) — and an interpretable ML model found 5 high-risk accounts (incl. $600K+ single-day bursts) the rules never caught. Chargebacks are up ~20× in value in four months.

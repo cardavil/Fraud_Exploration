@@ -62,7 +62,7 @@ exploration tool or a model.
 2. **Confirmed sanctions matches keep transacting** — 4 confirmed matches, zero
    resolved, ~$1.85M moved after matching; 34% of customers were never screened.
 3. **A structuring pattern hides in plain sight**: 276 transactions (17%) sit in the
-   $9,000–9,999 band — 3.2× the neighboring bands — yet only 9 structuring alerts exist.
+   $9,000–9,999 band — 3.3× the neighboring bands — yet only 9 structuring alerts exist.
 4. **Account-status controls are not enforced**: $15.3M flowed through Closed, Dormant
    and Frozen accounts; the `is_international` flag is unreliable.
 5. **Monitoring hasn't scaled and is mis-aimed**: volume tripled while alerting stayed

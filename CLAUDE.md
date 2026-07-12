@@ -34,7 +34,7 @@ Never oversell; label Layer 2 explicitly as beyond the brief.
 3. Structuring: 276 txns (17.4%) in the $9,000–9,999 band = 3.2× neighbors; only 9
    structuring alerts.
 4. Control failures: $15.3M through Closed ($5.28M) / Dormant ($8.61M) / Frozen ($1.36M)
-   accounts. `is_international` flag unreliable (152 sanctioned-country txns marked domestic).
+   accounts. `is_international` flag unreliable (148 sanctioned-country txns marked domestic).
 5. Ops: volume tripled while alerting stayed flat; 77% false-positive rate; backlog median
    age 90d (max 417d), 8 open Critical/High, 3 unassigned. KYC risk rating uncorrelated
    with behavior (Cramér's V = 0.05). Chargebacks value ~20× in 4 months. Isolation Forest
