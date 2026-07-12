@@ -44,7 +44,14 @@ High-risk country set used everywhere: Iran, North Korea, Syria, Russia, Myanmar
 Offshore set: Cayman Islands, British Virgin Islands, Panama, Cyprus, Malta.
 "Now" for age calculations: 2026-07-11.
 
-## Build plan (TODO, in order)
+## Build plan — status 2026-07-12
+
+Steps 1–4 and 6 are BUILT AND DEPLOYED: repo organized, Supabase seeded with
+RLS verified (SELECT-only anon, writes rejected), board live via Cloudflare
+Pages, copilot Edge Function live (model alias `gemini-flash-latest` — pinned
+2.5 ids 404 for new API users; Postgres-enforced rate limit: 8/min/IP + 250/day
+via `copilot_hit` RPC, see `supabase/rate_limit.sql`). Step 5 (Power BI) was
+explicitly EXCLUDED from this build; step 7 (submission package) pending.
 
 ### 1. Repo skeleton
 ```
