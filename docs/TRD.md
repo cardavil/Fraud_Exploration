@@ -250,3 +250,13 @@ El tool `txnNeedleFetcher` entrega al behavior_analyst las peores txns del sujet
 segun N1. Coherencia verificada: 88% de los clientes de cuentas anomalas rankean
 en el top-15 de clientes; Spearman(score cliente, max score cuenta) = 0.4 — el
 nivel cliente re-rankea con informacion propia, no duplica al de cuentas.
+
+### 12.1 Checklist de señales y fuerza de evidencia (v3.4)
+
+`buildSignalChecklist()` corre al inicio del pipeline con fetches propios y computa 7 familias:
+tier-1 outliers · cuentas anomalas (dura) · cliente anomalo · structuring days (dura) ·
+never screened · post-match activity (dura) · flujos sancionados/no-activos.
+Regla determinista: strong = ≥3 presentes con ≥1 dura · moderate = 2 (o ≥3 blandas) ·
+limited = ≤1. El checklist viaja a synthesizer y reviewer; la respuesta usa SIEMPRE el valor
+del codigo (`evidence_strength`, `signal_families`) — el LLM lo articula, nunca lo decide.
+El rubric de acciones vive en `ACTION_RUBRIC` (index.ts) y el reviewer lo verifica.

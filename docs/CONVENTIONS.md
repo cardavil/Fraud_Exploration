@@ -114,3 +114,5 @@ poder auditarla commit a commit.
 
 - Los bloques colapsables de notas (`details.notes` / `details.criteria-legend`) van SIEMPRE
   al final del card o seccion, despues de los datos que anotan — nunca antes.
+
+| evidence strength | fuerza de evidencia computada del checklist de señales (strong/moderate/limited) | confidence, confianza del modelo |

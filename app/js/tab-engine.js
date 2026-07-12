@@ -94,9 +94,12 @@ window.FE.tabs.engine = {
     $q("#sn-account").insertAdjacentHTML("beforeend", opts.join(""));
 
     const ACTION_BADGE = {
-      "Escalate": "badge-sanctioned",
-      "Request documentation": "badge-offshore",
       "Close as false positive": "badge-clear",
+      "Continue standard monitoring": "badge-plain",
+      "Enhanced monitoring": "badge-offshore",
+      "Initiate sanctions screening": "badge-offshore",
+      "Request KYC refresh / documentation": "badge-offshore",
+      "Escalate to compliance review": "badge-sanctioned",
     };
 
     $q("#sn-run").addEventListener("click", async () => {
@@ -130,10 +133,14 @@ window.FE.tabs.engine = {
           <p>${escapeHtml(r.risk_summary)}</p>
           <div class="sn-action">Recommended action:
             <span class="badge ${ACTION_BADGE[r.recommended_action] || "badge-plain"}">${escapeHtml(r.recommended_action)}</span>
-            <span class="muted">· model confidence ${fmtPct(r.confidence ?? 0)}</span>
+            <span class="muted">· evidence ${escapeHtml(r.evidence_strength ?? "?")} —
+            ${r.signal_families ? `${r.signal_families.present} of ${r.signal_families.total} signal families` : ""}</span>
           </div>
           <strong>Key factors</strong>
           <ul class="sn-factors">${(r.key_factors || []).map((f) => `<li>${escapeHtml(f)}</li>`).join("")}</ul>
+          <strong>Next steps</strong>
+          <ul class="sn-factors">${(r.next_steps || []).map((s) => `<li>${escapeHtml(s)}</li>`).join("")}</ul>
+          ${r.signal_families?.list?.length ? `<p class="muted">Signals present: ${r.signal_families.list.map(escapeHtml).join(" · ")}</p>` : ""}
           <strong>Per-agent audit (run ${escapeHtml(r.run_id ?? "")})</strong>
           <div class="table-wrap"><table>
             <thead><tr><th>Agent</th><th>Model used</th><th class="num">Attempts</th><th>Fallback</th><th class="num">Latency</th><th>OK</th></tr></thead>

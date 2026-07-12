@@ -226,3 +226,14 @@ sentinel_ip_usage / sentinel_audit, RPC sentinel_hit, frontend, docs y glosario.
 propietario: mezclaba perfil del cliente en una vista de cuenta). La informacion de cliente
 se consolida en el modal "Customer overview", invocable desde el Account detail y desde el
 ranking del Tier 3 — una sola vista de cliente para todo el board. **Vigente.**
+
+**2026-07-12** — v3.4: contrato de salida de Sentinel rediseñado. (a) `recommended_action`
+pasa de 3 a una escalera de 6 acciones graduadas (Close as FP · Continue standard monitoring ·
+Enhanced monitoring · Initiate sanctions screening · Request KYC refresh/documentation ·
+Escalate to compliance review) con rubric explicito: la accion MENOS severa que gestione el
+riesgo; Escalate solo con convergencia multi-señal, post-match o structuring. (b) `next_steps[]`:
+2-4 pasos concretos citando transacciones/fechas/gaps especificos. (c) el `confidence`
+auto-reportado por el LLM se ELIMINA (sesgado y pegajoso en 0.95): lo reemplaza
+`evidence_strength` (strong/moderate/limited) computado en CODIGO desde un checklist
+determinista de 7 familias de señal, con `signal_families` en la respuesta. Validado con
+muestra estratificada (anómalos + normales + never-screened limpios). **Vigente.**
