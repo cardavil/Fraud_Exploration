@@ -269,3 +269,15 @@ SVG hecho a mano, sin librerias (CSP-safe). Tres formas, un solo sistema de inte
   `.table-wrap` (`overflow-x: auto`), nunca la pagina.
 - **Numeros comparables**: `tabular-nums` en valores de KPI, stat-tiles, celdas numericas
   y caja de formula.
+
+---
+
+## 7. Adiciones v2.1 (2026-07-12) — nivel perfilador
+
+| Componente | Donde | Comportamiento |
+|---|---|---|
+| Vista Profile | Tab Data, toggle `Rows / Profile` | Una fila por columna: tipo detectado, no-nulos (n y %), unicos, min/mediana/max en numericas, muestra (<=4 valores), badge azul `PK`, badge ambar `>20% empty` |
+| Filas expandibles del cleaning log | EDA paso 2 | Chevron por tratamiento; expande sub-tabla `Key/Column/Before/After` con ejemplos reales (`app/data/cleaning_examples.json`); badges `kept & flagged` y `rows dropped` |
+| Panel de integridad | EDA paso 3 | Badges computados live: 7 relaciones FK (violaciones), duplicados de PK por tabla, columnas con >20% vacios en ambar |
+| Chips de estado | Header de cada paso EDA | Resumen del paso visible sin expandir ("31 issues", "counts 6/6 OK", "n = 1,587") |
+| Drill-links | Cleaning log y finding cards | `FE.openData(tabla, filtros)` abre el tab Data con la tabla y filtros pre-aplicados; solo filtros expresables por la UI (valor categorico, min/max, contains) — multi-valor no se enlaza |

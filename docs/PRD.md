@@ -177,3 +177,13 @@ metodo POST unico; CORS restringido al origen de Cloudflare Pages y localhost.
 | Datos frescos | Reemplazar el seed estatico por ingesta periodica; "now" dejaria de estar fijado a 2026-07-11 |
 | Mas connectors | Nuevos tools deterministas para los agentes (listas de sanciones externas, adverse media, device data) sin tocar el contrato de salida (PRD §4) |
 | PII real | Enmascarado/tokenizacion antes del serving y modelo en entorno controlado, como anota el README |
+
+---
+
+## Registro de decisiones
+
+**2026-07-12** — v2.1 "nivel perfilador" (patron tomado de Conciliacion): se agregan RF de
+perfilado por columna en el tab Data, ejemplos before/after expandibles en la limpieza (EDA
+paso 2), panel de integridad computado live (FKs, duplicados, umbral de vacios 20%) y
+drill-down hallazgo→Data con filtros pre-aplicados (`FE.openData`). Los 5 insights del
+entregable siguen fuera de la UI (reporte anexo). **Vigente.**

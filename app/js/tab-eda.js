@@ -1,9 +1,11 @@
 /* EDA as a visible process: six steps from raw data to associations.
-   Step 2 reads the cleaning audit trail live from the database; the numbers
-   in steps 4-6 come from analysis/export_eda_stats.py (single source). */
+   Step 2 reads the cleaning audit trail live from the database and every
+   treatment expands into real before→after examples (cleaning_examples.json).
+   Step 3 closes with a computed integrity panel: FKs, duplicate keys and
+   empty-share thresholds. Statistics come from analysis/export_eda_stats.py. */
 window.FE.tabs.eda = {
   render(el) {
-    const { state, fmtInt, fmtMoney, fmtPct, escapeHtml } = window.FE;
+    const { state, fmtInt, fmtMoney, fmtPct, escapeHtml, openData } = window.FE;
     const { barChart, lineChart } = window.FE.charts;
     const S = state.stats;
     const log = state.data.cleaning_log;
@@ -16,52 +18,146 @@ window.FE.tabs.eda = {
     const dupes = log.filter((r) => r.issue.startsWith("Duplicate"))
       .reduce((s, r) => s + r.rows_affected, 0);
 
-    const step = (n, title, body) => `
+    /* Deep-links for treatments whose rows are expressible as explorer filters. */
+    const DRILL = {
+      3: { table: "customers", filters: [{ col: "pep_flag", kind: "categorical", value: "Unknown" }] },
+      4: { table: "customers", filters: [{ col: "nationality", kind: "categorical", value: "Unknown" }] },
+      10: { table: "accounts", filters: [{ col: "currency", kind: "categorical", value: "Unknown" }] },
+      11: { table: "accounts", filters: [{ col: "account_balance", kind: "max", value: -0.01 }] },
+      16: { table: "transactions", filters: [{ col: "amount", kind: "max", value: 0 }] },
+      18: { table: "transactions", filters: [{ col: "counterparty_country", kind: "categorical", value: "Unknown" }] },
+      23: { table: "compliance_alerts", filters: [{ col: "assigned_analyst", kind: "categorical", value: "Unassigned" }] },
+      27: { table: "sanctions_screening", filters: [{ col: "reviewed_by", kind: "categorical", value: "Unreviewed" }] },
+    };
+    const KIND_BADGE = {
+      kept: '<span class="badge badge-offshore">kept &amp; flagged</span>',
+      dropped: '<span class="badge badge-plain">rows dropped</span>',
+    };
+
+    /* ---------- integrity checks (computed live, client-side) ---------- */
+    const d = state.data;
+    const keySet = (table, col) => new Set(d[table].map((r) => r[col]));
+    const FKS = [
+      ["accounts", "customer_id", "customers"],
+      ["transactions", "account_id", "accounts"],
+      ["compliance_alerts", "account_id", "accounts"],
+      ["compliance_alerts", "transaction_id", "transactions"],
+      ["sanctions_screening", "customer_id", "customers"],
+      ["chargebacks", "transaction_id", "transactions"],
+      ["account_scores", "account_id", "accounts"],
+    ];
+    const PARENT_PK = { customers: "customer_id", accounts: "account_id", transactions: "transaction_id" };
+    const fkResults = FKS.map(([child, col, parent]) => {
+      const parents = keySet(parent, PARENT_PK[parent]);
+      const violations = d[child].filter((r) => r[col] != null && !parents.has(r[col])).length;
+      return { label: `${child}.${col} → ${parent}`, violations };
+    });
+    const PKS = { customers: "customer_id", accounts: "account_id", transactions: "transaction_id",
+      compliance_alerts: "alert_id", sanctions_screening: "screening_id", chargebacks: "chargeback_id" };
+    const dupResults = Object.entries(PKS).map(([table, pk]) =>
+      ({ table, dupes: d[table].length - keySet(table, pk).size }));
+    const NULL_WARN = 0.2;
+    const nullWarnings = [];
+    for (const table of Object.keys(PKS)) {
+      const rows = d[table];
+      for (const col of Object.keys(rows[0] ?? {})) {
+        const empty = rows.filter((r) => r[col] === null || r[col] === undefined || r[col] === "").length;
+        if (empty / rows.length > NULL_WARN) {
+          nullWarnings.push({ label: `${table}.${col}`, share: empty / rows.length, n: empty });
+        }
+      }
+    }
+    const fkTotal = fkResults.reduce((s, f) => s + f.violations, 0);
+    const dupTotal = dupResults.reduce((s, x) => s + x.dupes, 0);
+    const countsOk = Object.entries(EXPECTED).filter(([t, n]) => d[t].length === n).length;
+
+    const step = (n, title, chip, body) => `
       <div class="eda-step">
-        <div class="eda-step-head"><span class="eda-step-n">${n}</span><h3>${title}</h3></div>
+        <div class="eda-step-head">
+          <span class="eda-step-n">${n}</span><h3>${title}</h3>
+          <span class="eda-chip">${chip}</span>
+        </div>
         <div class="eda-step-body">${body}</div>
       </div>`;
 
     el.innerHTML = `
       <p class="tab-intro">The analysis, step by step — not a summary of results but the process
       that produced them. Cleaning runs in <code>analysis/clean.py</code> with every treatment
-      logged; statistics are exported by <code>analysis/export_eda_stats.py</code> from the
-      cleaned database, so every figure here traces to code.</p>
+      logged; click any treatment below to see real before&rarr;after examples, and jump from a
+      treatment straight to the affected rows in the Data tab.</p>
 
-      ${step(1, "Raw dataset intake", `
+      ${step(1, "Raw dataset intake", `${fmtInt(log.length)} issues found`, `
         <p>Six SQLite tables arrive dirty: duplicate primary keys, inconsistent casing
         (<code>'india'</code>, <code>'CARD PAYMENT'</code>), stray whitespace, empty compliance
         flags and unreliable booleans. <strong>${fmtInt(log.length)} distinct issues</strong> were
         identified, affecting <strong>${fmtInt(totalTreated)} values</strong> —
         including ${fmtInt(dupes)} duplicate records dropped.</p>`)}
 
-      ${step(2, "Audited cleaning — every treatment logged", `
-        <p>No silent fixes: each treatment writes to the audit trail (served live below from the
+      ${step(2, "Audited cleaning — every treatment logged", "31 treatments · expandable examples", `
+        <p>No silent fixes: each treatment writes to the audit trail (served live from the
         <code>cleaning_log</code> table). Compliance-relevant calls stand out — an empty PEP flag is
-        recoded <em>Unknown</em>, never assumed <em>No</em>; negative balances and zero-amount
-        transactions are kept and flagged rather than deleted.</p>
+        recoded <em>Unknown</em>, never assumed <em>No</em>; suspicious values are
+        <strong>kept and flagged</strong>, not deleted. Click a row for its real examples.</p>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Table</th><th>Issue</th><th>Treatment</th><th class="num">Rows</th></tr></thead>
-            <tbody>${Object.entries(byTable).map(([t, rows]) => rows.map((r, i) => `
-              <tr>${i === 0 ? `<td rowspan="${rows.length}"><strong>${escapeHtml(t)}</strong></td>` : ""}
-                <td>${escapeHtml(r.issue)}</td><td>${escapeHtml(r.treatment)}</td>
-                <td class="num">${fmtInt(r.rows_affected)}</td></tr>`).join("")).join("")}
+            <thead><tr><th></th><th>Table</th><th>Issue</th><th>Treatment</th><th class="num">Rows</th></tr></thead>
+            <tbody id="clean-log-body">${log.map((r) => {
+              const ex = state.examples?.[String(r.step_id)];
+              const hasExamples = ex && ex.examples.length;
+              return `
+              <tr class="log-row ${hasExamples ? "expandable" : ""}" data-step="${r.step_id}">
+                <td class="chev">${hasExamples ? "&#9656;" : ""}</td>
+                <td><strong>${escapeHtml(r.table_name)}</strong></td>
+                <td>${escapeHtml(r.issue)} ${KIND_BADGE[ex?.kind] ?? ""}</td>
+                <td>${escapeHtml(r.treatment)}</td>
+                <td class="num">${fmtInt(r.rows_affected)}</td>
+              </tr>
+              ${hasExamples ? `
+              <tr class="example-row hidden" data-for="${r.step_id}">
+                <td></td>
+                <td colspan="4">
+                  <table class="example-table">
+                    <thead><tr><th>Key</th><th>Column</th><th>Before</th><th>After</th></tr></thead>
+                    <tbody>${ex.examples.map((e) => `
+                      <tr><td>${escapeHtml(e.key)}</td><td><code>${escapeHtml(e.column)}</code></td>
+                      <td class="ex-before">${escapeHtml(String(e.before))}</td>
+                      <td class="ex-after">${escapeHtml(String(e.after))}</td></tr>`).join("")}
+                    </tbody>
+                  </table>
+                  ${DRILL[r.step_id] ? `<a href="#data" class="drill-link" data-step="${r.step_id}">See the affected rows in the Data tab &rarr;</a>` : ""}
+                </td>
+              </tr>` : ""}`;
+            }).join("")}
             </tbody>
           </table>
         </div>`)}
 
-      ${step(3, "Typed, keyed and verified", `
+      ${step(3, "Typed, keyed and verified", `counts ${countsOk}/6 ✓ · FKs ${fkTotal} violations`, `
         <p>Dates are parsed to real date types, primary/foreign keys enforced on the serving layer,
         and the clean row counts verified live against the pipeline's expected output:</p>
         <div class="check-row">${Object.entries(EXPECTED).map(([t, n]) => {
-          const ok = state.data[t].length === n;
-          return `<span class="badge ${ok ? "badge-clear" : "badge-sanctioned"}">${t}: ${fmtInt(state.data[t].length)}${ok ? " ✓" : ` (expected ${n})`}</span>`;
+          const ok = d[t].length === n;
+          return `<span class="badge ${ok ? "badge-clear" : "badge-sanctioned"}">${t}: ${fmtInt(d[t].length)}${ok ? " ✓" : ` (expected ${n})`}</span>`;
         }).join(" ")}</div>
-        <p class="muted">One caveat survives cleaning: <code>is_international</code> is untrustworthy
-        — 152 sanctioned-country transactions are marked domestic. It is treated as a finding, not a field.</p>`)}
+        <h4 class="integrity-title">Integrity panel — computed live on the served data</h4>
+        <div class="check-row">${fkResults.map((f) =>
+          `<span class="badge ${f.violations ? "badge-sanctioned" : "badge-clear"}">${escapeHtml(f.label)}: ${f.violations} violations</span>`).join(" ")}
+        </div>
+        <div class="check-row">${dupResults.map((x) =>
+          `<span class="badge ${x.dupes ? "badge-sanctioned" : "badge-clear"}">${x.table}: ${x.dupes} duplicate keys</span>`).join(" ")}
+        </div>
+        <div class="check-row">${nullWarnings.length
+          ? nullWarnings.map((w) =>
+              `<span class="badge badge-offshore">${escapeHtml(w.label)}: ${fmtPct(w.share)} empty (${fmtInt(w.n)})</span>`).join(" ")
+          : ""}
+          <span class="badge badge-clear">every other column &lt; ${fmtPct(NULL_WARN)} empty</span>
+        </div>
+        <p class="muted">Empty <code>resolution_date</code> values are unresolved alerts/disputes —
+        expected structurally, but their share is itself the backlog finding. One caveat survives
+        cleaning: <code>is_international</code> is untrustworthy (148 sanctioned-country
+        transactions marked domestic) and is treated as a finding, not a field.</p>`)}
 
-      ${step(4, "Descriptive statistics", `
+      ${step(4, "Descriptive statistics", `n = ${fmtInt(S.descriptive.n_valid)}`, `
         <div class="stat-row">
           ${[["n (valid amounts)", fmtInt(S.descriptive.n_valid)],
              ["Mean", fmtMoney(S.descriptive.mean)],
@@ -76,9 +172,9 @@ window.FE.tabs.eda = {
         <p>The mean is ~5× the median: a small number of very large wires dominates total value.
         Operational thresholds should key off the <strong>median</strong>, not the mean.</p>`)}
 
-      ${step(5, "Distributions and trends", `<div class="chart-grid" id="eda-charts"></div>`)}
+      ${step(5, "Distributions and trends", "4 figures", `<div class="chart-grid" id="eda-charts"></div>`)}
 
-      ${step(6, "Associations — what actually drives risk flags", `
+      ${step(6, "Associations — what actually drives risk flags", "5 pairs · 1 null result", `
         <div class="table-wrap"><table>
           <thead><tr><th>Association</th><th class="num">Cramér's V</th><th class="num">p</th><th>Reading</th></tr></thead>
           <tbody>${S.associations.map((a) => {
@@ -99,6 +195,24 @@ window.FE.tabs.eda = {
         the static KYC rating is disconnected from observed behavior.</strong></p>`)}
     `;
 
+    /* expandable treatment rows + drill links */
+    el.querySelectorAll(".log-row.expandable").forEach((row) => {
+      row.addEventListener("click", () => {
+        const sub = el.querySelector(`.example-row[data-for="${row.dataset.step}"]`);
+        const open = !sub.classList.contains("hidden");
+        sub.classList.toggle("hidden");
+        row.querySelector(".chev").innerHTML = open ? "&#9656;" : "&#9662;";
+      });
+    });
+    el.querySelectorAll(".drill-link").forEach((link) => {
+      link.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const preset = DRILL[link.dataset.step];
+        openData(preset.table, preset.filters);
+      });
+    });
+
     const charts = el.querySelector("#eda-charts");
     barChart(charts, {
       title: "Transactions per $1,000 band around the $10k reporting threshold",
@@ -117,11 +231,11 @@ window.FE.tabs.eda = {
       fmt: fmtInt,
       series: [
         { name: "Transactions", color: "#2E5BFF",
-          points: state.stats.monthly.transactions.map((m) => ({ x: m.month, y: m.count })) },
+          points: S.monthly.transactions.map((m) => ({ x: m.month, y: m.count })) },
         { name: "Alerts", color: "#D64545",
-          points: state.stats.monthly.transactions.map((m) => ({
+          points: S.monthly.transactions.map((m) => ({
             x: m.month,
-            y: state.stats.monthly.alerts.find((a) => a.month === m.month)?.count ?? 0 })) },
+            y: S.monthly.alerts.find((a) => a.month === m.month)?.count ?? 0 })) },
       ],
     });
     lineChart(charts, {
@@ -129,14 +243,14 @@ window.FE.tabs.eda = {
       howToRead: "Total dollar value moved per month. Growth compounds the un-scaled monitoring problem: more value flows through the same flat alerting capacity.",
       fmt: (v) => fmtMoney(v, true),
       series: [{ name: "Value", color: "#2E5BFF",
-        points: state.stats.monthly.transactions.map((m) => ({ x: m.month, y: m.value })) }],
+        points: S.monthly.transactions.map((m) => ({ x: m.month, y: m.value })) }],
     });
     lineChart(charts, {
       title: "Monthly chargeback value",
       howToRead: "Dollar value of chargebacks filed per month. The sharp climb from March 2026 suggests a recently opened fraud vector — chargebacks lag the fraud itself by weeks.",
       fmt: (v) => fmtMoney(v, true),
       series: [{ name: "Chargeback value", color: "#D64545",
-        points: state.stats.monthly.chargebacks.map((m) => ({ x: m.month, y: m.value })) }],
+        points: S.monthly.chargebacks.map((m) => ({ x: m.month, y: m.value })) }],
     });
   },
 };
