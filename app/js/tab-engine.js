@@ -7,10 +7,10 @@ window.FE.tabs.engine = {
     const AGENTS = [
       { name: "profile_analyst", tier: "fast", tools: ["profileFetcher", "screeningFetcher"],
         out: "profile_risk", role: "KYC & sanctions-screening posture: nationality, PEP, occupation plausibility, screening history." },
-      { name: "behavior_analyst", tier: "fast", tools: ["txnAggregator", "txnSampler", "alertFetcher"],
-        out: "behavior_risk", role: "Transactional patterns: structuring band, single-day bursts, sanctioned/offshore exposure, alert history." },
+      { name: "behavior_analyst", tier: "fast", tools: ["txnAggregator", "txnSampler", "txnOutlierFetcher", "alertFetcher"],
+        out: "behavior_risk", role: "Transactional patterns across every account the customer holds: structuring band, single-day bursts, sanctioned/offshore exposure, the tier-1 outlier transactions, alert history." },
       { name: "anomaly_interpreter", tier: "fast", tools: ["scoreFetcher"],
-        out: "ml_reading", role: "Reads the Isolation Forest output: score, which features deviate, whether the rules engine missed it." },
+        out: "ml_reading", role: "Reads all three detection tiers: the customer model (structuring days, screening state, post-match activity) and each account model, noting what the rules engine missed." },
       { name: "risk_synthesizer", tier: "heavy", tools: ["(analyst notes)"],
         out: "draft", role: "Merges the three notes into one quantified narrative with a candidate action and confidence." },
       { name: "compliance_reviewer", tier: "heavy", tools: ["(draft + notes)"],
@@ -23,6 +23,7 @@ window.FE.tabs.engine = {
       ["Prompt-injection defenses", "All account data is framed as <code>&lt;data&gt;</code> = third-party DATA, not instructions; every string is sanitized (control chars, code fences, length caps); output is forced through a JSON schema; the reviewer agent drops anything not traceable to the provided figures."],
       ["Per-agent audit trail", "Every run writes one row per agent to <code>sentinel_audit</code> (service-role only): model used, attempts, fallback, latency. The same audit returns in the response — rendered below after each analysis."],
       ["Abuse controls", "The endpoint is public by design (the anon key ships with this page), so limits are enforced in Postgres, not in-process: 8 requests/min per IP and a global daily cap via one atomic RPC."],
+      ["Graceful degradation", "A failed analyst note is replaced with a neutral placeholder and the pipeline continues; if the reviewer fails, the synthesizer's draft ships flagged in the audit; only a failed synthesis aborts the run. Every fallback is visible in the per-agent audit."],
     ];
 
     el.innerHTML = `
@@ -34,7 +35,7 @@ window.FE.tabs.engine = {
       <div class="card">
         <h3>Pipeline</h3>
         <div class="pipeline">
-          <div class="pipe-node pipe-io">POST<br>{account_id}</div>
+          <div class="pipe-node pipe-io">POST<br>{customer_id}</div>
           <div class="pipe-arrow">&rarr;</div>
           <div class="pipe-node pipe-guard">rate limiter<br><span class="muted">Postgres RPC</span></div>
           <div class="pipe-arrow">&rarr;</div>
@@ -142,7 +143,15 @@ window.FE.tabs.engine = {
               <td class="num">${(a.latency_ms / 1000).toFixed(1)}s</td>
               <td>${a.ok ? "✓" : '<span class="badge badge-sanctioned">failed</span>'}</td></tr>`).join("")}
             </tbody>
-          </table></div>`;
+          </table></div>
+          <details class="notes">
+            <summary>Audit column definitions</summary>
+            <p><strong>Model used</strong> — the model that actually answered (differs from the
+            requested one when the fallback chain engaged). <strong>Attempts</strong> — calls
+            made including retries. <strong>Fallback</strong> — whether a backup model rescued
+            the step. <strong>Latency</strong> — wall time for the agent including retries.
+            The same audit row is persisted server-side in <code>sentinel_audit</code>.</p>
+          </details>`;
         $q("#sn-output").classList.remove("hidden");
       } catch (err) {
         $q("#sn-error").textContent = err.message;
