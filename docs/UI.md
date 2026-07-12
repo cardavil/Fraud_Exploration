@@ -73,7 +73,7 @@ Si un token cambia en CSS hay que actualizar el espejo en charts.js.
 
 1. **Semantica fija en todo el board**: rojo = sanctioned / critico / fallo;
    ambar = offshore / warning / structuring / fallback; verde = clear / done / activo.
-   Es la misma convencion en badges, bordes de KPI, series de charts y stages del copilot.
+   Es la misma convencion en badges, bordes de KPI, series de charts y stages del sentinel.
 2. **Un color de estado NUNCA aparece sin etiqueta de texto.** El componente canonico es el
    badge: dot de 7px (`.badge::before`, `background: currentColor`) + texto
    ("Sanctioned", "Never alerted", "fallback", "failed"...). El dot es refuerzo, no el mensaje.
@@ -244,8 +244,8 @@ SVG hecho a mano, sin librerias (CSP-safe). Tres formas, un solo sistema de inte
 | Error global con retry | cualquier fallo de `boot()` | `#global-error` `.banner-error` (`role="alert"`, rojo-bg/ink) con el mensaje escapado y link "retry" que recarga la pagina |
 | Skeleton | utilidad disponible | `.skeleton::after` shimmer 1.4s (gradiente translucido); definido en styles.css para superficies en carga |
 | Tabla vacia | filtros sin resultados | fila unica `.loading-cell` colspan total: "No rows match the current filters." |
-| Copilot corriendo | click en Analyze | boton `disabled` (azul `--brand-blue-disabled`), stages en `.pulsing` (§3.9); clase `.spinner` disponible para cargas inline |
-| Copilot fallo | respuesta no-ok o excepcion | `#cop-error` `.banner-error` con status y detalle truncado a 200 chars; stages dejan de pulsar |
+| Sentinel corriendo | click en Analyze | boton `disabled` (azul `--brand-blue-disabled`), stages en `.pulsing` (§3.9); clase `.spinner` disponible para cargas inline |
+| Sentinel fallo | respuesta no-ok o excepcion | `#cop-error` `.banner-error` con status y detalle truncado a 200 chars; stages dejan de pulsar |
 | Paginacion en extremos | pagina 1 / ultima | `#dx-prev` / `#dx-next` `disabled` (ghost gris) |
 
 ## 6. Accesibilidad
@@ -258,7 +258,7 @@ SVG hecho a mano, sin librerias (CSP-safe). Tres formas, un solo sistema de inte
 - **Score tracks**: `role="img"` + `aria-label="Anomaly score N.NN"` — la barra visual
   tiene equivalente textual para lector de pantalla.
 - **Labels ARIA**: `nav aria-label="Sections"`, cada `section` de tab con `aria-label`,
-  boton how-to-read con `aria-label="How to read this chart"`, select del copilot con
+  boton how-to-read con `aria-label="How to read this chart"`, select del sentinel con
   `aria-label="Account to analyze"`; `#chart-tooltip` con `role="tooltip"`; banners de
   error con `role="alert"`. Utilidad `.visually-hidden` disponible.
 - **Semantica nativa**: tiles y tabs son `<button>` reales; tablas con `thead/th`.

@@ -268,7 +268,7 @@ window.FE.tabs.ml = {
           <h4>Account detail</h4>
           <p class="muted">Customer profile, account activity, model assessment across the three
           tiers, and the corresponding alert and screening records.</p>
-          <div class="copilot-controls">
+          <div class="sentinel-controls">
             <select id="detail-account" aria-label="Account to inspect"></select>
           </div>
           <div id="detail-body"></div>

@@ -16,7 +16,7 @@ resultado pero no el proceso.
 
 Este producto convierte ese analisis en una **herramienta self-serve** que evidencia el
 proceso analitico completo: limpieza auditada → EDA → deteccion de anomalias interpretable →
-capa de servicio solo-lectura → board web con un copiloto de IA aterrizado en los datos servidos.
+capa de servicio solo-lectura → board web con un sentinelo de IA aterrizado en los datos servidos.
 
 **Contexto**: proyecto de portfolio (Layer 2 de un hiring assessment). Disclaimer permanente:
 sin afiliacion con ninguna empresa de pagos; datos 100% dummy; ningun dato real de clientes.
@@ -32,7 +32,7 @@ SQLite sucio ──> clean.py ──> clean.db ──> anomaly.py ──> scores
                        │                          │
              anon key  │ (solo SELECT)            │ service role
                        v                          v
-          Board estatico (Cloudflare Pages)   Edge Function copilot ──> Gemini API
+          Board estatico (Cloudflare Pages)   Edge Function sentinel ──> Gemini API
                        │                          ^
                        └───── POST {account_id} ──┘
 ```
@@ -41,9 +41,9 @@ SQLite sucio ──> clean.py ──> clean.db ──> anomaly.py ──> scores
 
 | Actor | Ve | Hace | NO hace |
 |---|---|---|---|
-| **Visitante** | Los 6 tabs completos, KPIs vivos, datos de las 8 tablas, charts, model card, pipeline del copilot | Navega por hash, filtra el explorador, abre popups KPI, corre el copilot sobre una cuenta | NO escribe nada; NO se autentica; NO ve PII (los datos son dummy y ademas se pseudonimizan en el copilot) |
+| **Visitante** | Los 6 tabs completos, KPIs vivos, datos de las 8 tablas, charts, model card, pipeline del sentinel | Navega por hash, filtra el explorador, abre popups KPI, corre el sentinel sobre una cuenta | NO escribe nada; NO se autentica; NO ve PII (los datos son dummy y ademas se pseudonimizan en el sentinel) |
 | **Board / sistema** | Las 8 tablas servidas por PostgREST + `eda_stats.json` y `model_sensitivity.json` estaticos | Lee via anon key con RLS SELECT-only; calcula los KPIs en cliente; renderiza charts SVG | NO escribe en Postgres (sin policy de escritura y privilegios revocados); NO llama a Gemini directo |
-| **Copilot** (Edge Function) | Perfil, screening, transacciones, alertas y scores de UNA cuenta via service role | Corre el pipeline de 5 agentes; escribe SOLO `copilot_audit` y los contadores de rate limit (RPC `copilot_hit`) | NO escribe en tablas de datos; NO expone la API key (viaja en header server-side); NO toma decisiones — recomienda |
+| **Sentinel** (Edge Function) | Perfil, screening, transacciones, alertas y scores de UNA cuenta via service role | Corre el pipeline de 5 agentes; escribe SOLO `sentinel_audit` y los contadores de rate limit (RPC `sentinel_hit`) | NO escribe en tablas de datos; NO expone la API key (viaja en header server-side); NO toma decisiones — recomienda |
 | **Owner** | Todo el repo, la consola de Supabase, Cloudflare Pages | Mantiene pipeline Python, seed, secrets y deploy; corrige docs en el mismo commit que el codigo | NO commitea tokens ni datos personales; NO edita datos servidos a mano |
 
 ## 3. Los 6 tabs y su proposito
@@ -55,15 +55,15 @@ SQLite sucio ──> clean.py ──> clean.db ──> anomaly.py ──> scores
 | **EDA** | El proceso analitico en 6 pasos, con el cleaning log vivo (31 issues auditados por `clean.py`) | Tabla `cleaning_log` + `app/data/eda_stats.json` |
 | **Findings** | 6 cards tematicos con charts SVG y tooltip "how to read" por chart | `eda_stats.json` + tablas servidas |
 | **ML Model** | Model card del Isolation Forest (300 arboles, 8% contamination, features por cuenta) + sweep real de sensibilidad | Tabla `account_scores` + `app/data/model_sensitivity.json` |
-| **AI Engine** | Pipeline visual de los 5 agentes, guardrails, y el runner en vivo del copilot con tabla de auditoria por agente | Edge Function `copilot` (POST `{account_id}`) + `account_scores` para el selector |
+| **AI Engine** | Pipeline visual de los 5 agentes, guardrails, y el runner en vivo del sentinel con tabla de auditoria por agente | Edge Function `sentinel` (POST `{account_id}`) + `account_scores` para el selector |
 
 Los 8 KPIs de Overview (de `app/js/tab-overview.js`): unalerted high-risk value, escalation gap,
 screening coverage, false-positive rate, unresolved Critical/High, value through non-active
 accounts, structuring-band share, chargeback growth.
 
-## 4. Contrato de salida del copilot
+## 4. Contrato de salida del sentinel
 
-El Edge Function (`supabase/functions/copilot/index.ts`) fuerza el schema via
+El Edge Function (`supabase/functions/sentinel/index.ts`) fuerza el schema via
 `responseSchema` de Gemini; `recommended_action` es un enum cerrado.
 
 ```json
@@ -92,7 +92,7 @@ tier heavy = `gemini-flash-latest`):
 
 ```
 POST {account_id}
-  -> rate limiter (RPC copilot_hit en Postgres)
+  -> rate limiter (RPC sentinel_hit en Postgres)
   -> anonimizador + sanitizador (tools deterministas)
   -> profile_analyst -> behavior_analyst -> anomaly_interpreter   (fast)
   -> risk_synthesizer -> compliance_reviewer                      (heavy)
@@ -124,12 +124,12 @@ matters" y link al tab de profundizacion (PRD §3).
 **RF5 — Charts con "how to read"**: cada chart SVG de Findings expone tooltip por punto
 y una nota de como leerlo; los charts se generan en `app/js/charts.js`, sin librerias.
 
-**RF6 — Copilot rate-limited**: 8 requests/min por IP + 250/dia globales, aplicados en
-Postgres via el RPC atomico `copilot_hit` (no in-process, porque el endpoint es publico).
-Si el limitador falla, el copilot falla abierto para no tumbar la demo.
+**RF6 — Sentinel rate-limited**: 8 requests/min por IP + 250/dia globales, aplicados en
+Postgres via el RPC atomico `sentinel_hit` (no in-process, porque el endpoint es publico).
+Si el limitador falla, el sentinel falla abierto para no tumbar la demo.
 
 **RF7 — Audit por agente persistido**: cada run escribe una fila por agente en
-`copilot_audit` (solo service role): `run_id`, `account_id`, `agent`, `model_used`,
+`sentinel_audit` (solo service role): `run_id`, `account_id`, `agent`, `model_used`,
 `attempts`, `fallback_used`, `latency_ms`, `ok`. El mismo audit vuelve en la respuesta
 y se renderiza como tabla en el tab AI Engine.
 
@@ -145,7 +145,7 @@ descarta cifras no trazables a las notas.
 **RF10 — Deep links por hash**: cada tab es direccionable por hash (`#data`, `#eda`,
 `#findings`, `#ml`, `#engine`); los links internos y los modales navegan via `goTo(tab)`.
 
-**RF11 — Validacion de entrada del copilot**: `account_id` debe cumplir `^ACC\d{5}$`;
+**RF11 — Validacion de entrada del sentinel**: `account_id` debe cumplir `^ACC\d{5}$`;
 metodo POST unico; CORS restringido al origen de Cloudflare Pages y localhost.
 
 ## 6. No-goals
@@ -153,10 +153,10 @@ metodo POST unico; CORS restringido al origen de Cloudflare Pages y localhost.
 | No-goal | Razon |
 |---|---|
 | Sin auth ni gestion de usuarios | El board es publico por diseno; RLS hace segura la anon key |
-| Sin escritura desde la UI | Unica escritura del sistema: `copilot_audit` + contadores de rate limit, ambas server-side |
+| Sin escritura desde la UI | Unica escritura del sistema: `sentinel_audit` + contadores de rate limit, ambas server-side |
 | Sin Power BI en el board | El .pbix es Layer 1 (entregable mandado); el board es Layer 2 y no lo embebe |
 | Sin datos reales | Dataset dummy siempre; el disclaimer es permanente |
-| El copilot no toma decisiones | Recomienda una accion del enum cerrado; la decision es humana |
+| El sentinel no toma decisiones | Recomienda una accion del enum cerrado; la decision es humana |
 
 ## 7. Metricas de exito
 
@@ -165,8 +165,8 @@ metodo POST unico; CORS restringido al origen de Cloudflare Pages y localhost.
 | Board carga sin errores desde el serving layer | 6 tabs renderizan con datos vivos | Smoke test manual en el deploy de Pages |
 | KPIs reproducibles | Los 8 valores coinciden con EDA_FINDINGS.md | RF1: trazabilidad de cifras |
 | Escritura imposible via anon key | INSERT/UPDATE/DELETE rechazados | Verificacion RLS post-seed (hecha 2026-07-12) |
-| Copilot completa un run | ~30 s, 5 agentes, verdict + audit renderizados | Runner del tab AI Engine |
-| Abuso contenido | 429 al exceder 8/min/IP o 250/dia | RPC `copilot_hit` |
+| Sentinel completa un run | ~30 s, 5 agentes, verdict + audit renderizados | Runner del tab AI Engine |
+| Abuso contenido | 429 al exceder 8/min/IP o 250/dia | RPC `sentinel_hit` |
 | Historia legible como portfolio | Un revisor sigue todo el camino analitico sin el repo | Recorrido Overview → Data → EDA → Findings → ML → Engine |
 
 ## 8. Evolucion futura
@@ -202,12 +202,12 @@ supervisada fingida. **Vigente.**
 **2026-07-12** — Se retira el what-if playground (analisis hipotetico fuera de alcance): el
 Live scoring conserva la verificacion 105/105 en el navegador y pasa a contar la HISTORIA de
 cada cuenta y su customer — perfil KYC, comportamiento real, lectura del modelo con sus
-desviaciones, y que hicieron (o no) las reglas y el screening — con salto al copilot para la
+desviaciones, y que hicieron (o no) las reglas y el screening — con salto al sentinel para la
 narrativa completa. **Vigente.**
 
 **2026-07-12** — v3 "deteccion multinivel": rebuild completo aprobado por el propietario
 sabiendo que cambiaban los numeros publicados. Tres modelos (TRX/cuenta/cliente) con
-roll-up; el copilot pasa a analizar CLIENTES (el sujeto legal) agregando todas sus
+roll-up; el sentinel pasa a analizar CLIENTES (el sujeto legal) agregando todas sus
 cuentas; el tab ML se reorganiza por niveles con el ranking de clientes; Findings gana
 "Needles & schemes". Los 24 registros KYC-only se excluyen del scoring y se reportan
 como hallazgo de gobernanza de datos. **Vigente.**
@@ -216,3 +216,8 @@ como hallazgo de gobernanza de datos. **Vigente.**
 agrupados, orden 1→2→3, verificacion en navegador dentro del Tier 2) y pase editorial
 completo a copy profesional declarativo, gobernado por CONVENTIONS §5 con gate de grep
 en la verificacion. **Vigente.**
+
+**2026-07-12** — v3.2: el agente IA se renombra de "Copilot" a **Sentinel** (coherencia
+tematica del portfolio de fraude; decision del propietario consciente del proyecto homonimo).
+Rename completo: slug de la Edge Function (/functions/v1/sentinel), tablas sentinel_usage /
+sentinel_ip_usage / sentinel_audit, RPC sentinel_hit, frontend, docs y glosario. **Vigente.**

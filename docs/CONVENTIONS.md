@@ -20,12 +20,12 @@ este glosario se actualiza en el mismo commit.
 | **finding** | Hallazgo tematico con card + chart en el tab Findings (son 6) | confundir con "insight" |
 | **insight** | Uno de los 5 del entregable ejecutivo (`reports/EXECUTIVE_SUMMARY.md`) — NO es UI | confundir con "finding" |
 | **KPI** | Tile del tab Overview (son 8); cada uno abre popup con definicion, formula viva y "why it matters" | "metrica", "indicador", "card" |
-| **copilot** | El Edge Function `supabase/functions/copilot/index.ts` completo (pipeline v2) | "el bot", "la IA", "el asistente" |
-| **agente** | Uno de los 5 del pipeline del copilot: profile_analyst, behavior_analyst, anomaly_interpreter, risk_synthesizer, compliance_reviewer | "paso", "prompt", "modelo" |
+| **sentinel** | El Edge Function `supabase/functions/sentinel/index.ts` completo (pipeline v2) | "el bot", "la IA", "el asistente" |
+| **agente** | Uno de los 5 del pipeline del sentinel: profile_analyst, behavior_analyst, anomaly_interpreter, risk_synthesizer, compliance_reviewer | "paso", "prompt", "modelo" |
 | **tool** | Fetcher determinista que alimenta a un agente (profileFetcher, screeningFetcher, txnAggregator, txnSampler, scoreFetcher, alertFetcher) | "helper", "query", "funcion" |
 | **model wrapper** | `callModel`: unico punto de llamada a Gemini, con retry + backoff + fallback chain y key en header | "cliente", "SDK" |
 | **fallback chain** | Cadena de aliases de modelo: `gemini-flash-latest → gemini-flash-lite-latest → gemini-2.0-flash` | "backup model", "plan B" |
-| **audit trail** | La tabla `copilot_audit` (una fila por agente por run: run_id, model_used, attempts, fallback_used, latency_ms, ok) y su eco en la respuesta | "logs", "historial" |
+| **audit trail** | La tabla `sentinel_audit` (una fila por agente por run: run_id, model_used, attempts, fallback_used, latency_ms, ok) y su eco en la respuesta | "logs", "historial" |
 | **banda structuring** | Transacciones de $9,000–9,999, justo bajo el umbral de reporte de $10,000 | "smurfing band", "rango sospechoso" |
 | **HR country** | Pais del set de alto riesgo: Iran, North Korea, Syria, Russia, Myanmar, Afghanistan (`HIGH_RISK` en codigo) | "pais sancionado" a secas, listas ad-hoc |
 | **offshore** | Pais del set offshore: Cayman Islands, British Virgin Islands, Panama, Cyprus, Malta (`OFFSHORE` en codigo) | "paraiso fiscal", listas ad-hoc |
@@ -90,7 +90,7 @@ el que y el por que.
 historia de git es parte del portfolio y debe leerse como trabajo del propietario.
 
 **La historia es parte del portfolio**: no se reescribe main; los mensajes cuentan la
-evolucion del proyecto (limpieza → modelo → serving → board → copilot) y un revisor debe
+evolucion del proyecto (limpieza → modelo → serving → board → sentinel) y un revisor debe
 poder auditarla commit a commit.
 
 ---
@@ -109,3 +109,5 @@ poder auditarla commit a commit.
 | model-only detection | deteccion del modelo sin flag del motor de reglas | needle, aguja |
 | account detail | vista de perfil+actividad+modelo+controles de una cuenta | story, dossier, historia |
 | in-browser verification | recomputo local de scores contra el pipeline | live scoring, demo |
+
+| Sentinel | agente IA de analisis de sujetos (pipeline de 5 agentes en Edge Function) | copilot, Compliance Copilot |

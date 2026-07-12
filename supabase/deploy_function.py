@@ -1,5 +1,5 @@
 """
-Deploy the copilot Edge Function through the Supabase Management API
+Deploy the sentinel Edge Function through the Supabase Management API
 (multipart upload — no Docker, no CLI). Auth: SUPABASE_ACCESS_TOKEN env var.
 
 Run from the repo root: python supabase/deploy_function.py
@@ -12,8 +12,8 @@ import uuid
 
 REF = os.environ.get("SUPABASE_PROJECT_REF", "tbvuznyawebgrblwlrxy")
 TOKEN = os.environ["SUPABASE_ACCESS_TOKEN"]
-SLUG = "copilot"
-SOURCE = "supabase/functions/copilot/index.ts"
+SLUG = "sentinel"
+SOURCE = "supabase/functions/sentinel/index.ts"
 URL = f"https://api.supabase.com/v1/projects/{REF}/functions/deploy?slug={SLUG}"
 
 metadata = {"name": SLUG, "entrypoint_path": "index.ts", "verify_jwt": True}

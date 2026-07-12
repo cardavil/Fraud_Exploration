@@ -8,7 +8,7 @@ Two-layer strategy:
   summary with up to 5 insights. Must stand alone. Submission deadline: **14 July 2026**.
 - **Layer 2 (differentiator/portfolio):** a live "Fraud & Compliance Exploration Board" —
   static web app + Supabase (read-only Postgres) + Cloudflare Pages + a Gemini-powered
-  "Compliance Copilot" (Supabase Edge Function). Framed in the submission as
+  "Compliance Sentinel" (Supabase Edge Function). Framed in the submission as
   "a prototype of how this analysis could evolve into a self-serve tool."
 
 Tone rule for all written deliverables: concise, business-first, numbers in headlines.
@@ -51,9 +51,9 @@ Offshore set: Cayman Islands, British Virgin Islands, Panama, Cyprus, Malta.
 Steps 1–4 and 6 are BUILT AND DEPLOYED, plus the v2 iteration: the board is
 six tabs (Overview with 8 KPI popups, Data explorer, EDA as a 6-step process,
 Findings with evidence charts, ML model card with a real sensitivity sweep,
-AI Engine), the copilot is a **five-agent pipeline** with retry/fallback
+AI Engine), the sentinel is a **five-agent pipeline** with retry/fallback
 wrapper, PII anonymization, injection defenses, Postgres rate limiting
-(8/min/IP + 250/day) and a per-agent `copilot_audit` trail. Model aliases
+(8/min/IP + 250/day) and a per-agent `sentinel_audit` trail. Model aliases
 only (`gemini-flash-latest` / `-lite-` — pinned 2.5 ids 404 for new users).
 Design docs live in `docs/` (PRD, TRD, DATABASE, UI, APPFLOW, CONVENTIONS,
 MOCKUPS); the 5-insight deliverable in `reports/EXECUTIVE_SUMMARY.md`.
@@ -67,7 +67,7 @@ pending — deadline 2026-07-14.
 /outputs/         findings, cleaning log, CSVs
 /app/             static frontend (index.html, app.js, styles.css) — Cloudflare Pages root
 /supabase/        seed.sql (DDL + data + RLS read-only policies)
-/supabase/functions/copilot/   index.ts — Supabase Edge Function proxying Gemini
+/supabase/functions/sentinel/   index.ts — Supabase Edge Function proxying Gemini
 /powerbi/         star-schema CSVs, measures.md (DAX), theme.json, layout_spec.md
 README.md         architecture diagram, screenshots, methodology, privacy note
 ```
@@ -85,12 +85,12 @@ Single-page, no framework needed (or minimal). Panels:
   chargeback trend.
 - Filterable transactions table (country, flagged, amount band, account status).
 - Anomaly view: account list sorted by Isolation Forest score with feature explanation.
-- Copilot panel: pick an account → POST to the `copilot` Edge Function → structured
+- Sentinel panel: pick an account → POST to the `sentinel` Edge Function → structured
   risk narrative + recommended action (Escalate / Request docs / Close as FP).
 Design: clean, dark-friendly, risk color semantics (red = sanctioned, amber = offshore).
 Keep it read-only. Loading states + graceful errors.
 
-### 4. Copilot (`/supabase/functions/copilot/index.ts`)
+### 4. Sentinel (`/supabase/functions/sentinel/index.ts`)
 - Supabase Edge Function (Deno). Reads `GEMINI_API_KEY` from env — stored as a
   Supabase secret (`supabase secrets set GEMINI_API_KEY=...`). NEVER expose the key
   client-side; never commit it.
@@ -118,7 +118,7 @@ Keep it read-only. Loading states + graceful errors.
 - Frontend: push to GitHub via MCP `github-fe`; Cloudflare Pages is connected to the
   repo (Git integration) and auto-deploys on push. Build output = `/app`, no build
   command, no wrangler, no Cloudflare credentials needed locally.
-- Copilot: `supabase functions deploy copilot` + `supabase secrets set GEMINI_API_KEY`.
+- Sentinel: `supabase functions deploy sentinel` + `supabase secrets set GEMINI_API_KEY`.
 
 ### 7. Submission package (Layer 1)
 - One-page executive summary (the Top-5 from EDA_FINDINGS.md, tightened).

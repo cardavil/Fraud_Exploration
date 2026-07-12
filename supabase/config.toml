@@ -1,4 +1,4 @@
 project_id = "tbvuznyawebgrblwlrxy"
 
-[functions.copilot]
+[functions.sentinel]
 verify_jwt = true

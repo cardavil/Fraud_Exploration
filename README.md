@@ -2,7 +2,7 @@
 
 A portfolio project that turns a risk & compliance dataset into a **live, self-serve
 exploration tool**: cleaning pipeline → interpretable ML anomaly detection → read-only
-serving layer → web board with an AI copilot grounded on the served data.
+serving layer → web board with an AI sentinel grounded on the served data.
 
 **Live board:** https://fraud-exploration.pages.dev
 **Executive summary (the 5 headline insights):** [reports/EXECUTIVE_SUMMARY.md](reports/EXECUTIVE_SUMMARY.md)
@@ -25,7 +25,7 @@ flowchart LR
   subgraph Serving["Serving layer (Supabase)"]
     SEED[generate_seed.py<br/>apply_seed.py] --> PG[(Postgres<br/>RLS: SELECT-only anon)]
     PG --- REST[PostgREST API]
-    FN[Edge Function copilot<br/>5-agent pipeline + audit]
+    FN[Edge Function sentinel<br/>5-agent pipeline + audit]
   end
 
   subgraph Front["Frontend (Cloudflare Pages)"]
@@ -50,7 +50,7 @@ flowchart LR
 | **EDA** | The analysis as a six-step process — audited cleaning (live from `cleaning_log`), verified counts, descriptives, distributions, associations. |
 | **Findings** | Thematic deep-dives, each with an evidence chart, per-mark tooltips and a "how to read" note. |
 | **ML Model** | Why Isolation Forest, the 12 features, a real parameter-sensitivity sweep, and the explained anomaly list. |
-| **AI Engine** | The copilot's internals — five-agent pipeline, tools, model wrapper with retry/fallback, anonymization, injection defenses — plus the live runner with a per-agent audit table. |
+| **AI Engine** | The sentinel's internals — five-agent pipeline, tools, model wrapper with retry/fallback, anonymization, injection defenses — plus the live runner with a per-agent audit table. |
 
 ## Stack rationale
 
@@ -58,7 +58,7 @@ flowchart LR
 |---|---|
 | **Supabase (Postgres + PostgREST)** | A serving layer with real row-level security: the anon key shipped to the browser can only `SELECT`. Write privileges are revoked *and* no write policy exists — defense in depth. |
 | **Cloudflare Pages, no build step** | The board is vanilla HTML/JS/CSS; deploys on every push through the GitHub integration. Nothing to compile, nothing to break. |
-| **Supabase Edge Function for the copilot** | The Gemini key must never reach the client. Inside, a **five-agent pipeline** (profile → behavior → ML interpretation → synthesis → compliance QA) with one model wrapper (retry, backoff, fallback chain), PII pseudonymization by construction, prompt-injection framing, Postgres-enforced rate limits and a per-agent audit trail. |
+| **Supabase Edge Function for the sentinel** | The Gemini key must never reach the client. Inside, a **five-agent pipeline** (profile → behavior → ML interpretation → synthesis → compliance QA) with one model wrapper (retry, backoff, fallback chain), PII pseudonymization by construction, prompt-injection framing, Postgres-enforced rate limits and a per-agent audit trail. |
 | **Isolation Forest at account level** | Unsupervised, fits a no-labels compliance setting, and stays **explainable**: every flagged account shows *which* behavioral features deviate and by how much. |
 
 **Production note:** here Postgres serves both roles for simplicity. In a production
@@ -95,7 +95,7 @@ data/        raw + cleaned SQLite (dummy data, safe to commit)
 outputs/     EDA findings, cleaning log, model scores
 reports/     EXECUTIVE_SUMMARY.md — the 5-insight deliverable
 app/         static frontend (Cloudflare Pages root; js/ modules, data/ precomputed stats)
-supabase/    seed generator + applier, edge function (5-agent copilot), rate limit, audit
+supabase/    seed generator + applier, edge function (5-agent sentinel), rate limit, audit
 docs/        PRD, TRD, DATABASE, UI, APPFLOW, CONVENTIONS, MOCKUPS
 ```
 
@@ -112,13 +112,13 @@ SUPABASE_ACCESS_TOKEN=... python supabase/apply_seed.py   # applies it (Manageme
 ```
 
 Frontend: open `app/index.html` through any static server (`python -m http.server`).
-Copilot: `supabase functions deploy copilot` + `supabase secrets set GEMINI_API_KEY=...`.
+Sentinel: `supabase functions deploy sentinel` + `supabase secrets set GEMINI_API_KEY=...`.
 
 ## Privacy & AI-safety notes
 
 - **Dummy data only.** In production, PII would be masked or tokenized before reaching
   an exploration tool, and models would run in a controlled environment.
-- The copilot **reasons only over data served to it** and returns a constrained JSON
+- The sentinel **reasons only over data served to it** and returns a constrained JSON
   schema (`Escalate / Request documentation / Close as false positive`); account data
   is wrapped as third-party *data*, not instructions, to resist prompt injection.
 - The anon key in `app/config.js` is intentionally public: RLS limits it to `SELECT`.

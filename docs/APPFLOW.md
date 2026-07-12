@@ -1,9 +1,9 @@
 # APPFLOW — Fraud & Compliance Exploration Board
 
 Los cuatro flujos del sistema: el recorrido del visitante por el board, el pipeline de datos
-de SQLite crudo a Supabase y Pages, el request del copilot de punta a punta (con sus caminos
+de SQLite crudo a Supabase y Pages, el request del sentinel de punta a punta (con sus caminos
 de degradacion) y el flujo de deploy. Fuentes: `app/js/core.js`, `app/js/tab-*.js`,
-`supabase/functions/copilot/index.ts`, `supabase/deploy_function.py`, `wrangler.toml`.
+`supabase/functions/sentinel/index.ts`, `supabase/deploy_function.py`, `wrangler.toml`.
 Docs hermanos: [UI.md](UI.md) (sistema visual) · [MOCKUPS.md](MOCKUPS.md) (wireframes) ·
 [TRD.md](TRD.md) (diseno tecnico) · [PRD.md](PRD.md) (producto).
 Fecha: 2026-07-12.
@@ -49,7 +49,7 @@ POPUP (modal): definicion + formula viva + why it matters + link al tab
         |
         |  selecciona cuenta + Analyze  (~30 s, 5 llamadas secuenciales)
         v
-POST al copilot -> 5 stages pulsing -> verdict + audit por agente (§3)
+POST al sentinel -> 5 stages pulsing -> verdict + audit por agente (§3)
 ```
 
 Notas:
@@ -109,13 +109,13 @@ Notas:
   (`computeKpis`, `tab-findings.js`); lo que es estadistica (percentiles, Cramer's V,
   sweep del modelo) viene precalculado en los JSON — asi cada cifra traza a un script.
 
-## 3. Flujo del copilot end-to-end
+## 3. Flujo del sentinel end-to-end
 
 Un POST dispara el pipeline de 5 agentes dentro del Edge Function
-(`supabase/functions/copilot/index.ts`). Detalle de agentes y wrapper en TRD §4-§5.
+(`supabase/functions/sentinel/index.ts`). Detalle de agentes y wrapper en TRD §4-§5.
 
 ```
-POST /functions/v1/copilot   body: { account_id }
+POST /functions/v1/sentinel   body: { account_id }
   |
   |   OPTIONS ------------------> 200 (CORS: ALLOWED_ORIGINS
   |                                    + *.fraud-exploration.pages.dev)
@@ -126,7 +126,7 @@ VALIDACION
   |   body no es JSON ----------> 400
   |   no matchea ^ACC\d{5}$ ----> 400
   v
-RATE LIMITER — RPC copilot_hit(ip, 8/min, 250/dia)   [atomico, en Postgres]
+RATE LIMITER — RPC sentinel_hit(ip, 8/min, 250/dia)   [atomico, en Postgres]
   |   limite alcanzado ---------> 429
   |   RPC caido ----------------> fail open (una caida del limiter
   |                                no tumba la demo)
@@ -163,7 +163,7 @@ LOOP x5 agentes (secuencial):  profile_analyst -> behavior_analyst ->
   |     flaggeado en el audit (ok: false en su fila)
   |   - synthesizer caido -------------> throw -> 500
   v
-PERSISTIR AUDIT — INSERT en copilot_audit (service-role only):
+PERSISTIR AUDIT — INSERT en sentinel_audit (service-role only):
   |   run_id, account_id, agente, modelo usado, intentos, fallback,
   |   latencia, ok — un fallo aqui se loggea pero NO es fatal
   v
@@ -181,9 +181,9 @@ verdict con badge de accion, tabla de audit por agente (MOCKUPS §8)
 Dos artefactos, dos caminos independientes. Detalle en TRD §9.
 
 ```
-FRONTEND (estaticos)                     COPILOT (Edge Function)
+FRONTEND (estaticos)                     SENTINEL (Edge Function)
 --------------------                     -----------------------
-git push a main (GitHub)                 cambio en functions/copilot/index.ts
+git push a main (GitHub)                 cambio en functions/sentinel/index.ts
         |                                        |
         v                                        v
 Cloudflare Pages                         python supabase/deploy_function.py
@@ -193,13 +193,13 @@ Cloudflare Pages                         python supabase/deploy_function.py
     sin comando de build                         v
         |                                Supabase Management API
         v                                  POST /v1/projects/{ref}
-https://fraud-exploration.pages.dev            /functions/deploy?slug=copilot
+https://fraud-exploration.pages.dev            /functions/deploy?slug=sentinel
   (sirve /app tal cual)                    multipart: metadata (entrypoint
                                            index.ts, verify_jwt: true)
                                            + el fuente index.ts
                                                  |
                                                  v
-                                         Edge Function copilot en vivo
+                                         Edge Function sentinel en vivo
                                            (secrets aparte:
                                             GEMINI_API_KEY y overrides
                                             GEMINI_MODEL / _FAST via

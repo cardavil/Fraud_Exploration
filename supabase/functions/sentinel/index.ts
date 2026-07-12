@@ -1,4 +1,4 @@
-// Compliance Copilot v2 — five-agent pipeline as a Supabase Edge Function.
+// Compliance Sentinel v2 — five-agent pipeline as a Supabase Edge Function.
 //
 // POST { account_id } →
 //   anonymized tool context → profile_analyst → behavior_analyst →
@@ -60,7 +60,7 @@ async function supabaseSelect(path: string): Promise<unknown[]> {
 
 async function withinLimits(ip: string): Promise<boolean> {
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/copilot_hit`, {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/sentinel_hit`, {
       method: "POST",
       headers: SERVICE_HEADERS,
       body: JSON.stringify({ client_ip: ip, max_per_min: RATE_PER_MIN, max_per_day: DAILY_CAP }),
@@ -361,7 +361,7 @@ async function persistAudit(runId: string, accountId: string, audit: AuditEntry[
       run_id: runId, account_id: accountId, agent: a.agent, model_used: a.model_used,
       attempts: a.attempts, fallback_used: a.fallback_used, latency_ms: a.latency_ms, ok: a.ok,
     }));
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/copilot_audit`, {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/sentinel_audit`, {
       method: "POST", headers: SERVICE_HEADERS, body: JSON.stringify(rows),
     });
     if (!res.ok) throw new Error(`insert ${res.status}`);
@@ -379,7 +379,7 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ error: "POST only" }), { status: 405, headers: cors });
   }
   if (!GEMINI_API_KEY) {
-    return new Response(JSON.stringify({ error: "Copilot not configured: GEMINI_API_KEY secret is missing." }),
+    return new Response(JSON.stringify({ error: "Sentinel not configured: GEMINI_API_KEY secret is missing." }),
       { status: 503, headers: cors });
   }
 
@@ -432,7 +432,7 @@ Deno.serve(async (req) => {
         ({ agent, model_used, attempts, fallback_used, latency_ms, ok })),
     }), { headers: cors });
   } catch (err) {
-    console.error("copilot error", err instanceof Error ? err.message : String(err));
+    console.error("sentinel error", err instanceof Error ? err.message : String(err));
     return new Response(JSON.stringify({ error: "Internal error building the risk narrative." }),
       { status: 500, headers: cors });
   }

@@ -1,4 +1,4 @@
-/* AI Engine: the copilot's internals made visible — agent pipeline, tools,
+/* AI Engine: the sentinel's internals made visible — agent pipeline, tools,
    model wrapper, defenses — plus the live runner with its per-agent audit. */
 window.FE.tabs.engine = {
   render(el) {
@@ -21,12 +21,12 @@ window.FE.tabs.engine = {
       ["Model wrapper", "One wrapper for every call: retry with backoff on the primary model, then a fallback chain across model aliases (<code>gemini-flash-latest → flash-lite → 2.0-flash</code>). Aliases, not pinned ids — pinned Gemini versions get retired for new API users."],
       ["Data anonymization", "Customer PII never reaches a prompt: <code>full_name</code> and <code>date_of_birth</code> are never selected from the database, and the model sees a pseudonym (<code>Customer CUST0000</code>). The dataset is synthetic; the anonymization step follows production practice regardless."],
       ["Prompt-injection defenses", "All account data is framed as <code>&lt;data&gt;</code> = third-party DATA, not instructions; every string is sanitized (control chars, code fences, length caps); output is forced through a JSON schema; the reviewer agent drops anything not traceable to the provided figures."],
-      ["Per-agent audit trail", "Every run writes one row per agent to <code>copilot_audit</code> (service-role only): model used, attempts, fallback, latency. The same audit returns in the response — rendered below after each analysis."],
+      ["Per-agent audit trail", "Every run writes one row per agent to <code>sentinel_audit</code> (service-role only): model used, attempts, fallback, latency. The same audit returns in the response — rendered below after each analysis."],
       ["Abuse controls", "The endpoint is public by design (the anon key ships with this page), so limits are enforced in Postgres, not in-process: 8 requests/min per IP and a global daily cap via one atomic RPC."],
     ];
 
     el.innerHTML = `
-      <p class="tab-intro">The Compliance Copilot is a five-agent pipeline running in a Supabase
+      <p class="tab-intro">The Compliance Sentinel is a five-agent pipeline running in a Supabase
       Edge Function, with production-style guardrails: retry and fallback handling, data
       anonymization, prompt-injection defenses and a per-agent audit trail. The sections below
       describe the architecture; the runner at the bottom executes a live analysis.</p>
@@ -74,15 +74,15 @@ window.FE.tabs.engine = {
           <h3>Run an analysis — grounded risk narrative for one customer</h3>
           <span class="muted">~30 s: five sequential model calls over every account the customer holds</span>
         </div>
-        <div class="copilot-controls">
-          <select id="cop-account" aria-label="Customer to analyze"><option value="">Select a customer…</option></select>
-          <button class="btn btn-primary" id="cop-run" type="button">Analyze</button>
+        <div class="sentinel-controls">
+          <select id="sn-account" aria-label="Customer to analyze"><option value="">Select a customer…</option></select>
+          <button class="btn btn-primary" id="sn-run" type="button">Analyze</button>
         </div>
-        <div id="cop-progress" class="cop-progress hidden">
-          ${AGENTS.map((a) => `<span class="cop-stage" data-stage="${a.name}">${a.name}</span>`).join("<span class='pipe-arrow'>&rarr;</span>")}
+        <div id="sn-progress" class="sn-progress hidden">
+          ${AGENTS.map((a) => `<span class="sn-stage" data-stage="${a.name}">${a.name}</span>`).join("<span class='pipe-arrow'>&rarr;</span>")}
         </div>
-        <div id="cop-output" class="copilot-output hidden"></div>
-        <div id="cop-error" class="banner banner-error hidden" role="alert"></div>
+        <div id="sn-output" class="sentinel-output hidden"></div>
+        <div id="sn-error" class="banner banner-error hidden" role="alert"></div>
       </div>`;
 
     /* runner */
@@ -90,7 +90,7 @@ window.FE.tabs.engine = {
     const opts = [...state.data.customer_scores]
       .sort((a, b) => (b.anomaly === -1) - (a.anomaly === -1) || b.score - a.score)
       .map((s) => `<option value="${escapeHtml(s.customer_id)}">${escapeHtml(s.customer_id)}${s.anomaly === -1 ? " ⚠ anomalous" : ""} · ${s.n_accounts} account${s.n_accounts > 1 ? "s" : ""}${s.never_screened ? " · never screened" : ""}</option>`);
-    $q("#cop-account").insertAdjacentHTML("beforeend", opts.join(""));
+    $q("#sn-account").insertAdjacentHTML("beforeend", opts.join(""));
 
     const ACTION_BADGE = {
       "Escalate": "badge-sanctioned",
@@ -98,41 +98,41 @@ window.FE.tabs.engine = {
       "Close as false positive": "badge-clear",
     };
 
-    $q("#cop-run").addEventListener("click", async () => {
-      const accountId = $q("#cop-account").value;
+    $q("#sn-run").addEventListener("click", async () => {
+      const accountId = $q("#sn-account").value;
       if (!accountId) return;
-      $q("#cop-error").classList.add("hidden");
-      $q("#cop-output").classList.add("hidden");
-      $q("#cop-progress").classList.remove("hidden");
-      el.querySelectorAll(".cop-stage").forEach((s) => s.classList.add("pulsing"));
-      $q("#cop-run").disabled = true;
+      $q("#sn-error").classList.add("hidden");
+      $q("#sn-output").classList.add("hidden");
+      $q("#sn-progress").classList.remove("hidden");
+      el.querySelectorAll(".sn-stage").forEach((s) => s.classList.add("pulsing"));
+      $q("#sn-run").disabled = true;
       try {
-        const res = await fetch(CFG.COPILOT_URL, {
+        const res = await fetch(CFG.SENTINEL_URL, {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${CFG.SUPABASE_ANON_KEY}` },
           body: JSON.stringify({ customer_id: accountId }),
         });
         if (!res.ok) {
           const detail = await res.text().catch(() => "");
-          throw new Error(`Copilot request failed (${res.status}). ${detail.slice(0, 200)}`);
+          throw new Error(`Sentinel request failed (${res.status}). ${detail.slice(0, 200)}`);
         }
         const r = await res.json();
         (r.audit ?? []).forEach((a) => {
-          const stage = el.querySelector(`.cop-stage[data-stage="${a.agent}"]`);
+          const stage = el.querySelector(`.sn-stage[data-stage="${a.agent}"]`);
           if (stage) {
             stage.classList.remove("pulsing");
             stage.classList.add(a.ok ? "done" : "failed");
             stage.innerHTML += ` <span class="muted">${(a.latency_ms / 1000).toFixed(1)}s</span>`;
           }
         });
-        $q("#cop-output").innerHTML = `
+        $q("#sn-output").innerHTML = `
           <p>${escapeHtml(r.risk_summary)}</p>
-          <div class="cop-action">Recommended action:
+          <div class="sn-action">Recommended action:
             <span class="badge ${ACTION_BADGE[r.recommended_action] || "badge-plain"}">${escapeHtml(r.recommended_action)}</span>
             <span class="muted">· model confidence ${fmtPct(r.confidence ?? 0)}</span>
           </div>
           <strong>Key factors</strong>
-          <ul class="cop-factors">${(r.key_factors || []).map((f) => `<li>${escapeHtml(f)}</li>`).join("")}</ul>
+          <ul class="sn-factors">${(r.key_factors || []).map((f) => `<li>${escapeHtml(f)}</li>`).join("")}</ul>
           <strong>Per-agent audit (run ${escapeHtml(r.run_id ?? "")})</strong>
           <div class="table-wrap"><table>
             <thead><tr><th>Agent</th><th>Model used</th><th class="num">Attempts</th><th>Fallback</th><th class="num">Latency</th><th>OK</th></tr></thead>
@@ -143,13 +143,13 @@ window.FE.tabs.engine = {
               <td>${a.ok ? "✓" : '<span class="badge badge-sanctioned">failed</span>'}</td></tr>`).join("")}
             </tbody>
           </table></div>`;
-        $q("#cop-output").classList.remove("hidden");
+        $q("#sn-output").classList.remove("hidden");
       } catch (err) {
-        $q("#cop-error").textContent = err.message;
-        $q("#cop-error").classList.remove("hidden");
-        el.querySelectorAll(".cop-stage").forEach((s) => s.classList.remove("pulsing"));
+        $q("#sn-error").textContent = err.message;
+        $q("#sn-error").classList.remove("hidden");
+        el.querySelectorAll(".sn-stage").forEach((s) => s.classList.remove("pulsing"));
       } finally {
-        $q("#cop-run").disabled = false;
+        $q("#sn-run").disabled = false;
       }
     });
   },

@@ -16,7 +16,7 @@ GitHub (push a main)
    v
 Cloudflare Pages  --sirve-->  /app (estatico)  --fetch anon-->  Supabase PostgREST (RLS SELECT-only)
                                     |
-                                    +--POST { account_id }-->  Supabase Edge Function "copilot"
+                                    +--POST { account_id }-->  Supabase Edge Function "sentinel"
                                                                     |
                                                                     +--> Gemini API (aliases, fallback chain)
                                                                     +--> Postgres (rate limit RPC + audit)
@@ -89,7 +89,7 @@ async function supabaseFetchAll(path) {
 
 ## 4. Capa IA — pipeline de 5 agentes
 
-Implementado en `supabase/functions/copilot/index.ts`. Copiado del array `AGENTS`:
+Implementado en `supabase/functions/sentinel/index.ts`. Copiado del array `AGENTS`:
 
 | Agente | Tier / Modelo | Rol | Tools | output_key |
 |---|---|---|---|---|
@@ -163,24 +163,24 @@ async function callModel(agentName: string, preferred: string, system: string, u
 
 ## 7. Rate limiting y abuso
 
-Enforcement en Postgres via la RPC atomica `copilot_hit` (`supabase/rate_limit.sql`):
+Enforcement en Postgres via la RPC atomica `sentinel_hit` (`supabase/rate_limit.sql`):
 
 ```sql
-copilot_hit(client_ip text, max_per_min integer, max_per_day integer) RETURNS boolean
+sentinel_hit(client_ip text, max_per_min integer, max_per_day integer) RETURNS boolean
 -- SECURITY DEFINER; EXECUTE revocado de PUBLIC, anon y authenticated
 ```
 
 - **Limites**: 8/min/IP (`RATE_PER_MIN = 8`, ventana `date_trunc('minute', now())`) + 250/dia global (`DAILY_CAP = 250`). Ambos contadores se incrementan con `INSERT ... ON CONFLICT DO UPDATE ... RETURNING`, atomico por fila — sin race conditions entre requests concurrentes.
 - **Por que no in-memory**: los edge isolates de Supabase NO comparten memoria entre si ni entre invocaciones; un contador en variable de modulo cuenta solo lo que vio ese isolate y no puede hacer enforcement de nada — verificado empiricamente durante el build.
 - **Fail-open documentado**: si la RPC falla (outage, timeout), `withinLimits` loguea y devuelve `true`. Decision consciente: una caida del limitador no debe tirar la demo; el riesgo residual es acotado por la cuota de Gemini y el costo cero del free tier.
-- **Limpieza**: la propia RPC borra filas de `copilot_ip_usage` con mas de 1 dia — la tabla se mantiene minuscula sin cron.
+- **Limpieza**: la propia RPC borra filas de `sentinel_ip_usage` con mas de 1 dia — la tabla se mantiene minuscula sin cron.
 - Al exceder cualquiera de los dos limites: HTTP 429 con mensaje explicativo.
 
 Esquema de las tablas de contadores en DATABASE §10-§11.
 
 ## 8. Observabilidad
 
-- **`copilot_audit`** (DATABASE §12): una fila por agente por run — `run_id`, `account_id`, `agent`, `model_used`, `attempts`, `fallback_used`, `latency_ms`, `ok`, `ts`. Con esto se responde: que modelo sirvio cada nota, cuantos reintentos costo, cuando actuo el fallback y cuanto tardo cada agente.
+- **`sentinel_audit`** (DATABASE §12): una fila por agente por run — `run_id`, `account_id`, `agent`, `model_used`, `attempts`, `fallback_used`, `latency_ms`, `ok`, `ts`. Con esto se responde: que modelo sirvio cada nota, cuantos reintentos costo, cuando actuo el fallback y cuanto tardo cada agente.
 - **Transparencia hacia el cliente**: la respuesta HTTP devuelve el MISMO array `audit` (mas `run_id` y `pipeline: "v2"`), asi el board puede mostrar la traza del run sin acceso a la tabla (que es service-role only).
 - **Persistencia best-effort**: si el INSERT de audit falla se loguea y la respuesta se entrega igual — la auditoria no bloquea al usuario.
 - **Logs sin payloads**: `console.error` emite solo `err.message` (nunca objetos completos, ni datos de cuenta, ni prompts) en el wrapper, el limitador, el audit y el handler.
@@ -190,7 +190,7 @@ Esquema de las tablas de contadores en DATABASE §10-§11.
 | Pieza | Mecanismo |
 |---|---|
 | Frontend | Push a `main` en GitHub → Cloudflare Pages (integracion Git) construye y publica automaticamente. Output dir `app` fijado por `wrangler.toml` (TRD §1). Cero credenciales Cloudflare locales |
-| Edge Function | `python supabase/deploy_function.py`: multipart upload (metadata JSON + `index.ts`) a `POST /v1/projects/{ref}/functions/deploy?slug=copilot` de la Management API, con `verify_jwt: true`. Sin Docker y sin CLI: el CLI de supabase rechaza el formato del PAT usado en este entorno, la Management API lo acepta |
+| Edge Function | `python supabase/deploy_function.py`: multipart upload (metadata JSON + `index.ts`) a `POST /v1/projects/{ref}/functions/deploy?slug=sentinel` de la Management API, con `verify_jwt: true`. Sin Docker y sin CLI: el CLI de supabase rechaza el formato del PAT usado en este entorno, la Management API lo acepta |
 | SQL operativo | `rate_limit.sql` y `audit.sql` se aplican por el mismo endpoint de la Management API que el seed (`/database/query`) |
 | Secretos | Solo en Supabase: `GEMINI_API_KEY` (obligatorio), `GEMINI_MODEL` / `GEMINI_MODEL_FAST` (overrides opcionales de tier). `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY` los inyecta la plataforma. Para los scripts de deploy: `SUPABASE_ACCESS_TOKEN` (+ `SUPABASE_PROJECT_REF` opcional) en env vars locales, nunca en el repo |
 
@@ -202,7 +202,7 @@ Implementado en `app/js/core.js::boot`:
 - **Banner global con retry**: cualquier fallo del boot oculta `#global-loading` y muestra `#global-error` con el mensaje (escapado con `escapeHtml`) y un link de retry (`location.reload()`).
 - **Estados por fetch**: cada lectura (`supabaseFetch`) lanza con status y path (`Supabase read failed (status) on <tabla>`), asi el banner dice exactamente que fallo.
 - **Render lazy por tab**: los tabs se registran en `FE.tabs` y renderizan solo en su primera activacion y solo cuando `state.ready` — un tab roto no impide navegar a los demas.
-- **Errores del copiloto**: la Edge Function responde con codigos y mensajes accionables — 400 (body/`account_id` invalido), 404 (cuenta desconocida), 405 (no-POST), 429 (rate limit, TRD §7), 500 (pipeline abortado), 503 (falta `GEMINI_API_KEY`).
+- **Errores del sentinelo**: la Edge Function responde con codigos y mensajes accionables — 400 (body/`account_id` invalido), 404 (cuenta desconocida), 405 (no-POST), 429 (rate limit, TRD §7), 500 (pipeline abortado), 503 (falta `GEMINI_API_KEY`).
 
 ---
 
@@ -243,9 +243,9 @@ Todos son Isolation Forest (300 arboles, seed 42), no supervisados, validados
 | 2 Cuenta | 105 cuentas (8%) | 12 conductuales + pct_txn_anomalous, max_txn_score, max_day_share, recent_intensity (modulo unico `analysis/account_features.py`, espejado por `app/js/iforest.js`) | patrones (bursts, structuring propio, dormant activas) | `account_scores` |
 | 3 Cliente | 59 clientes activos (8%; 24 KYC-only excluidos) | estructura de cuentas, agregados N1/N2, structuring_days cross-cuenta, shares HR/no-activas, KYC (rating, PEP, never_screened, post_match_value) | esquemas y sujeto legal (CUST0054: 0 cuentas anomalas pero structuring repartido en 4) | `customer_scores` |
 
-Roll-up: N1 alimenta N2 (features) y N3; el copilot analiza SIEMPRE al cliente
+Roll-up: N1 alimenta N2 (features) y N3; el sentinel analiza SIEMPRE al cliente
 (acepta `{customer_id}` o `{account_id}` que resuelve a su titular y agrega todas
-sus cuentas; `copilot_audit.account_id` ahora registra el customer_id del sujeto).
+sus cuentas; `sentinel_audit.account_id` ahora registra el customer_id del sujeto).
 El tool `txnNeedleFetcher` entrega al behavior_analyst las peores txns del sujeto
 segun N1. Coherencia verificada: 88% de los clientes de cuentas anomalas rankean
 en el top-15 de clientes; Spearman(score cliente, max score cuenta) = 0.4 — el

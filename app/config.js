@@ -4,5 +4,5 @@ window.FE_CONFIG = {
   SUPABASE_URL: "https://tbvuznyawebgrblwlrxy.supabase.co",
   SUPABASE_ANON_KEY:
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRidnV6bnlhd2ViZ3JibHdscnh5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM4Mjk2NTgsImV4cCI6MjA5OTQwNTY1OH0.fVVnUtvfwAn-P6V_V_bhCLpbikF3kW8qWlBh4JOJrZo",
-  COPILOT_URL: "https://tbvuznyawebgrblwlrxy.supabase.co/functions/v1/copilot",
+  SENTINEL_URL: "https://tbvuznyawebgrblwlrxy.supabase.co/functions/v1/sentinel",
 };
