@@ -453,3 +453,23 @@ Matriz RLS/privilegios:
 - **Dataset estatico**: en runtime nadie escribe las 8 tablas del seed; solo crecen `copilot_audit` (5 filas por run, cap efectivo 250 runs/dia por el rate limit) y los contadores (`copilot_ip_usage` se autolimpia a 1 dia dentro de la propia RPC; `copilot_usage` es 1 fila por dia).
 - **Re-seed idempotente via DROP CASCADE**: `seed.sql` abre con `DROP TABLE IF EXISTS {tabla} CASCADE` en orden inverso de dependencias y recrea todo (DDL + datos + RLS) en una sola pasada; re-ejecutar `generate_seed.py` + `apply_seed.py` deja la base identica sin pasos manuales. Las tablas operativas viven fuera del seed y sobreviven al re-seed.
 - **Camino de crecimiento**: si el dataset creciera, los INSERTs ya van en lotes de 200 y la lectura del board ya pagina con Range + tiebreaker (TRD §3); el cambio necesario seria mover los agregados del cliente a vistas o RPCs de solo lectura.
+
+---
+
+## 15. Tablas v3: transaction_scores y customer_scores (2026-07-12)
+
+**`transaction_scores`** (1,600; PK y FK `transaction_id`, FK `account_id`; escribe: seed).
+Features contextuales del Nivel 1 (log_amount, rel_amount, band_9k, hr_country, offshore,
+cash, nonactive_status, days_since_prev_txn, same_day_txns, counterparty_novelty,
+intl_mismatch) + `score`, `anomaly`, `amount`, `flagged_by_rules`. DDL completo en
+`supabase/generate_seed.py`.
+
+**`customer_scores`** (59 activos; PK y FK `customer_id`; escribe: seed). Features del
+Nivel 3 (n_accounts, n_anomalous_accounts, max_account_score, total_value,
+pct_txn_anomalous, max_txn_score, structuring_days, hr_value_share,
+nonactive_value_share, risk_ordinal, pep, never_screened, post_match_value) +
+`score`, `anomaly`, `full_name`, `nationality`. Los 24 clientes KYC-only (sin cuentas)
+NO tienen fila: se excluyen del scoring por diseno.
+
+`account_scores` gana 4 columnas v3: pct_txn_anomalous, max_txn_score, max_day_share,
+recent_intensity. RLS SELECT-only para anon en las tres, como el resto del seed.

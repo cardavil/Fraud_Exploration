@@ -228,3 +228,25 @@ y la semantica de score_samples (path length con correccion c(n), score = 2^(-E[
 El tab ML recomputa los 105 scores en el navegador y los verifica contra el pipeline
 (badge 105/105; el smoke exige |delta| < 1e-4, observado ~1e-13), y expone un what-if
 playground con sliders sobre 5 features accionables contra el cutoff real del modelo.
+
+---
+
+## 12. Deteccion multinivel v3 (2026-07-12)
+
+El riesgo se modela en tres niveles; cada uno caza lo que los otros no pueden.
+Todos son Isolation Forest (300 arboles, seed 42), no supervisados, validados
+(bootstrap, seeds, sweep) y explicables via features-como-reason-codes.
+
+| Nivel | Poblacion | Features | Detecta | Salida |
+|---|---|---|---|---|
+| 1 TRX | 1,600 txns (contaminacion 5%) | monto relativo a la propia cuenta, banda 9-10k, geografia, cash, cuenta no activa, burst timing, novelty de counterparty, intl_mismatch | agujas (203 txns extremas/$59M eran invisibles al nivel 2) | `transaction_scores` |
+| 2 Cuenta | 105 cuentas (8%) | 12 conductuales + pct_txn_anomalous, max_txn_score, max_day_share, recent_intensity (modulo unico `analysis/account_features.py`, espejado por `app/js/iforest.js`) | patrones (bursts, structuring propio, dormant activas) | `account_scores` |
+| 3 Cliente | 59 clientes activos (8%; 24 KYC-only excluidos) | estructura de cuentas, agregados N1/N2, structuring_days cross-cuenta, shares HR/no-activas, KYC (rating, PEP, never_screened, post_match_value) | esquemas y sujeto legal (CUST0054: 0 cuentas anomalas pero structuring repartido en 4) | `customer_scores` |
+
+Roll-up: N1 alimenta N2 (features) y N3; el copilot analiza SIEMPRE al cliente
+(acepta `{customer_id}` o `{account_id}` que resuelve a su titular y agrega todas
+sus cuentas; `copilot_audit.account_id` ahora registra el customer_id del sujeto).
+El tool `txnNeedleFetcher` entrega al behavior_analyst las peores txns del sujeto
+segun N1. Coherencia verificada: 88% de los clientes de cuentas anomalas rankean
+en el top-15 de clientes; Spearman(score cliente, max score cuenta) = 0.4 — el
+nivel cliente re-rankea con informacion propia, no duplica al de cuentas.

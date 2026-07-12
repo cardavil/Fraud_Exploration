@@ -204,3 +204,10 @@ Live scoring conserva la verificacion 105/105 en el navegador y pasa a contar la
 cada cuenta y su customer — perfil KYC, comportamiento real, lectura del modelo con sus
 desviaciones, y que hicieron (o no) las reglas y el screening — con salto al copilot para la
 narrativa completa. **Vigente.**
+
+**2026-07-12** — v3 "deteccion multinivel": rebuild completo aprobado por el propietario
+sabiendo que cambiaban los numeros publicados. Tres modelos (TRX/cuenta/cliente) con
+roll-up; el copilot pasa a analizar CLIENTES (el sujeto legal) agregando todas sus
+cuentas; el tab ML se reorganiza por niveles con el ranking de clientes; Findings gana
+"Needles & schemes". Los 24 registros KYC-only se excluyen del scoring y se reportan
+como hallazgo de gobernanza de datos. **Vigente.**
