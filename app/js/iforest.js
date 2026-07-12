@@ -12,8 +12,11 @@ window.FE.iforest = (() => {
     return model;
   }
 
-  /* Mirror of analysis/anomaly.py — same aggregations, same NaN handling. */
-  function computeFeatures(transactions) {
+  /* Mirror of analysis/account_features.py — same aggregations, same NaN
+     handling. txnScores: Map(transaction_id -> {score, anomaly}) from the
+     served transaction_scores table (tier 1). datasetMaxDate: max transaction
+     date across the WHOLE dataset (recent_intensity is anchored to it). */
+  function computeFeatures(transactions, txnScores, datasetMaxDate) {
     const amounts = transactions.map((t) => t.amount).filter((v) => v != null);
     const n = amounts.length;
     const sum = amounts.reduce((s, v) => s + v, 0);
@@ -24,6 +27,17 @@ window.FE.iforest = (() => {
     const days = transactions.map((t) => Date.parse(t.transaction_date));
     const spanDays = (Math.max(...days) - Math.min(...days)) / 86400000 + 1;
     const months = spanDays / 30.44;
+
+    const t1 = transactions.map((t) => txnScores.get(t.transaction_id)).filter(Boolean);
+    const byDay = new Map();
+    for (const t of transactions) {
+      if (t.amount != null) byDay.set(t.transaction_date, (byDay.get(t.transaction_date) ?? 0) + t.amount);
+    }
+    const maxDay = byDay.size ? Math.max(...byDay.values()) : 0;
+    const recentCut = datasetMaxDate - 90 * 86400000;
+    const recentValue = transactions.filter((t) => Date.parse(t.transaction_date) > recentCut)
+      .reduce((s, t) => s + (t.amount ?? 0), 0);
+
     return {
       n_tx: transactions.length,
       avg_amt: mean,
@@ -37,6 +51,10 @@ window.FE.iforest = (() => {
       pct_intl: share((t) => t.is_international === "Yes"),
       tx_per_month: transactions.length / months,
       velocity_value: sum / months,
+      pct_txn_anomalous: t1.length ? t1.filter((s) => s.anomaly === -1).length / t1.length : 0,
+      max_txn_score: t1.length ? Math.max(...t1.map((s) => s.score)) : 0,
+      max_day_share: sum ? Math.min(maxDay / sum, 1) : 0,
+      recent_intensity: sum ? Math.min(recentValue / sum, 1) : 0,
     };
   }
 

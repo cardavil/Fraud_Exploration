@@ -5,7 +5,8 @@ window.FE = (() => {
   const HIGH_RISK = new Set(["Iran", "North Korea", "Syria", "Russia", "Myanmar", "Afghanistan"]);
   const OFFSHORE = new Set(["Cayman Islands", "British Virgin Islands", "Panama", "Cyprus", "Malta"]);
   const TABLES = ["customers", "accounts", "transactions", "compliance_alerts",
-    "sanctions_screening", "chargebacks", "account_scores", "cleaning_log"];
+    "sanctions_screening", "chargebacks", "account_scores",
+    "transaction_scores", "customer_scores", "cleaning_log"];
 
   const state = { data: {}, stats: null, sensitivity: null, examples: null,
                   validation: null, kpis: null, ready: false };
@@ -130,16 +131,20 @@ window.FE = (() => {
     document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeModal(); });
 
     try {
-      const [stats, sensitivity, examples, validation] = await Promise.all([
+      const [stats, sensitivity, examples, validation, tier1, tier3] = await Promise.all([
         fetch("data/eda_stats.json").then((r) => r.json()),
         fetch("data/model_sensitivity.json").then((r) => r.json()),
         fetch("data/cleaning_examples.json").then((r) => r.json()),
         fetch("data/model_validation.json").then((r) => r.json()),
+        fetch("data/tier1_validation.json").then((r) => r.json()),
+        fetch("data/tier3_validation.json").then((r) => r.json()),
       ]);
       state.stats = stats;
       state.sensitivity = sensitivity;
       state.examples = examples;
       state.validation = validation;
+      state.tier1 = tier1;
+      state.tier3 = tier3;
       const results = await Promise.all(TABLES.map((t) => supabaseFetchAll(
         t === "transactions"
           ? "transactions?select=*&order=transaction_date.desc,transaction_id.asc"

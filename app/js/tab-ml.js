@@ -22,6 +22,9 @@ window.FE.tabs.ml = {
       ["pct_struct", "Share in the $9,000–9,999 reporting-threshold band"],
       ["pct_intl", "Share marked international"],
       ["tx_per_month / velocity_value", "Velocity: transactions and value per month"],
+      ["pct_txn_anomalous / max_txn_score", "Tier-1 feed: share and peak of transaction-level anomaly"],
+      ["max_day_share", "Burstiness: biggest single day / total value"],
+      ["recent_intensity", "Share of value moved in the last 90 days"],
     ];
 
     const FEATURE_LABELS = {
@@ -71,13 +74,62 @@ window.FE.tabs.ml = {
     const ov = val.overfitting;
     const cv = val.convergent_validity;
 
-    el.innerHTML = `
-      <p class="tab-intro">Unsupervised anomaly detection at account level. There are no fraud
-      labels in this dataset, so the model's job is not to classify — it is to surface accounts
-      whose behavior is structurally unlike the rest, to prove that holds up under validation,
-      and to do it <strong>explainably</strong>. At the bottom, the model itself runs in your
-      browser.</p>
+    /* ---------- tier 1: transaction needles ---------- */
+    const t1v = state.tier1;
+    const txnScoreRows = state.data.transaction_scores;
+    const topTxns = txnScoreRows.filter((t) => t.anomaly === -1)
+      .sort((a, b) => b.score - a.score).slice(0, 10);
+    const txnReasonChips = (t) => {
+      const chips = [];
+      if (t.rel_amount >= 5) chips.push(`${t.rel_amount >= 49 ? "50+" : t.rel_amount.toFixed(0)}× its account's median`);
+      if (t.nonactive_status) chips.push("non-active account");
+      if (t.hr_country) chips.push("sanctioned country");
+      if (t.band_9k) chips.push("9–10k band");
+      if (t.same_day_txns >= 4) chips.push(`${t.same_day_txns} txns same day`);
+      if (t.offshore) chips.push("offshore");
+      if (t.intl_mismatch) chips.push("intl flag wrong");
+      return chips.slice(0, 3).map((c) => `<span class="why-chip">${c}</span>`).join("") || '<span class="why-chip">multi-feature</span>';
+    };
 
+    /* ---------- tier 3: customer ranking ---------- */
+    const t3v = state.tier3;
+    const custRows = [...state.data.customer_scores].sort((a, b) => b.score - a.score).slice(0, 15);
+
+    el.innerHTML = `
+      <p class="tab-intro">Risk lives at three levels, and each tier catches what the others
+      structurally cannot: <strong>transactions</strong> hold the needles, <strong>accounts</strong>
+      the behavioral patterns, <strong>customers</strong> the schemes and the legal subject.
+      No fraud labels exist, so every tier is unsupervised, validated for stability and
+      memorization, and fully explainable. The account model also runs live in your browser below.</p>
+
+      <div class="card">
+        <div class="card-head">
+          <h3>Tier 1 — transactions: the needles</h3>
+          <span class="muted">${fmtInt(t1v.n_flagged)} flagged (${fmtMoney(t1v.value_flagged, true)}) ·
+            ${t1v.convergence_vs_rules.model_only} invisible to the rules ·
+            ${fmtPct(t1v.bootstrap.share_of_detections_stable)} bootstrap-stable</span>
+        </div>
+        <p>Each transaction is scored in context — amount <em>relative to its own account's
+        history</em>, threshold band, geography, cash, whether the account should even be
+        transacting, burst timing, counterparty novelty. This is the tier that catches what
+        account averages dilute: ${t1v.convergence_vs_rules.flagged_by_both} of
+        ${fmtInt(t1v.n_flagged)} detections overlap the rules engine;
+        <strong>${t1v.convergence_vs_rules.model_only} are model-only needles</strong>, incl.
+        ${t1v.top_needles_outside_rules.slice(0, 2).map((t) => fmtMoney(t.amount, true)).join(" and ")} wires.</p>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Transaction</th><th>Account</th><th class="num">Amount</th>
+          <th class="num">Score</th><th>Why</th><th>Rules?</th></tr></thead>
+          <tbody>${topTxns.map((t) => `
+            <tr><td>${escapeHtml(t.transaction_id)}</td><td>${escapeHtml(t.account_id)}</td>
+            <td class="num">${t.amount == null ? "—" : fmtMoney(t.amount)}</td>
+            <td class="num">${t.score.toFixed(3)}</td><td>${txnReasonChips(t)}</td>
+            <td>${t.flagged_by_rules ? '<span class="badge badge-plain">also flagged</span>'
+                                     : '<span class="badge badge-sanctioned">model only</span>'}</td></tr>`).join("")}
+          </tbody>
+        </table></div>
+      </div>
+
+      <h3 class="tier-heading">Tier 2 — accounts: the behavioral patterns</h3>
       <div class="ml-grid">
         <div class="card">
           <h3>Why Isolation Forest</h3>
@@ -87,9 +139,10 @@ window.FE.tabs.ml = {
           and its output is <strong>auditable</strong> — every flagged account can be explained
           by which features deviate, which is what a compliance reviewer needs.</p>
           <h3>How it was applied</h3>
-          <p><code>transactions</code> → 12 behavioral features per account →
+          <p><code>transactions</code> + tier-1 scores → 16 features per account →
           <code>StandardScaler</code> → <code>IsolationForest(n_estimators=300,
-          contamination=0.08, random_state=42)</code>. Code: <code>analysis/anomaly.py</code>.</p>
+          contamination=0.08, random_state=42)</code>. Code: <code>analysis/anomaly.py</code>
+          + <code>analysis/account_features.py</code>.</p>
           <div class="table-wrap"><table>
             <thead><tr><th>Feature</th><th>Meaning</th></tr></thead>
             <tbody>${FEATURES.map(([f, m]) =>
@@ -173,6 +226,40 @@ window.FE.tabs.ml = {
         </div>
       </div>
 
+      <div class="card">
+        <div class="card-head">
+          <h3>Tier 3 — customers: the schemes and the subject</h3>
+          <span class="muted">${t3v.n_flagged} anomalous of ${fmtInt(state.data.customer_scores.length)} active customers ·
+            ${t3v.kyc_only_customers.count} KYC-only records excluded ·
+            seed stability ${t3v.seed_stability.jaccard_mean}</span>
+        </div>
+        <p>SARs are filed on people, not accounts — and some schemes only exist at this level.
+        The customer model sees account structure, cross-account signals (structuring split
+        across the customer's own accounts, value through non-active accounts) and KYC posture
+        (rating, PEP, screening state, post-match activity). The proof of the tier:
+        <strong>CUST0054 — zero anomalous accounts, every transaction under the threshold, yet
+        2 cross-account structuring days, never screened, ${fmtMoney(3888353, true)} across 4
+        accounts.</strong> Coherence with tier 2:
+        ${fmtPct(t3v.cross_tier.anomalous_account_customers_in_top15)} of anomalous-account
+        customers rank in this top-15.</p>
+        <div class="table-wrap"><table>
+          <thead><tr><th>#</th><th>Customer</th><th class="num">Score</th><th class="num">Accounts</th>
+          <th class="num">Anomalous accts</th><th class="num">Structuring days</th><th>Screening</th>
+          <th class="num">Total value</th><th></th></tr></thead>
+          <tbody>${custRows.map((r, i) => `
+            <tr><td>${i + 1}</td>
+            <td><strong>${escapeHtml(r.customer_id)}</strong> <span class="muted">${escapeHtml(r.full_name ?? "")}</span></td>
+            <td class="num">${r.score.toFixed(3)}</td>
+            <td class="num">${fmtInt(r.n_accounts)}</td>
+            <td class="num">${r.n_anomalous_accounts ? `<strong>${fmtInt(r.n_anomalous_accounts)}</strong>` : "0"}</td>
+            <td class="num">${r.structuring_days ? `<span class="badge badge-offshore">${fmtInt(r.structuring_days)}</span>` : "0"}</td>
+            <td>${r.never_screened ? '<span class="badge badge-sanctioned">never screened</span>' : "screened"}</td>
+            <td class="num">${fmtMoney(r.total_value, true)}</td>
+            <td>${r.anomaly === -1 ? '<span class="badge badge-sanctioned">anomalous</span>' : ""}</td></tr>`).join("")}
+          </tbody>
+        </table></div>
+      </div>
+
       <div class="card" id="ml-live">
         <div class="card-head">
           <h3>Live scoring — this model is running in your browser right now</h3>
@@ -239,10 +326,13 @@ window.FE.tabs.ml = {
         byAccount.get(t.account_id).push(t);
       }
       const served = new Map(scores.map((s) => [s.account_id, s.score]));
+      const txnScoreMap = new Map(state.data.transaction_scores.map((t) =>
+        [t.transaction_id, { score: t.score, anomaly: t.anomaly }]));
+      const datasetMaxDate = Math.max(...state.data.transactions.map((t) => Date.parse(t.transaction_date)));
       const liveFeatures = new Map();
       let matches = 0;
       for (const [accountId, txns] of byAccount) {
-        const features = iforest.computeFeatures(txns);
+        const features = iforest.computeFeatures(txns, txnScoreMap, datasetMaxDate);
         liveFeatures.set(accountId, features);
         if (Math.abs(iforest.score(features).score - served.get(accountId)) < 1e-4) matches++;
       }
@@ -333,6 +423,15 @@ window.FE.tabs.ml = {
               : '<span class="badge badge-clear">normal</span>'}
             <span class="badge badge-plain">recomputed in your browser ✓</span><br>
             ${servedRow ? explainDeviations(servedRow) || "no single feature dominates — broad deviation" : ""}</p>
+            <p><strong>Across the tiers:</strong> tier 1 flagged
+            ${fmtInt(txns.filter((t) => txnScoreMap.get(t.transaction_id)?.anomaly === -1).length)}
+            of its ${fmtInt(txns.length)} transactions;
+            ${(() => {
+              const cs = state.data.customer_scores.find((x) => x.customer_id === account.customer_id);
+              return cs
+                ? `at customer level ${escapeHtml(account.customer_id)} scores ${cs.score.toFixed(3)}${cs.anomaly === -1 ? ' — <span class="badge badge-sanctioned">anomalous customer</span>' : ""}`
+                : "the customer is KYC-only at tier 3 (no scored activity)";
+            })()}.</p>
             <p><strong>What the controls did:</strong>
             ${alerts.length
               ? `${fmtInt(alerts.length)} alert(s) — ${alerts.map((a) => `${escapeHtml(a.alert_type)} (${escapeHtml(a.status)})`).join(", ")}.`

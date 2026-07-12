@@ -16,7 +16,9 @@ window.FE.tabs.data = {
       compliance_alerts: "Alerts raised by the monitoring rules.",
       sanctions_screening: "Screening events; FK to customers.",
       chargebacks: "Disputes; FK to transactions/accounts.",
-      account_scores: "Isolation Forest features + scores per account.",
+      account_scores: "Tier 2 — Isolation Forest features + scores per account (16 features).",
+      transaction_scores: "Tier 1 — contextual features + score per transaction.",
+      customer_scores: "Tier 3 — subject-level features + score per active customer.",
       cleaning_log: "The audit trail of every cleaning treatment applied.",
     };
     let current = "transactions", view = "rows", filters = {}, page = 0;

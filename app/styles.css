@@ -428,3 +428,9 @@ tbody tr:hover { background: var(--row-hover); }
 .story-card p { margin: 0 0 10px; }
 .story-card p:last-child { margin-bottom: 0; }
 .story-card a { color: var(--brand-blue-ink); }
+
+/* ================= v3: tier headings ================= */
+.tier-heading {
+  margin: 26px 0 12px; font-size: 1.02rem; font-weight: 650;
+  padding-left: 12px; border-left: 3px solid var(--brand-blue);
+}

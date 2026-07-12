@@ -148,6 +148,22 @@ window.FE.tabs.findings = {
           drillLink("See the open Critical alerts", "compliance_alerts",
             [{ col: "status", kind: "categorical", value: "Open" },
              { col: "severity", kind: "categorical", value: "Critical" }]))}
+        ${card("needles", "Needles & schemes — what single-level monitoring misses",
+          (() => {
+            const needles = state.data.transaction_scores
+              .filter((t) => t.anomaly === -1 && !t.flagged_by_rules);
+            const schemers = state.data.customer_scores.filter((c) => c.structuring_days > 0);
+            return `The three-tier models expose two blind spots: <strong>${fmtInt(needles.length)}
+             transaction needles</strong> the rules never flagged (top:
+             ${fmtMoney(Math.max(...needles.map((t) => t.amount || 0)), true)} — extreme for its own
+             account, invisible in account averages), and <strong>${fmtInt(schemers.length)}
+             customers with cross-account structuring days</strong> — daily sums over $10,000 split
+             under the threshold across their own accounts, invisible at both transaction and
+             account level.`;
+          })(),
+          drillLink("See tier-1 scores", "transaction_scores",
+            [{ col: "anomaly", kind: "min", value: -1 }, { col: "anomaly", kind: "max", value: -1 },
+             { col: "flagged_by_rules", kind: "max", value: 0 }]))}
         ${card("chargebacks", "Chargebacks are accelerating",
           `Monthly chargeback value grew ~${k.chargebacks.ratio.toFixed(0)}× in four months
            (${fmtMoney(k.chargebacks.from, true)} → ${fmtMoney(k.chargebacks.to, true)}).
@@ -239,6 +255,19 @@ window.FE.tabs.findings = {
             x: m.month,
             y: state.stats.monthly.alerts.find((a) => a.month === m.month)?.count ?? 0 })) },
       ],
+    });
+
+    hBarChart(el.querySelector("#fc-needles"), {
+      title: "Top model-only needles — flagged by tier 1, missed by the rules",
+      howToRead: "Each bar is one transaction the tier-1 model flagged but the rules engine never did. The tooltip shows why: usually an amount many times the account's own median, on an account whose averages look normal.",
+      fmt: (v) => fmtMoney(v, true),
+      data: state.data.transaction_scores
+        .filter((t) => t.anomaly === -1 && !t.flagged_by_rules && t.amount)
+        .sort((a, b) => b.amount - a.amount).slice(0, 6)
+        .map((t) => ({
+          label: t.transaction_id, value: t.amount, color: "#D64545", emphasize: t.amount > 300000,
+          tip: `<strong>${escapeHtml(t.transaction_id)}</strong> · ${escapeHtml(t.account_id)}<br>${fmtMoney(t.amount)} — ${t.rel_amount >= 49 ? "50+" : t.rel_amount.toFixed(0)}× its account's median · score ${t.score.toFixed(3)}`,
+        })),
     });
 
     lineChart(el.querySelector("#fc-chargebacks"), {
