@@ -247,19 +247,67 @@ const NOTE_SCHEMA = {
   required: ["risk_level", "assessment", "key_points"],
 };
 
+const ACTIONS = [
+  "Close as false positive",
+  "Continue standard monitoring",
+  "Enhanced monitoring",
+  "Initiate sanctions screening",
+  "Request KYC refresh / documentation",
+  "Escalate to compliance review",
+];
+
+const ACTION_RUBRIC =
+  "Choose the LEAST severe action that manages the risk. HARD RULE — the checklist's " +
+  "computed_evidence_strength CAPS the action severity: " +
+  "with 'limited' evidence you may ONLY choose 'Close as false positive', 'Continue standard " +
+  "monitoring', or 'Initiate sanctions screening' (the latter only when never-screened is a " +
+  "present signal); with 'moderate' evidence you may additionally choose 'Enhanced monitoring' " +
+  "or 'Request KYC refresh / documentation'; 'Escalate to compliance review' REQUIRES 'strong' " +
+  "evidence. Within the allowed set: evidence contradicts risk -> Close as FP; weak/isolated " +
+  "signals -> Continue standard monitoring; emerging pattern without corroboration -> Enhanced " +
+  "monitoring (revisit in 30-60 days); no screening on record -> Initiate sanctions screening; " +
+  "activity inconsistent with the KYC profile -> Request KYC refresh. next_steps: 2-4 concrete, " +
+  "immediately actionable steps citing the specific transactions, dates or gaps that motivate them.";
+
 const VERDICT_SCHEMA = {
   type: "OBJECT",
   properties: {
     risk_summary: { type: "STRING" },
     key_factors: { type: "ARRAY", items: { type: "STRING" } },
-    recommended_action: {
-      type: "STRING",
-      enum: ["Escalate", "Request documentation", "Close as false positive"],
-    },
-    confidence: { type: "NUMBER" },
+    recommended_action: { type: "STRING", enum: ACTIONS },
+    next_steps: { type: "ARRAY", items: { type: "STRING" } },
+    evidence_strength: { type: "STRING", enum: ["strong", "moderate", "limited"] },
   },
-  required: ["risk_summary", "key_factors", "recommended_action", "confidence"],
+  required: ["risk_summary", "key_factors", "recommended_action", "next_steps", "evidence_strength"],
 };
+
+/* Deterministic signal checklist — evidence strength comes from DATA, not from
+   the model's self-report. strong = 3+ families present incl. one hard signal;
+   moderate = 2 (or 3+ soft-only); limited = 1 or none. */
+async function buildSignalChecklist(accountIds: string[], customerId: string) {
+  const [outliers, accountModels, customerRows] = await Promise.all([
+    supabaseSelect(`transaction_scores?account_id=${inList(accountIds)}&anomaly=eq.-1&select=transaction_id`),
+    supabaseSelect(`account_scores?account_id=${inList(accountIds)}&select=anomaly`),
+    supabaseSelect(`customer_scores?customer_id=eq.${customerId}&select=anomaly,structuring_days,never_screened,post_match_value,hr_value_share,nonactive_value_share`),
+  ]);
+  // deno-lint-ignore no-explicit-any
+  const cs: any = customerRows[0] ?? {};
+  const anomAccounts = accountModels.filter((a) => (a as { anomaly: number }).anomaly === -1).length;
+  const families = [
+    { name: "tier-1 outlier transactions", present: outliers.length > 0, hard: false, detail: `${outliers.length} flagged` },
+    { name: "anomalous accounts (tier 2)", present: anomAccounts > 0, hard: true, detail: `${anomAccounts} of ${accountModels.length}` },
+    { name: "anomalous customer model (tier 3)", present: cs.anomaly === -1, hard: false, detail: cs.anomaly === -1 ? "flagged" : "not flagged" },
+    { name: "cross-account structuring days", present: (cs.structuring_days ?? 0) > 0, hard: true, detail: String(cs.structuring_days ?? 0) },
+    { name: "never screened", present: cs.never_screened === 1, hard: false, detail: cs.never_screened === 1 ? "no screening on record" : "screened" },
+    { name: "post-match activity", present: (cs.post_match_value ?? 0) > 0, hard: true, detail: `$${Math.round(cs.post_match_value ?? 0)}` },
+    { name: "sanctioned or non-active flows", present: (cs.hr_value_share ?? 0) > 0 || (cs.nonactive_value_share ?? 0) > 0, hard: false, detail: `hr ${(cs.hr_value_share ?? 0).toFixed(2)} / non-active ${(cs.nonactive_value_share ?? 0).toFixed(2)}` },
+  ];
+  const present = families.filter((f) => f.present);
+  const hardPresent = present.filter((f) => f.hard).length;
+  const strength = present.length >= 3 && hardPresent >= 1 ? "strong"
+    : present.length >= 2 ? "moderate" : "limited";
+  return { families, present: present.length, total: families.length, strength };
+}
 
 const PERSONA =
   "You are part of a financial-crime compliance analysis pipeline. Quantify every " +
@@ -305,17 +353,18 @@ const AGENTS: Agent[] = [
     schema: VERDICT_SCHEMA,
     instruction: "Synthesize the three analyst notes into one defensible risk narrative. " +
       "risk_summary: 2-4 sentences, most material facts first. key_factors: one quantified " +
-      "bullet per distinct risk. Choose ONE recommended_action and a confidence (0-1) " +
-      "proportional to the strength and convergence of the evidence.",
+      "bullet per distinct risk. Use the signal_checklist provided in the data. " + ACTION_RUBRIC +
+      " Set evidence_strength to the checklist's computed strength.",
   },
   {
     name: "compliance_reviewer", model: MODEL_HEAVY,
     tools: [], outputKey: "final",
     schema: VERDICT_SCHEMA,
     instruction: "You are the QA reviewer. Verify the draft ONLY cites figures present in the " +
-      "analyst notes (fix or drop anything unsupported), the action is the least severe one " +
-      "that still manages the risk, and confidence is calibrated (lower it if notes disagree " +
-      "or evidence is thin). Return the corrected final verdict in the same format.",
+      "analyst notes (fix or drop anything unsupported), the action follows the rubric, and " +
+      "next_steps are concrete and traceable to the data. Rubric: " + ACTION_RUBRIC +
+      " evidence_strength MUST equal the signal_checklist's computed_evidence_strength. " +
+      "Return the corrected final verdict in the same format.",
   },
 ];
 
@@ -326,6 +375,13 @@ async function runPipeline(accountIds: string[], customerId: string) {
   // deno-lint-ignore no-explicit-any
   const outputs: Record<string, any> = {};
   const audit: AuditEntry[] = [];
+
+  const checklist = await buildSignalChecklist(accountIds, customerId);
+  outputs.signal_checklist = {
+    computed_evidence_strength: checklist.strength,
+    families_present: `${checklist.present} of ${checklist.total}`,
+    families: checklist.families.map((f) => ({ name: f.name, present: f.present, detail: f.detail })),
+  };
 
   for (const agent of AGENTS) {
     // deno-lint-ignore no-explicit-any
@@ -352,7 +408,7 @@ async function runPipeline(accountIds: string[], customerId: string) {
       outputs[agent.outputKey] = { risk_level: "medium", assessment: "unavailable", key_points: [] };
     }
   }
-  return { final: outputs.final, audit };
+  return { final: outputs.final, audit, checklist };
 }
 
 async function persistAudit(runId: string, accountId: string, audit: AuditEntry[]) {
@@ -420,14 +476,21 @@ Deno.serve(async (req) => {
     const accountIds = accountRows.map((r) => (r as { account_id: string }).account_id);
 
     const runId = crypto.randomUUID();
-    const { final, audit } = await runPipeline(accountIds, customerId);
+    const { final, audit, checklist } = await runPipeline(accountIds, customerId);
     await persistAudit(runId, customerId, audit);
 
     return new Response(JSON.stringify({
       ...final,
+      // Evidence strength is deterministic — the code's checklist wins over the model's echo.
+      evidence_strength: checklist.strength,
+      signal_families: {
+        present: checklist.present,
+        total: checklist.total,
+        list: checklist.families.filter((f) => f.present).map((f) => `${f.name} (${f.detail})`),
+      },
       run_id: runId,
       subject: customerId,
-      pipeline: "v3",
+      pipeline: "v3.1",
       audit: audit.map(({ agent, model_used, attempts, fallback_used, latency_ms, ok }) =>
         ({ agent, model_used, attempts, fallback_used, latency_ms, ok })),
     }), { headers: cors });
