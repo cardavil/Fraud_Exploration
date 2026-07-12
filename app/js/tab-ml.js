@@ -290,6 +290,28 @@ window.FE.tabs.ml = {
         if (f.pct_struct > 0) geo.push(`${fmtPct(f.pct_struct)} sat in the $9,000–9,999 reporting-threshold band`);
         const match = screenings.find((s) => s.match_result === "Confirmed Match");
 
+        /* the customer's full picture — most customers hold more than one account */
+        const scoreById = new Map(scores.map((s) => [s.account_id, s]));
+        const siblings = state.data.accounts
+          .filter((x) => x.customer_id === account.customer_id && x.account_id !== id);
+        const anomalousSiblings = siblings.filter((x) => scoreById.get(x.account_id)?.anomaly === -1);
+        const customerTotal = [id, ...siblings.map((x) => x.account_id)]
+          .reduce((s, accId) => s + (scoreById.get(accId)?.total ?? 0), 0);
+        const siblingHtml = siblings.map((x) => {
+          const sc = scoreById.get(x.account_id);
+          const anomalous = sc?.anomaly === -1;
+          return `<span class="badge ${anomalous ? "badge-sanctioned" : "badge-plain"}">${escapeHtml(x.account_id)} · ${escapeHtml(x.status)}${anomalous ? " · anomalous" : ""}</span>`;
+        }).join(" ");
+        const customerParagraph = siblings.length
+          ? `<p><strong>The customer's full picture:</strong> this is one of
+             ${fmtInt(siblings.length + 1)} accounts — ${fmtMoney(customerTotal, true)} moved across
+             all of them. Other accounts: ${siblingHtml}.
+             ${anomalousSiblings.length
+               ? `<strong>${fmtInt(anomalousSiblings.length + 1)} of this customer's accounts are
+                  independently anomalous — that is customer-level risk, not an account quirk.</strong>`
+               : ""}</p>`
+          : `<p><strong>The customer's full picture:</strong> this is the customer's only account.</p>`;
+
         story.querySelector("#story-body").innerHTML = `
           <div class="story-card">
             <p><strong>${escapeHtml(customer.full_name ?? account.customer_id)}</strong>
@@ -303,6 +325,7 @@ window.FE.tabs.ml = {
             (${f.tx_per_month.toFixed(1)}/month, ${fmtMoney(f.velocity_value, true)}/month)${burstValue > f.total * 0.5
               ? ` — <strong>including ${fmtMoney(burstValue)} on ${escapeHtml(burstDay)} alone</strong>` : ""}.
             ${geo.length ? geo.join("; ") + "." : "No sanctioned, offshore or threshold-band exposure."}</p>
+            ${customerParagraph}
             <p><strong>The model's reading:</strong> score
             <strong>${score.toFixed(4)}</strong> vs cutoff ${cutoff.toFixed(3)} →
             ${isAnomalous
