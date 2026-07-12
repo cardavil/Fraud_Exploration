@@ -197,6 +197,14 @@ tbody tr:hover { background: var(--row-hover); }
   white-space: nowrap;
 }
 .criteria-legend { font-size: .8rem; color: var(--muted); margin: 10px 0 0; }
+details.criteria-legend summary {
+  cursor: pointer; font-weight: 600; color: var(--brand-blue-ink);
+  padding: 4px 0; list-style-position: inside;
+}
+details.criteria-legend summary:hover { text-decoration: underline; }
+details.criteria-legend[open] {
+  background: var(--tint); border-radius: 8px; padding: 10px 14px;
+}
 .criteria-legend dt { font-weight: 600; color: var(--text); }
 .criteria-legend dl {
   display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; margin: 8px 0 0;

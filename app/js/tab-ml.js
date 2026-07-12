@@ -131,9 +131,10 @@ window.FE.tabs.ml = {
                                      : '<span class="badge badge-sanctioned">model only</span>'}</td></tr>`).join("")}
           </tbody>
         </table></div>
-        <div class="criteria-legend">
-          <strong>Driver criteria</strong> — the chips name the strongest signals behind each
-          score (up to 3 shown; the model uses all 11 features):
+        <details class="criteria-legend">
+          <summary>Driver criteria and rules-engine definitions</summary>
+          <p>The chips name the strongest signals behind each score (up to 3 shown; the model
+          uses all 11 features):</p>
           <dl>
             <dt>N× its account's median</dt><dd>amount at least 5× the median amount of the same account</dd>
             <dt>non-active account</dt><dd>the account was Closed, Dormant or Frozen at the time</dd>
@@ -148,7 +149,7 @@ window.FE.tabs.ml = {
           the rules marked it too · <span class="badge badge-sanctioned">model only</span>
           flagged only by the model. The full feature values per transaction are in the
           <code>transaction_scores</code> table (Data tab).</p>
-        </div>
+        </details>
       </div>
 
       <h3 class="tier-heading">Tier 2 — Account-level detection</h3>
