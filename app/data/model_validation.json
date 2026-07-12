@@ -2,10 +2,10 @@
  "overfitting": {
   "n_splits": 50,
   "train_frac": 0.7,
-  "mean_score_train": 0.4549,
-  "mean_score_holdout": 0.4625,
-  "gap": -0.0076,
-  "gap_std": 0.0103
+  "mean_score_train": 0.4654,
+  "mean_score_holdout": 0.4741,
+  "gap": -0.0087,
+  "gap_std": 0.0084
  },
  "bootstrap": {
   "n_iterations": 200,
@@ -17,12 +17,12 @@
     "in_base_set": true
    },
    {
-    "account_id": "ACC00062",
+    "account_id": "ACC00032",
     "frequency": 1.0,
     "in_base_set": true
    },
    {
-    "account_id": "ACC00075",
+    "account_id": "ACC00062",
     "frequency": 1.0,
     "in_base_set": true
    },
@@ -42,138 +42,138 @@
     "in_base_set": true
    },
    {
-    "account_id": "ACC00080",
-    "frequency": 0.89,
+    "account_id": "ACC00084",
+    "frequency": 0.96,
+    "in_base_set": true
+   },
+   {
+    "account_id": "ACC00075",
+    "frequency": 0.82,
     "in_base_set": true
    },
    {
     "account_id": "ACC00099",
-    "frequency": 0.77,
-    "in_base_set": true
-   },
-   {
-    "account_id": "ACC00032",
-    "frequency": 0.37,
-    "in_base_set": true
-   },
-   {
-    "account_id": "ACC00071",
-    "frequency": 0.25,
+    "frequency": 0.23,
     "in_base_set": false
+   },
+   {
+    "account_id": "ACC00089",
+    "frequency": 0.07,
+    "in_base_set": true
    }
   ]
  },
  "seed_stability": {
   "n_seeds": 50,
-  "jaccard_mean": 0.799,
+  "jaccard_mean": 0.803,
   "jaccard_min": 0.636
  },
  "score_distribution": {
-  "cutoff": 0.525,
+  "cutoff": 0.5225,
   "bins": [
    {
-    "lo": 0.3892,
-    "hi": 0.4083,
-    "count": 19
+    "lo": 0.3958,
+    "hi": 0.4127,
+    "count": 5
    },
    {
-    "lo": 0.4083,
-    "hi": 0.4275,
-    "count": 26
+    "lo": 0.4127,
+    "hi": 0.4295,
+    "count": 20
    },
    {
-    "lo": 0.4275,
-    "hi": 0.4467,
-    "count": 14
+    "lo": 0.4295,
+    "hi": 0.4464,
+    "count": 22
    },
    {
-    "lo": 0.4467,
-    "hi": 0.4658,
-    "count": 11
+    "lo": 0.4464,
+    "hi": 0.4633,
+    "count": 18
    },
    {
-    "lo": 0.4658,
-    "hi": 0.485,
-    "count": 12
+    "lo": 0.4633,
+    "hi": 0.4802,
+    "count": 15
    },
    {
-    "lo": 0.485,
-    "hi": 0.5041,
-    "count": 7
+    "lo": 0.4802,
+    "hi": 0.4971,
+    "count": 8
    },
    {
-    "lo": 0.5041,
-    "hi": 0.5233,
-    "count": 6
-   },
-   {
-    "lo": 0.5233,
-    "hi": 0.5424,
+    "lo": 0.4971,
+    "hi": 0.5139,
     "count": 4
    },
    {
-    "lo": 0.5424,
-    "hi": 0.5616,
-    "count": 0
+    "lo": 0.5139,
+    "hi": 0.5308,
+    "count": 5
    },
    {
-    "lo": 0.5616,
-    "hi": 0.5808,
+    "lo": 0.5308,
+    "hi": 0.5477,
     "count": 2
    },
    {
-    "lo": 0.5808,
-    "hi": 0.5999,
-    "count": 0
+    "lo": 0.5477,
+    "hi": 0.5646,
+    "count": 1
    },
    {
-    "lo": 0.5999,
-    "hi": 0.6191,
+    "lo": 0.5646,
+    "hi": 0.5815,
     "count": 4
+   },
+   {
+    "lo": 0.5815,
+    "hi": 0.5983,
+    "count": 1
    }
   ]
  },
  "convergent_validity": {
-  "top_decile_alert_rate": 0.5,
-  "rest_alert_rate": 0.43,
-  "score_alert_correlation": -0.01,
-  "correlation_p": 0.8837,
-  "flagged_with_alert": 4,
+  "top_decile_alert_rate": 0.7,
+  "rest_alert_rate": 0.41,
+  "score_alert_correlation": 0.03,
+  "correlation_p": 0.7266,
+  "flagged_with_alert": 6,
   "flagged_total": 9
  },
  "ablation": [
   {
-   "feature": "tx_per_month",
-   "jaccard_vs_base": 0.38,
-   "n_anomalies": 9
-  },
-  {
    "feature": "pct_hr",
-   "jaccard_vs_base": 0.64,
-   "n_anomalies": 9
-  },
-  {
-   "feature": "pct_cash",
-   "jaccard_vs_base": 0.64,
-   "n_anomalies": 9
-  },
-  {
-   "feature": "pct_intl",
-   "jaccard_vs_base": 0.64,
-   "n_anomalies": 9
-  },
-  {
-   "feature": "velocity_value",
-   "jaccard_vs_base": 0.64,
+   "jaccard_vs_base": 0.5,
    "n_anomalies": 9
   },
   {
    "feature": "n_tx",
-   "jaccard_vs_base": 0.8,
+   "jaccard_vs_base": 0.64,
+   "n_anomalies": 9
+  },
+  {
+   "feature": "tx_per_month",
+   "jaccard_vs_base": 0.64,
+   "n_anomalies": 9
+  },
+  {
+   "feature": "pct_txn_anomalous",
+   "jaccard_vs_base": 0.64,
    "n_anomalies": 9
   },
   {
    "feature": "avg_amt",
+   "jaccard_vs_base": 0.8,
+   "n_anomalies": 9
+  },
+  {
+   "feature": "std_amt",
+   "jaccard_vs_base": 0.8,
+   "n_anomalies": 9
+  },
+  {
+   "feature": "max_amt",
    "jaccard_vs_base": 0.8,
    "n_anomalies": 9
   },
@@ -188,18 +188,38 @@
    "n_anomalies": 9
   },
   {
-   "feature": "std_amt",
-   "jaccard_vs_base": 1.0,
-   "n_anomalies": 9
-  },
-  {
-   "feature": "max_amt",
-   "jaccard_vs_base": 1.0,
+   "feature": "pct_cash",
+   "jaccard_vs_base": 0.8,
    "n_anomalies": 9
   },
   {
    "feature": "pct_struct",
-   "jaccard_vs_base": 1.0,
+   "jaccard_vs_base": 0.8,
+   "n_anomalies": 9
+  },
+  {
+   "feature": "pct_intl",
+   "jaccard_vs_base": 0.8,
+   "n_anomalies": 9
+  },
+  {
+   "feature": "velocity_value",
+   "jaccard_vs_base": 0.8,
+   "n_anomalies": 9
+  },
+  {
+   "feature": "max_txn_score",
+   "jaccard_vs_base": 0.8,
+   "n_anomalies": 9
+  },
+  {
+   "feature": "max_day_share",
+   "jaccard_vs_base": 0.8,
+   "n_anomalies": 9
+  },
+  {
+   "feature": "recent_intensity",
+   "jaccard_vs_base": 0.8,
    "n_anomalies": 9
   }
  ]

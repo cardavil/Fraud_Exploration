@@ -13,7 +13,9 @@ Feature engineering mirrors analysis/anomaly.py. Output: app/data/model_validati
 Run from the repo root: python analysis/model_validation.py
 """
 import json
+import pathlib
 import sqlite3
+import sys
 
 import numpy as np
 import pandas as pd
@@ -21,8 +23,9 @@ from scipy import stats
 from sklearn.ensemble import IsolationForest
 from sklearn.preprocessing import StandardScaler
 
-HIGH_RISK = {"Iran", "North Korea", "Syria", "Russia", "Myanmar", "Afghanistan"}
-OFFSHORE = {"Cayman Islands", "British Virgin Islands", "Panama", "Cyprus", "Malta"}
+sys.path.insert(0, str(pathlib.Path(__file__).parent))
+from account_features import build_features
+
 BASE_PARAMS = {"n_estimators": 300, "contamination": 0.08, "random_state": 42}
 N_BOOTSTRAP = 200
 N_SPLITS = 50
@@ -30,23 +33,8 @@ N_SEEDS = 50
 RNG = np.random.default_rng(42)
 
 con = sqlite3.connect("data/clean.db")
-tx = pd.read_sql("SELECT * FROM transactions", con, parse_dates=["transaction_date"])
 al = pd.read_sql("SELECT * FROM compliance_alerts", con)
-
-tx["hr"] = tx.counterparty_country.isin(HIGH_RISK)
-tx["off"] = tx.counterparty_country.isin(OFFSHORE)
-tx["cash"] = tx.transaction_type.str.contains("Cash")
-tx["struct"] = (tx.amount >= 9000) & (tx.amount < 10000)
-tx["intl"] = tx.is_international == "Yes"
-span = tx.groupby("account_id").transaction_date.agg(lambda s: (s.max() - s.min()).days + 1)
-feat = tx.groupby("account_id").agg(
-    n_tx=("transaction_id", "count"), avg_amt=("amount", "mean"),
-    std_amt=("amount", "std"), max_amt=("amount", "max"), total=("amount", "sum"),
-    pct_hr=("hr", "mean"), pct_off=("off", "mean"), pct_cash=("cash", "mean"),
-    pct_struct=("struct", "mean"), pct_intl=("intl", "mean"),
-).fillna(0)
-feat["tx_per_month"] = feat.n_tx / (span / 30.44)
-feat["velocity_value"] = feat.total / (span / 30.44)
+feat = build_features(con)
 X = StandardScaler().fit_transform(feat)
 accounts = feat.index.to_numpy()
 has_alert = pd.Series(accounts).isin(set(al.account_id)).to_numpy()

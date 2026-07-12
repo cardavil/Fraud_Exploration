@@ -5,13 +5,13 @@
   "seed": 42,
   "n_accounts": 105,
   "n_anomalies": 9,
-  "never_alerted": 5,
+  "never_alerted": 3,
   "top5": [
    "ACC00007",
-   "ACC00100",
    "ACC00062",
-   "ACC00079",
-   "ACC00075"
+   "ACC00100",
+   "ACC00032",
+   "ACC00079"
   ]
  },
  "grid": [
@@ -45,7 +45,7 @@
    "n_anomalies": 7,
    "jaccard_top5_vs_base": 1.0,
    "overlap_with_base_set": 7,
-   "never_alerted": 4
+   "never_alerted": 3
   },
   {
    "contamination": 0.06,
@@ -53,7 +53,7 @@
    "n_anomalies": 7,
    "jaccard_top5_vs_base": 1.0,
    "overlap_with_base_set": 7,
-   "never_alerted": 4
+   "never_alerted": 3
   },
   {
    "contamination": 0.06,
@@ -61,54 +61,54 @@
    "n_anomalies": 7,
    "jaccard_top5_vs_base": 0.67,
    "overlap_with_base_set": 7,
+   "never_alerted": 3
+  },
+  {
+   "contamination": 0.08,
+   "n_estimators": 100,
+   "n_anomalies": 9,
+   "jaccard_top5_vs_base": 1.0,
+   "overlap_with_base_set": 9,
+   "never_alerted": 3
+  },
+  {
+   "contamination": 0.08,
+   "n_estimators": 300,
+   "n_anomalies": 9,
+   "jaccard_top5_vs_base": 1.0,
+   "overlap_with_base_set": 9,
+   "never_alerted": 3
+  },
+  {
+   "contamination": 0.08,
+   "n_estimators": 500,
+   "n_anomalies": 9,
+   "jaccard_top5_vs_base": 0.67,
+   "overlap_with_base_set": 8,
+   "never_alerted": 3
+  },
+  {
+   "contamination": 0.1,
+   "n_estimators": 100,
+   "n_anomalies": 11,
+   "jaccard_top5_vs_base": 1.0,
+   "overlap_with_base_set": 9,
    "never_alerted": 4
   },
   {
-   "contamination": 0.08,
-   "n_estimators": 100,
-   "n_anomalies": 9,
-   "jaccard_top5_vs_base": 1.0,
-   "overlap_with_base_set": 8,
-   "never_alerted": 5
-  },
-  {
-   "contamination": 0.08,
-   "n_estimators": 300,
-   "n_anomalies": 9,
-   "jaccard_top5_vs_base": 1.0,
-   "overlap_with_base_set": 9,
-   "never_alerted": 5
-  },
-  {
-   "contamination": 0.08,
-   "n_estimators": 500,
-   "n_anomalies": 9,
-   "jaccard_top5_vs_base": 0.67,
-   "overlap_with_base_set": 8,
-   "never_alerted": 5
-  },
-  {
-   "contamination": 0.1,
-   "n_estimators": 100,
-   "n_anomalies": 11,
-   "jaccard_top5_vs_base": 1.0,
-   "overlap_with_base_set": 9,
-   "never_alerted": 5
-  },
-  {
    "contamination": 0.1,
    "n_estimators": 300,
    "n_anomalies": 11,
    "jaccard_top5_vs_base": 1.0,
    "overlap_with_base_set": 9,
-   "never_alerted": 5
+   "never_alerted": 3
   },
   {
    "contamination": 0.1,
    "n_estimators": 500,
    "n_anomalies": 11,
    "jaccard_top5_vs_base": 0.67,
-   "overlap_with_base_set": 9,
+   "overlap_with_base_set": 8,
    "never_alerted": 5
   },
   {
@@ -117,7 +117,7 @@
    "n_anomalies": 13,
    "jaccard_top5_vs_base": 1.0,
    "overlap_with_base_set": 9,
-   "never_alerted": 6
+   "never_alerted": 5
   },
   {
    "contamination": 0.12,
@@ -125,7 +125,7 @@
    "n_anomalies": 13,
    "jaccard_top5_vs_base": 1.0,
    "overlap_with_base_set": 9,
-   "never_alerted": 6
+   "never_alerted": 5
   },
   {
    "contamination": 0.12,
@@ -148,6 +148,10 @@
   "pct_struct",
   "pct_intl",
   "tx_per_month",
-  "velocity_value"
+  "velocity_value",
+  "pct_txn_anomalous",
+  "max_txn_score",
+  "max_day_share",
+  "recent_intensity"
  ]
 }
