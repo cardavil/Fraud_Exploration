@@ -151,7 +151,7 @@ const TOOLS: Record<string, Tool> = {
     supabaseSelect(
       `transactions?account_id=${inList(accountIds)}&select=transaction_date,amount,transaction_type,counterparty_country,flagged_for_review&order=amount.desc.nullslast&limit=12`,
     ),
-  txnNeedleFetcher: ({ accountIds }) =>   // tier-1: the subject's worst transactions in context
+  txnOutlierFetcher: ({ accountIds }) =>   // tier-1: the subject's highest-scored transactions
     supabaseSelect(
       `transaction_scores?account_id=${inList(accountIds)}&select=transaction_id,amount,score,anomaly,rel_amount,nonactive_status,band_9k,hr_country,flagged_by_rules&anomaly=eq.-1&order=score.desc&limit=10`,
     ),
@@ -283,11 +283,11 @@ const AGENTS: Agent[] = [
   },
   {
     name: "behavior_analyst", model: MODEL_FAST,
-    tools: ["txnAggregator", "txnSampler", "txnNeedleFetcher", "alertFetcher"], outputKey: "behavior_risk",
+    tools: ["txnAggregator", "txnSampler", "txnOutlierFetcher", "alertFetcher"], outputKey: "behavior_risk",
     schema: NOTE_SCHEMA,
     instruction: "Assess TRANSACTIONAL behavior across ALL of the subject's accounts: " +
       "structuring (9,000-9,999 band under the 10k reporting threshold), single-day bursts, " +
-      "sanctioned-country and offshore exposure, flagged share, the tier-1 needle transactions " +
+      "sanctioned-country and offshore exposure, flagged share, the tier-1 outlier transactions " +
       "provided, and existing alert history. Do not assess KYC/profile.",
   },
   {
