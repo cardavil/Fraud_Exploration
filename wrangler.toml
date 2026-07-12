@@ -1,0 +1,4 @@
+# Cloudflare Pages build configuration — publishes /app as the site root.
+name = "fraud-exploration"
+compatibility_date = "2026-07-12"
+pages_build_output_dir = "app"

@@ -19,10 +19,10 @@
     ...(compact ? { notation: "compact" } : {}),
   }).format(v);
   const fmtPct = (v) => `${Math.round(v * 100)}%`;
-  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => (
+  const escapeHtml = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => (
     { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
-  async function sbFetch(path, { range } = {}) {
+  async function supabaseFetch(path, { range } = {}) {
     const headers = {
       apikey: CFG.SUPABASE_ANON_KEY,
       Authorization: `Bearer ${CFG.SUPABASE_ANON_KEY}`,
@@ -34,10 +34,10 @@
   }
 
   // PostgREST caps responses at 1,000 rows — page with Range headers.
-  async function sbFetchAll(path) {
+  async function supabaseFetchAll(path) {
     const out = [];
     for (let from = 0; ; from += 1000) {
-      const chunk = await sbFetch(path, { range: `${from}-${from + 999}` });
+      const chunk = await supabaseFetch(path, { range: `${from}-${from + 999}` });
       out.push(...chunk);
       if (chunk.length < 1000) return out;
     }
@@ -45,12 +45,12 @@
 
   function showGlobalError(err) {
     const el = $("global-error");
-    el.innerHTML = `${esc(err.message)} — <a href="javascript:location.reload()">retry</a>`;
+    el.innerHTML = `${escapeHtml(err.message)} — <a href="javascript:location.reload()">retry</a>`;
     el.classList.remove("hidden");
   }
 
   /* ---------- KPIs ---------- */
-  function bandOf(a) {
+  function amountBand(a) {
     if (a == null) return "";
     if (a < 1000) return "lt1k";
     if (a < 5000) return "1to5k";
@@ -123,10 +123,10 @@
   function populateFilters() {
     const countries = [...new Set(state.txns.map((t) => t.counterparty_country))].sort();
     $("f-country").insertAdjacentHTML("beforeend",
-      countries.map((c) => `<option>${esc(c)}</option>`).join(""));
+      countries.map((c) => `<option>${escapeHtml(c)}</option>`).join(""));
     const statuses = [...new Set([...state.accounts.values()].map((a) => a.status))].sort();
     $("f-status").insertAdjacentHTML("beforeend",
-      statuses.map((s) => `<option>${esc(s)}</option>`).join(""));
+      statuses.map((s) => `<option>${escapeHtml(s)}</option>`).join(""));
   }
 
   function applyFilters() {
@@ -137,7 +137,7 @@
     state.filtered = state.txns.filter((t) => {
       if (country && t.counterparty_country !== country) return false;
       if (flaggedV && t.flagged_for_review !== flaggedV) return false;
-      if (band && bandOf(t.amount) !== band) return false;
+      if (band && amountBand(t.amount) !== band) return false;
       if (status && (state.accounts.get(t.account_id)?.status || "") !== status) return false;
       return true;
     });
@@ -149,7 +149,7 @@
     const out = [];
     if (HIGH_RISK.has(t.counterparty_country)) out.push('<span class="badge badge-sanctioned">Sanctioned</span>');
     else if (OFFSHORE.has(t.counterparty_country)) out.push('<span class="badge badge-offshore">Offshore</span>');
-    if (bandOf(t.amount) === "9to10k") out.push('<span class="badge badge-structuring">9&ndash;10k band</span>');
+    if (amountBand(t.amount) === "9to10k") out.push('<span class="badge badge-structuring">9&ndash;10k band</span>');
     if (!out.length) out.push('<span class="badge badge-plain">&mdash;</span>');
     return out.join(" ");
   }
@@ -166,13 +166,13 @@
     $("tx-body").innerHTML = pageRows.length ? pageRows.map((t) => {
       const acc = state.accounts.get(t.account_id);
       return `<tr>
-        <td>${esc(t.transaction_date)}</td>
-        <td>${esc(t.transaction_id)}</td>
-        <td>${esc(t.account_id)}</td>
-        <td class="status-${esc(acc?.status)}">${esc(acc?.status ?? "?")}</td>
+        <td>${escapeHtml(t.transaction_date)}</td>
+        <td>${escapeHtml(t.transaction_id)}</td>
+        <td>${escapeHtml(t.account_id)}</td>
+        <td class="status-${escapeHtml(acc?.status)}">${escapeHtml(acc?.status ?? "?")}</td>
         <td class="num">${t.amount == null ? "—" : fmtMoney(t.amount)}</td>
-        <td>${esc(t.transaction_type)}</td>
-        <td>${esc(t.counterparty_country)}</td>
+        <td>${escapeHtml(t.transaction_type)}</td>
+        <td>${escapeHtml(t.counterparty_country)}</td>
         <td>${riskBadges(t)}</td>
         <td>${t.flagged_for_review === "Yes"
           ? '<span class="badge badge-flagged">Flagged</span>'
@@ -205,7 +205,7 @@
     return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
   }
 
-  function explain(acc, medians) {
+  function explainDeviations(acc, medians) {
     const reasons = [];
     for (const [key, [label, fmt]] of Object.entries(FEATURE_LABELS)) {
       const v = acc[key]; const med = medians[key];
@@ -234,8 +234,8 @@
       <div class="anom-item">
         <div class="anom-top">
           <div>
-            <span class="anom-id">${esc(a.account_id)}</span>
-            <span class="anom-meta"> · ${esc(a.risk_rating)} risk · ${esc(a.status)} ·
+            <span class="anom-id">${escapeHtml(a.account_id)}</span>
+            <span class="anom-meta"> · ${escapeHtml(a.risk_rating)} risk · ${escapeHtml(a.status)} ·
               ${a.n_tx} txns · ${fmtMoney(a.total, true)}</span>
           </div>
           ${a.has_alert
@@ -246,16 +246,16 @@
              aria-label="Anomaly score ${a.score.toFixed(2)}">
           <div class="anom-score-fill" style="width:${(a.score / maxScore) * 100}%"></div>
         </div>
-        <div class="anom-why">Why: ${explain(a, medians) || "broad multi-feature deviation"}</div>
+        <div class="anom-why">Why: ${explainDeviations(a, medians) || "broad multi-feature deviation"}</div>
       </div>`).join("");
   }
 
   /* ---------- copilot ---------- */
-  function populateCopilot() {
+  function populateCopilotAccounts() {
     const anomIds = new Set(state.scores.filter((s) => s.anomaly === -1).map((s) => s.account_id));
     const opts = state.scores
       .sort((a, b) => (anomIds.has(b.account_id) - anomIds.has(a.account_id)) || b.score - a.score)
-      .map((s) => `<option value="${esc(s.account_id)}">${esc(s.account_id)}${anomIds.has(s.account_id) ? " ⚠ anomalous" : ""} · ${esc(s.risk_rating)} risk</option>`);
+      .map((s) => `<option value="${escapeHtml(s.account_id)}">${escapeHtml(s.account_id)}${anomIds.has(s.account_id) ? " ⚠ anomalous" : ""} · ${escapeHtml(s.risk_rating)} risk</option>`);
     $("cop-account").insertAdjacentHTML("beforeend", opts.join(""));
   }
 
@@ -287,12 +287,12 @@
       }
       const r = await res.json();
       $("cop-output").innerHTML = `
-        <p>${esc(r.risk_summary)}</p>
+        <p>${escapeHtml(r.risk_summary)}</p>
         <div class="cop-action">Recommended action:
-          <span class="badge ${ACTION_BADGE[r.recommended_action] || "badge-plain"}">${esc(r.recommended_action)}</span>
+          <span class="badge ${ACTION_BADGE[r.recommended_action] || "badge-plain"}">${escapeHtml(r.recommended_action)}</span>
         </div>
         <strong>Key factors</strong>
-        <ul class="cop-factors">${(r.key_factors || []).map((f) => `<li>${esc(f)}</li>`).join("")}</ul>
+        <ul class="cop-factors">${(r.key_factors || []).map((f) => `<li>${escapeHtml(f)}</li>`).join("")}</ul>
         <div class="cop-confidence">Model confidence: ${fmtPct(r.confidence ?? 0)} ·
           grounded exclusively on this account's served data</div>`;
       $("cop-output").classList.remove("hidden");
@@ -306,16 +306,16 @@
   }
 
   /* ---------- boot ---------- */
-  async function boot() {
+  async function initBoard() {
     try {
       const [txns, accounts, alerts, screenings, customers, scores] = await Promise.all([
         // transaction_id tiebreaker keeps the 2-page Range fetch stable across queries
-        sbFetchAll("transactions?select=transaction_id,account_id,transaction_date,amount,transaction_type,counterparty_country,flagged_for_review&order=transaction_date.desc,transaction_id.asc"),
-        sbFetchAll("accounts?select=account_id,customer_id,status"),
-        sbFetchAll("compliance_alerts?select=alert_id,transaction_id,severity,status"),
-        sbFetchAll("sanctions_screening?select=customer_id"),
-        sbFetchAll("customers?select=customer_id"),
-        sbFetchAll("account_scores?select=*"),
+        supabaseFetchAll("transactions?select=transaction_id,account_id,transaction_date,amount,transaction_type,counterparty_country,flagged_for_review&order=transaction_date.desc,transaction_id.asc"),
+        supabaseFetchAll("accounts?select=account_id,customer_id,status"),
+        supabaseFetchAll("compliance_alerts?select=alert_id,transaction_id,severity,status"),
+        supabaseFetchAll("sanctions_screening?select=customer_id"),
+        supabaseFetchAll("customers?select=customer_id"),
+        supabaseFetchAll("account_scores?select=*"),
       ]);
       state.txns = txns;
       state.accounts = new Map(accounts.map((a) => [a.account_id, a]));
@@ -328,7 +328,7 @@
       populateFilters();
       applyFilters();
       renderAnomalies();
-      populateCopilot();
+      populateCopilotAccounts();
     } catch (err) {
       showGlobalError(err);
       $("tx-body").innerHTML = '<tr><td colspan="9" class="loading-cell">Could not load data.</td></tr>';
@@ -345,5 +345,5 @@
   $("tx-next").addEventListener("click", () => { state.page++; renderTable(); });
   $("cop-run").addEventListener("click", runCopilot);
 
-  boot();
+  initBoard();
 })();

@@ -61,7 +61,7 @@ function corsHeaders(origin: string | null): HeadersInit {
   };
 }
 
-async function rest(path: string): Promise<unknown[]> {
+async function supabaseSelect(path: string): Promise<unknown[]> {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
     headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}` },
   });
@@ -147,7 +147,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const accounts = await rest(`accounts?account_id=eq.${accountId}&select=*,customers(*)`);
+    const accounts = await supabaseSelect(`accounts?account_id=eq.${accountId}&select=*,customers(*)`);
     if (!accounts.length) {
       return new Response(JSON.stringify({ error: `Unknown account ${accountId}` }), { status: 404, headers: cors });
     }
@@ -157,10 +157,10 @@ Deno.serve(async (req) => {
     const customerId = account.customer_id;
 
     const [scores, txns, alerts, screenings] = await Promise.all([
-      rest(`account_scores?account_id=eq.${accountId}&select=*`),
-      rest(`transactions?account_id=eq.${accountId}&select=transaction_date,amount,transaction_type,counterparty_country,flagged_for_review&order=transaction_date.desc`),
-      rest(`compliance_alerts?account_id=eq.${accountId}&select=alert_date,alert_type,severity,status,sar_filed`),
-      rest(`sanctions_screening?customer_id=eq.${customerId}&select=screening_date,list_checked,match_result,review_status`),
+      supabaseSelect(`account_scores?account_id=eq.${accountId}&select=*`),
+      supabaseSelect(`transactions?account_id=eq.${accountId}&select=transaction_date,amount,transaction_type,counterparty_country,flagged_for_review&order=transaction_date.desc`),
+      supabaseSelect(`compliance_alerts?account_id=eq.${accountId}&select=alert_date,alert_type,severity,status,sar_filed`),
+      supabaseSelect(`sanctions_screening?customer_id=eq.${customerId}&select=screening_date,list_checked,match_result,review_status`),
     ]);
 
     const grounding = {
