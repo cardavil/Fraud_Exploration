@@ -86,6 +86,45 @@ DDL = {
   resolution_date date,
   liability_party text
 );""",
+    "transaction_scores": """CREATE TABLE transaction_scores (
+  transaction_id       text PRIMARY KEY REFERENCES transactions(transaction_id),
+  log_amount           double precision,
+  rel_amount           double precision,
+  band_9k              integer,
+  hr_country           integer,
+  offshore             integer,
+  cash                 integer,
+  nonactive_status     integer,
+  days_since_prev_txn  double precision,
+  same_day_txns        integer,
+  counterparty_novelty integer,
+  intl_mismatch        integer,
+  score                double precision,
+  anomaly              integer,
+  account_id           text REFERENCES accounts(account_id),
+  amount               numeric(14,2),
+  flagged_by_rules     integer
+);""",
+    "customer_scores": """CREATE TABLE customer_scores (
+  customer_id           text PRIMARY KEY REFERENCES customers(customer_id),
+  n_accounts            integer,
+  n_anomalous_accounts  integer,
+  max_account_score     double precision,
+  total_value           double precision,
+  pct_txn_anomalous     double precision,
+  max_txn_score         double precision,
+  structuring_days      integer,
+  hr_value_share        double precision,
+  nonactive_value_share double precision,
+  risk_ordinal          double precision,
+  pep                   double precision,
+  never_screened        integer,
+  post_match_value      double precision,
+  anomaly               integer,
+  score                 double precision,
+  full_name             text,
+  nationality           text
+);""",
     "cleaning_log": """CREATE TABLE cleaning_log (
   step_id       integer PRIMARY KEY,
   table_name    text,
@@ -107,6 +146,10 @@ DDL = {
   pct_intl       double precision,
   tx_per_month   double precision,
   velocity_value double precision,
+  pct_txn_anomalous double precision,
+  max_txn_score     double precision,
+  max_day_share     double precision,
+  recent_intensity  double precision,
   anomaly        integer,
   score          double precision,
   customer_id    text REFERENCES customers(customer_id),
@@ -120,7 +163,8 @@ DDL = {
 }
 
 ORDER = ["customers", "accounts", "transactions", "compliance_alerts",
-         "sanctions_screening", "chargebacks", "account_scores", "cleaning_log"]
+         "sanctions_screening", "chargebacks", "account_scores",
+         "transaction_scores", "customer_scores", "cleaning_log"]
 
 
 def sql_literal(v):
@@ -161,7 +205,9 @@ def rls(table):
 
 
 con = sqlite3.connect("data/clean.db")
-frames = {t: pd.read_sql(f"SELECT * FROM {t}", con) for t in ORDER[:-2]}
+frames = {t: pd.read_sql(f"SELECT * FROM {t}", con) for t in ORDER[:6]}
+frames["transaction_scores"] = pd.read_csv("outputs/transaction_scores.csv")
+frames["customer_scores"] = pd.read_csv("outputs/customer_scores.csv")
 frames["cleaning_log"] = (
     pd.read_csv("outputs/cleaning_log.csv").rename(columns={"table": "table_name"})
 )
@@ -169,7 +215,9 @@ frames["cleaning_log"].insert(0, "step_id", range(1, len(frames["cleaning_log"])
 frames["account_scores"] = pd.read_csv("outputs/account_features_scores.csv")[
     [c.strip() for c in
      "account_id,n_tx,avg_amt,std_amt,max_amt,total,pct_hr,pct_off,pct_cash,"
-     "pct_struct,pct_intl,tx_per_month,velocity_value,anomaly,score,customer_id,"
+     "pct_struct,pct_intl,tx_per_month,velocity_value,"
+     "pct_txn_anomalous,max_txn_score,max_day_share,recent_intensity,"
+     "anomaly,score,customer_id,"
      "status,branch_country,full_name,risk_rating,pep_flag,has_alert".split(",")]
 ]
 
