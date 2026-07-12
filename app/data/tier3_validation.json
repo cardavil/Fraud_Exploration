@@ -1,0 +1,79 @@
+{
+ "n_flagged": 5,
+ "flagged": [
+  {
+   "customer_id": "CUST0008",
+   "score": 0.6033,
+   "n_accounts": 1,
+   "n_anomalous_accounts": 1,
+   "structuring_days": 0,
+   "never_screened": false,
+   "post_match_value": 0,
+   "bootstrap_freq": 1.0
+  },
+  {
+   "customer_id": "CUST0003",
+   "score": 0.5901,
+   "n_accounts": 2,
+   "n_anomalous_accounts": 2,
+   "structuring_days": 0,
+   "never_screened": true,
+   "post_match_value": 0,
+   "bootstrap_freq": 0.99
+  },
+  {
+   "customer_id": "CUST0054",
+   "score": 0.5819,
+   "n_accounts": 4,
+   "n_anomalous_accounts": 0,
+   "structuring_days": 2,
+   "never_screened": true,
+   "post_match_value": 0,
+   "bootstrap_freq": 1.0
+  },
+  {
+   "customer_id": "CUST0015",
+   "score": 0.5721,
+   "n_accounts": 4,
+   "n_anomalous_accounts": 1,
+   "structuring_days": 0,
+   "never_screened": true,
+   "post_match_value": 0,
+   "bootstrap_freq": 0.77
+  },
+  {
+   "customer_id": "CUST0044",
+   "score": 0.5671,
+   "n_accounts": 4,
+   "n_anomalous_accounts": 1,
+   "structuring_days": 0,
+   "never_screened": false,
+   "post_match_value": 0,
+   "bootstrap_freq": 0.76
+  }
+ ],
+ "seed_stability": {
+  "n_seeds": 20,
+  "jaccard_mean": 1.0,
+  "jaccard_min": 1.0
+ },
+ "cross_tier": {
+  "anomalous_account_customers_in_top15": 0.88,
+  "ranks_of_anomalous_account_customers": {
+   "CUST0008": 1,
+   "CUST0003": 2,
+   "CUST0015": 4,
+   "CUST0044": 5,
+   "CUST0049": 7,
+   "CUST0042": 11,
+   "CUST0055": 15,
+   "CUST0016": 25
+  },
+  "spearman_score_vs_max_account_score": 0.4,
+  "note": "the customer tier re-ranks by subject-level severity: KYC and cross-account signals add information beyond the account tier"
+ },
+ "kyc_only_customers": {
+  "count": 24,
+  "note": "KYC records with no accounts at all \u2014 excluded from scoring, a data-governance finding in itself"
+ }
+}
