@@ -179,27 +179,14 @@ window.FE.tabs.ml = {
           <span class="muted">the trained forest (300 trees) exported to JSON, inference in ~80 lines of JS</span>
         </div>
         <p id="ml-verify" class="loading-cell">Loading the exported forest and recomputing every score locally…</p>
-        <div id="ml-playground" class="hidden">
-          <h4>What-if playground</h4>
-          <p class="muted">Pick an account, drag its behavior, and watch the score respond.
-          Features are recomputed from the served transactions; the other 7 features stay at the
-          account's real values.</p>
+        <div id="ml-story" class="hidden">
+          <h4>The story behind each account</h4>
+          <p class="muted">Pick an account: who the customer is, what the account actually did,
+          what the model read in that behavior, and what the rules engine did about it.</p>
           <div class="copilot-controls">
-            <select id="wi-account" aria-label="Account for the playground"></select>
+            <select id="story-account" aria-label="Account for the story"></select>
           </div>
-          <div class="wi-grid" id="wi-sliders"></div>
-          <div class="wi-gauge">
-            <div class="wi-score">
-              <span class="kpi-label">Live score</span>
-              <span class="stat-value" id="wi-score-value">—</span>
-              <span id="wi-verdict"></span>
-            </div>
-            <div class="wi-track">
-              <div class="wi-fill" id="wi-fill"></div>
-              <div class="wi-cutoff" id="wi-cutoff" title="anomaly cutoff"></div>
-            </div>
-            <span class="muted" id="wi-cutoff-label"></span>
-          </div>
+          <div id="story-body"></div>
         </div>
       </div>`;
 
@@ -237,15 +224,7 @@ window.FE.tabs.ml = {
       })),
     });
 
-    /* ---------- live scoring: verification + playground ---------- */
-    const SLIDERS = [
-      { key: "pct_hr", label: "% sanctioned-country", min: 0, max: 1, step: 0.01, fmt: fmtPct },
-      { key: "pct_cash", label: "% cash", min: 0, max: 1, step: 0.01, fmt: fmtPct },
-      { key: "pct_struct", label: "% in 9–10k band", min: 0, max: 1, step: 0.01, fmt: fmtPct },
-      { key: "tx_per_month", label: "txns / month", min: 0, max: 60, step: 0.5, fmt: (v) => v.toFixed(1) },
-      { key: "velocity_value", label: "value / month", min: 0, max: 700000, step: 5000, fmt: (v) => fmtMoney(v, true) },
-    ];
-
+    /* ---------- live scoring: verification + account story ---------- */
     (async () => {
       const iforest = window.FE.iforest;
       try {
@@ -275,52 +254,77 @@ window.FE.tabs.ml = {
         <span class="muted"> — features rebuilt from the served transactions, standardized and pushed
         through the exported forest. Same numbers, two independent implementations.</span>`;
 
-      /* playground */
-      const playground = el.querySelector("#ml-playground");
-      playground.classList.remove("hidden");
-      const select = el.querySelector("#wi-account");
+      /* account story — the customer and the account, told from the served data */
+      const story = el.querySelector("#ml-story");
+      story.classList.remove("hidden");
+      const select = el.querySelector("#story-account");
       const anomIds = new Set(anoms.map((a) => a.account_id));
       select.innerHTML = [...byAccount.keys()].sort((a, b) =>
         (anomIds.has(b) - anomIds.has(a)) || (served.get(b) - served.get(a)))
         .map((id) => `<option value="${id}">${id}${anomIds.has(id) ? " ⚠ anomalous" : ""}</option>`).join("");
-      const slidersEl = el.querySelector("#wi-sliders");
-      slidersEl.innerHTML = SLIDERS.map((s) => `
-        <label class="wi-slider">
-          <span>${s.label}: <strong id="wi-val-${s.key}"></strong></span>
-          <input type="range" id="wi-${s.key}" min="${s.min}" max="${s.max}" step="${s.step}">
-        </label>`).join("");
 
-      let baseFeatures = null;
-      function updateScore() {
-        const features = { ...baseFeatures };
-        for (const s of SLIDERS) {
-          const v = Number(el.querySelector(`#wi-${s.key}`).value);
-          features[s.key] = v;
-          el.querySelector(`#wi-val-${s.key}`).textContent = s.fmt(v);
-        }
-        // keep derived totals coherent when velocity moves
-        const { score, isAnomalous, cutoff } = iforest.score(features);
-        el.querySelector("#wi-score-value").textContent = score.toFixed(4);
-        el.querySelector("#wi-verdict").innerHTML = isAnomalous
-          ? '<span class="badge badge-sanctioned">anomalous</span>'
-          : '<span class="badge badge-clear">normal</span>';
-        const span = 0.75;  // display range 0..0.75 covers all observed scores
-        el.querySelector("#wi-fill").style.width = `${Math.min(score / span, 1) * 100}%`;
-        el.querySelector("#wi-cutoff").style.left = `${(cutoff / span) * 100}%`;
-        el.querySelector("#wi-cutoff-label").textContent =
-          `anomaly cutoff at ${cutoff.toFixed(3)} — cross it and the account flags`;
+      const customers = new Map(state.data.customers.map((c) => [c.customer_id, c]));
+      const accountsById = new Map(state.data.accounts.map((a) => [a.account_id, a]));
+
+      function renderStory() {
+        const id = select.value;
+        const account = accountsById.get(id);
+        const customer = customers.get(account.customer_id) ?? {};
+        const txns = byAccount.get(id);
+        const f = liveFeatures.get(id);
+        const { score, isAnomalous, cutoff } = iforest.score(f);
+        const servedRow = scores.find((s) => s.account_id === id);
+        const alerts = state.data.compliance_alerts.filter((a) => a.account_id === id);
+        const screenings = state.data.sanctions_screening.filter((s) => s.customer_id === account.customer_id);
+
+        const byDay = new Map();
+        for (const t of txns) byDay.set(t.transaction_date,
+          (byDay.get(t.transaction_date) ?? 0) + (t.amount ?? 0));
+        const [burstDay, burstValue] = [...byDay.entries()].sort((a, b) => b[1] - a[1])[0];
+        const spanDays = Math.round(
+          (Date.parse(txns[0].transaction_date) - Date.parse(txns[txns.length - 1].transaction_date)) / 86400000) + 1;
+
+        const geo = [];
+        if (f.pct_hr > 0) geo.push(`<strong>${fmtPct(f.pct_hr)} went to sanctioned countries</strong>`);
+        if (f.pct_off > 0) geo.push(`${fmtPct(f.pct_off)} to offshore centers`);
+        if (f.pct_struct > 0) geo.push(`${fmtPct(f.pct_struct)} sat in the $9,000–9,999 reporting-threshold band`);
+        const match = screenings.find((s) => s.match_result === "Confirmed Match");
+
+        story.querySelector("#story-body").innerHTML = `
+          <div class="story-card">
+            <p><strong>${escapeHtml(customer.full_name ?? account.customer_id)}</strong>
+            (${escapeHtml(account.customer_id)}) — ${escapeHtml(customer.occupation ?? "occupation unknown")},
+            ${escapeHtml(customer.nationality ?? "nationality unknown")}, KYC-rated
+            <strong>${escapeHtml(customer.risk_rating ?? "?")}</strong>${customer.pep_flag === "Yes" ? ", <strong>PEP</strong>" : ""}${customer.pep_flag === "Unknown" ? ", PEP status unknown" : ""} —
+            opened this ${escapeHtml(account.account_type ?? "")} account on ${escapeHtml(account.open_date ?? "?")}.
+            Its status today: <strong>${escapeHtml(account.status)}</strong>.</p>
+            <p>Across ${fmtInt(spanDays)} days of activity it moved
+            <strong>${fmtMoney(f.total)}</strong> in ${fmtInt(f.n_tx)} transactions
+            (${f.tx_per_month.toFixed(1)}/month, ${fmtMoney(f.velocity_value, true)}/month)${burstValue > f.total * 0.5
+              ? ` — <strong>including ${fmtMoney(burstValue)} on ${escapeHtml(burstDay)} alone</strong>` : ""}.
+            ${geo.length ? geo.join("; ") + "." : "No sanctioned, offshore or threshold-band exposure."}</p>
+            <p><strong>The model's reading:</strong> score
+            <strong>${score.toFixed(4)}</strong> vs cutoff ${cutoff.toFixed(3)} →
+            ${isAnomalous
+              ? '<span class="badge badge-sanctioned">anomalous</span>'
+              : '<span class="badge badge-clear">normal</span>'}
+            <span class="badge badge-plain">recomputed in your browser ✓</span><br>
+            ${servedRow ? explainDeviations(servedRow) || "no single feature dominates — broad deviation" : ""}</p>
+            <p><strong>What the controls did:</strong>
+            ${alerts.length
+              ? `${fmtInt(alerts.length)} alert(s) — ${alerts.map((a) => `${escapeHtml(a.alert_type)} (${escapeHtml(a.status)})`).join(", ")}.`
+              : isAnomalous
+                ? '<span class="anom-alert-gap">the rules engine never raised an alert on this account.</span>'
+                : "no alerts — consistent with the model's reading."}
+            ${screenings.length
+              ? ` Customer screened ${fmtInt(screenings.length)} time(s)${match ? ` — <strong>confirmed sanctions match on ${escapeHtml(match.screening_date)} (${escapeHtml(match.review_status)})</strong>` : ""}.`
+              : " The customer has <strong>never been screened</strong>."}</p>
+            <p class="muted">For the full grounded narrative and a recommended action, run this
+            account through the five-agent copilot in the <a href="#engine">AI Engine tab</a>.</p>
+          </div>`;
       }
-      function loadAccount() {
-        baseFeatures = { ...liveFeatures.get(select.value) };
-        for (const s of SLIDERS) {
-          el.querySelector(`#wi-${s.key}`).value = Math.min(baseFeatures[s.key], s.max);
-        }
-        updateScore();
-      }
-      select.addEventListener("change", loadAccount);
-      SLIDERS.forEach((s) =>
-        el.querySelector(`#wi-${s.key}`).addEventListener("input", updateScore));
-      loadAccount();
+      select.addEventListener("change", renderStory);
+      renderStory();
     })();
   },
 };

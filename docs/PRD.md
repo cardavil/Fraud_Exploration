@@ -198,3 +198,9 @@ deteccion, estabilidad por seed, distribucion con cutoff, validez convergente co
 ablacion) y (b) Live scoring: el forest entrenado corre EN el navegador, verifica 105/105
 scores contra el pipeline y ofrece un what-if playground. Regla mantenida: ninguna metrica
 supervisada fingida. **Vigente.**
+
+**2026-07-12** — Se retira el what-if playground (analisis hipotetico fuera de alcance): el
+Live scoring conserva la verificacion 105/105 en el navegador y pasa a contar la HISTORIA de
+cada cuenta y su customer — perfil KYC, comportamiento real, lectura del modelo con sus
+desviaciones, y que hicieron (o no) las reglas y el screening — con salto al copilot para la
+narrativa completa. **Vigente.**
