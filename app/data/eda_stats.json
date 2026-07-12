@@ -1,0 +1,308 @@
+{
+ "descriptive": {
+  "n_valid": 1587,
+  "mean": 45032,
+  "median": 9234,
+  "std": 106628,
+  "cv": 2.37,
+  "skewness": 2.85,
+  "kurtosis_excess": 6.92,
+  "p95": 346210,
+  "max": 498896
+ },
+ "structuring": {
+  "bands": [
+   {
+    "band": "5-6k",
+    "lo": 5000,
+    "count": 91
+   },
+   {
+    "band": "6-7k",
+    "lo": 6000,
+    "count": 87
+   },
+   {
+    "band": "7-8k",
+    "lo": 7000,
+    "count": 75
+   },
+   {
+    "band": "8-9k",
+    "lo": 8000,
+    "count": 90
+   },
+   {
+    "band": "9-10k",
+    "lo": 9000,
+    "count": 276
+   },
+   {
+    "band": "10-11k",
+    "lo": 10000,
+    "count": 78
+   },
+   {
+    "band": "11-12k",
+    "lo": 11000,
+    "count": 52
+   }
+  ],
+  "band_9k_count": 276,
+  "band_9k_share": 0.174,
+  "ratio_vs_neighbors": 3.3
+ },
+ "monthly": {
+  "transactions": [
+   {
+    "month": "2025-04",
+    "count": 3,
+    "value": 9870.0
+   },
+   {
+    "month": "2025-05",
+    "count": 10,
+    "value": 478322.0
+   },
+   {
+    "month": "2025-06",
+    "count": 35,
+    "value": 1820436.0
+   },
+   {
+    "month": "2025-07",
+    "count": 26,
+    "value": 1857802.0
+   },
+   {
+    "month": "2025-08",
+    "count": 51,
+    "value": 1550688.0
+   },
+   {
+    "month": "2025-09",
+    "count": 54,
+    "value": 2196716.0
+   },
+   {
+    "month": "2025-10",
+    "count": 91,
+    "value": 5243948.0
+   },
+   {
+    "month": "2025-11",
+    "count": 108,
+    "value": 6271025.0
+   },
+   {
+    "month": "2025-12",
+    "count": 80,
+    "value": 2685168.0
+   },
+   {
+    "month": "2026-01",
+    "count": 71,
+    "value": 1691532.0
+   },
+   {
+    "month": "2026-02",
+    "count": 93,
+    "value": 2503745.0
+   },
+   {
+    "month": "2026-03",
+    "count": 179,
+    "value": 9018138.0
+   },
+   {
+    "month": "2026-04",
+    "count": 198,
+    "value": 9005296.0
+   },
+   {
+    "month": "2026-05",
+    "count": 281,
+    "value": 11445187.0
+   },
+   {
+    "month": "2026-06",
+    "count": 270,
+    "value": 13694020.0
+   },
+   {
+    "month": "2026-07",
+    "count": 50,
+    "value": 1994520.0
+   }
+  ],
+  "alerts": [
+   {
+    "month": "2025-05",
+    "count": 1
+   },
+   {
+    "month": "2025-06",
+    "count": 3
+   },
+   {
+    "month": "2025-08",
+    "count": 2
+   },
+   {
+    "month": "2025-09",
+    "count": 2
+   },
+   {
+    "month": "2025-10",
+    "count": 4
+   },
+   {
+    "month": "2025-11",
+    "count": 4
+   },
+   {
+    "month": "2025-12",
+    "count": 2
+   },
+   {
+    "month": "2026-01",
+    "count": 7
+   },
+   {
+    "month": "2026-02",
+    "count": 3
+   },
+   {
+    "month": "2026-03",
+    "count": 4
+   },
+   {
+    "month": "2026-04",
+    "count": 12
+   },
+   {
+    "month": "2026-05",
+    "count": 9
+   },
+   {
+    "month": "2026-06",
+    "count": 7
+   },
+   {
+    "month": "2026-07",
+    "count": 5
+   }
+  ],
+  "chargebacks": [
+   {
+    "month": "2025-08",
+    "count": 2,
+    "value": 9007.0
+   },
+   {
+    "month": "2025-09",
+    "count": 1,
+    "value": 7369.0
+   },
+   {
+    "month": "2025-10",
+    "count": 2,
+    "value": 12420.0
+   },
+   {
+    "month": "2025-11",
+    "count": 3,
+    "value": 20928.0
+   },
+   {
+    "month": "2025-12",
+    "count": 3,
+    "value": 30453.0
+   },
+   {
+    "month": "2026-01",
+    "count": 3,
+    "value": 34353.0
+   },
+   {
+    "month": "2026-02",
+    "count": 2,
+    "value": 12764.0
+   },
+   {
+    "month": "2026-03",
+    "count": 3,
+    "value": 5694.0
+   },
+   {
+    "month": "2026-04",
+    "count": 8,
+    "value": 57628.0
+   },
+   {
+    "month": "2026-05",
+    "count": 11,
+    "value": 67171.0
+   },
+   {
+    "month": "2026-06",
+    "count": 15,
+    "value": 124945.0
+   },
+   {
+    "month": "2026-07",
+    "count": 17,
+    "value": 114288.0
+   }
+  ]
+ },
+ "associations": [
+  {
+   "pair": "counterparty_country \u00d7 flagged",
+   "cramers_v": 0.591,
+   "p": 0.0
+  },
+  {
+   "pair": "transaction_type \u00d7 flagged",
+   "cramers_v": 0.499,
+   "p": 0.0
+  },
+  {
+   "pair": "transaction_type \u00d7 structuring-zone",
+   "cramers_v": 0.554,
+   "p": 0.0
+  },
+  {
+   "pair": "risk_rating \u00d7 flagged",
+   "cramers_v": 0.052,
+   "p": 0.117
+  },
+  {
+   "pair": "onboarding_channel \u00d7 risk_rating",
+   "cramers_v": 0.2,
+   "p": 0.0
+  }
+ ],
+ "spearman_vs_rating": [
+  {
+   "feature": "transaction count",
+   "rho": 0.15,
+   "p": 0.243
+  },
+  {
+   "feature": "% high-risk-country",
+   "rho": 0.04,
+   "p": 0.747
+  },
+  {
+   "feature": "% flagged",
+   "rho": 0.13,
+   "p": 0.314
+  },
+  {
+   "feature": "% cash",
+   "rho": 0.26,
+   "p": 0.043
+  }
+ ]
+}

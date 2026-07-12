@@ -34,7 +34,7 @@ except urllib.error.HTTPError as e:
     sys.exit(1)
 
 TABLES = ["customers", "accounts", "transactions", "compliance_alerts",
-          "sanctions_screening", "chargebacks", "account_scores"]
+          "sanctions_screening", "chargebacks", "account_scores", "cleaning_log"]
 counts = " UNION ALL ".join(
     f"SELECT '{t}' AS tbl, COUNT(*) AS rows, "
     f"(SELECT relrowsecurity FROM pg_class WHERE oid = '{t}'::regclass) AS rls "

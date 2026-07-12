@@ -86,6 +86,13 @@ DDL = {
   resolution_date date,
   liability_party text
 );""",
+    "cleaning_log": """CREATE TABLE cleaning_log (
+  step_id       integer PRIMARY KEY,
+  table_name    text,
+  issue         text,
+  treatment     text,
+  rows_affected integer
+);""",
     "account_scores": """CREATE TABLE account_scores (
   account_id     text PRIMARY KEY REFERENCES accounts(account_id),
   n_tx           integer,
@@ -113,7 +120,7 @@ DDL = {
 }
 
 ORDER = ["customers", "accounts", "transactions", "compliance_alerts",
-         "sanctions_screening", "chargebacks", "account_scores"]
+         "sanctions_screening", "chargebacks", "account_scores", "cleaning_log"]
 
 
 def sql_literal(v):
@@ -154,7 +161,11 @@ def rls(table):
 
 
 con = sqlite3.connect("data/clean.db")
-frames = {t: pd.read_sql(f"SELECT * FROM {t}", con) for t in ORDER[:-1]}
+frames = {t: pd.read_sql(f"SELECT * FROM {t}", con) for t in ORDER[:-2]}
+frames["cleaning_log"] = (
+    pd.read_csv("outputs/cleaning_log.csv").rename(columns={"table": "table_name"})
+)
+frames["cleaning_log"].insert(0, "step_id", range(1, len(frames["cleaning_log"]) + 1))
 frames["account_scores"] = pd.read_csv("outputs/account_features_scores.csv")[
     [c.strip() for c in
      "account_id,n_tx,avg_amt,std_amt,max_amt,total,pct_hr,pct_off,pct_cash,"
