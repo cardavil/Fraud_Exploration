@@ -88,10 +88,12 @@ window.FE.tabs.engine = {
 
     /* runner */
     const $q = (sel) => el.querySelector(sel);
-    const opts = [...state.data.customer_scores]
-      .sort((a, b) => (b.anomaly === -1) - (a.anomaly === -1) || b.score - a.score)
-      .map((s) => `<option value="${escapeHtml(s.customer_id)}">${escapeHtml(s.customer_id)}${s.anomaly === -1 ? " ⚠ anomalous" : ""} · ${s.n_accounts} account${s.n_accounts > 1 ? "s" : ""}${s.never_screened ? " · never screened" : ""}</option>`);
-    $q("#sn-account").insertAdjacentHTML("beforeend", opts.join(""));
+    const customerOption = (s) =>
+      `<option value="${escapeHtml(s.customer_id)}">${escapeHtml(s.customer_id)} · ${s.n_accounts} account${s.n_accounts > 1 ? "s" : ""}${s.never_screened ? " · never screened" : ""}</option>`;
+    const sorted = [...state.data.customer_scores].sort((a, b) => a.customer_id.localeCompare(b.customer_id));
+    $q("#sn-account").insertAdjacentHTML("beforeend", `
+      <optgroup label="Anomalous customers">${sorted.filter((s) => s.anomaly === -1).map(customerOption).join("")}</optgroup>
+      <optgroup label="Other customers">${sorted.filter((s) => s.anomaly !== -1).map(customerOption).join("")}</optgroup>`);
 
     const ACTION_BADGE = {
       "Close as false positive": "badge-clear",

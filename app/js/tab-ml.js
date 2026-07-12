@@ -478,9 +478,11 @@ window.FE.tabs.ml = {
       detail.classList.remove("hidden");
       const select = el.querySelector("#detail-account");
       const anomIds = new Set(anoms.map((a) => a.account_id));
-      select.innerHTML = [...byAccount.keys()].sort((a, b) =>
-        (anomIds.has(b) - anomIds.has(a)) || (served.get(b) - served.get(a)))
-        .map((id) => `<option value="${id}">${id}${anomIds.has(id) ? " ⚠ anomalous" : ""}</option>`).join("");
+      const sortedIds = [...byAccount.keys()].sort((a, b) => a.localeCompare(b));
+      const accountOption = (id) => `<option value="${id}">${id}</option>`;
+      select.innerHTML = `
+        <optgroup label="Anomalous accounts">${sortedIds.filter((id) => anomIds.has(id)).map(accountOption).join("")}</optgroup>
+        <optgroup label="Other accounts">${sortedIds.filter((id) => !anomIds.has(id)).map(accountOption).join("")}</optgroup>`;
 
       const accountsById = new Map(state.data.accounts.map((a) => [a.account_id, a]));
 
