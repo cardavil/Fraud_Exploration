@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="build" content="2026-07-12-r2">
+  <meta name="build" content="2026-07-12-r3">
   <title>Fraud &amp; Compliance Exploration Board</title>
   <link rel="stylesheet" href="styles.css">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#128737;</text></svg>">
@@ -13,120 +13,66 @@
     <div class="topbar-inner">
       <div>
         <h1>Fraud &amp; Compliance Exploration Board</h1>
-        <p class="subtitle">Self-serve exploration over the risk &amp; compliance dataset — read-only serving layer on Supabase</p>
+        <p class="subtitle">From raw data to AI-assisted triage — an end-to-end risk &amp; compliance exploration tool</p>
       </div>
       <div class="topbar-meta">
         <span class="pill pill-neutral">Dummy data</span>
-        <a class="pill pill-link" href="https://github.com/cardavil/Fraud_Exploration" target="_blank" rel="noopener">Repo &amp; methodology</a>
       </div>
     </div>
   </header>
 
+  <nav class="tabbar" aria-label="Sections">
+    <div class="tabbar-inner" id="tabbar">
+      <button class="tab-btn" data-tab="overview">Overview</button>
+      <button class="tab-btn" data-tab="data">Data</button>
+      <button class="tab-btn" data-tab="eda">EDA</button>
+      <button class="tab-btn" data-tab="findings">Findings</button>
+      <button class="tab-btn" data-tab="ml">ML Model</button>
+      <button class="tab-btn" data-tab="engine">AI Engine</button>
+    </div>
+  </nav>
+
   <main>
     <div id="global-error" class="banner banner-error hidden" role="alert"></div>
+    <div id="global-loading" class="loading-cell">Loading the serving layer&hellip;</div>
 
-    <!-- KPI strip -->
-    <section aria-labelledby="kpi-title">
-      <h2 id="kpi-title" class="visually-hidden">Key indicators</h2>
-      <div class="kpi-strip" id="kpi-strip">
-        <div class="kpi-tile skeleton" data-kpi="unalerted"></div>
-        <div class="kpi-tile skeleton" data-kpi="gap"></div>
-        <div class="kpi-tile skeleton" data-kpi="screening"></div>
-        <div class="kpi-tile skeleton" data-kpi="fp"></div>
-        <div class="kpi-tile skeleton" data-kpi="open"></div>
-      </div>
-    </section>
-
-    <!-- Transactions -->
-    <section class="card" aria-labelledby="tx-title">
-      <div class="card-head">
-        <h2 id="tx-title">Transactions</h2>
-        <span class="muted" id="tx-summary">Loading…</span>
-      </div>
-      <div class="filter-row" id="filters">
-        <label>Counterparty country
-          <select id="f-country"><option value="">All countries</option></select>
-        </label>
-        <label>Flagged
-          <select id="f-flagged">
-            <option value="">All</option>
-            <option value="Yes">Flagged</option>
-            <option value="No">Not flagged</option>
-          </select>
-        </label>
-        <label>Amount band
-          <select id="f-band">
-            <option value="">All amounts</option>
-            <option value="lt1k">&lt; $1,000</option>
-            <option value="1to5k">$1,000 – 4,999</option>
-            <option value="5to9k">$5,000 – 8,999</option>
-            <option value="9to10k">$9,000 – 9,999 (reporting-threshold zone)</option>
-            <option value="10to50k">$10,000 – 49,999</option>
-            <option value="gte50k">&ge; $50,000</option>
-          </select>
-        </label>
-        <label>Account status
-          <select id="f-status"><option value="">All statuses</option></select>
-        </label>
-        <button id="f-reset" class="btn btn-ghost" type="button">Reset</button>
-      </div>
-      <div class="table-wrap">
-        <table id="tx-table">
-          <thead>
-            <tr>
-              <th>Date</th><th>Transaction</th><th>Account</th><th>Status</th>
-              <th class="num">Amount</th><th>Type</th><th>Counterparty country</th>
-              <th>Risk</th><th>Flagged</th>
-            </tr>
-          </thead>
-          <tbody id="tx-body"><tr><td colspan="9" class="loading-cell">Loading transactions…</td></tr></tbody>
-        </table>
-      </div>
-      <div class="table-foot">
-        <span id="tx-page-info" class="muted"></span>
-        <div>
-          <button class="btn btn-ghost" id="tx-prev" type="button">&larr; Prev</button>
-          <button class="btn btn-ghost" id="tx-next" type="button">Next &rarr;</button>
-        </div>
-      </div>
-    </section>
-
-    <div class="two-col">
-      <!-- Anomalies -->
-      <section class="card" aria-labelledby="anom-title">
-        <div class="card-head">
-          <h2 id="anom-title">ML anomalies — Isolation Forest</h2>
-          <span class="muted">300 trees · 8% contamination · account-level behavioral features</span>
-        </div>
-        <div id="anom-list"><div class="loading-cell">Loading anomaly scores…</div></div>
-      </section>
-
-      <!-- Copilot -->
-      <section class="card" aria-labelledby="cop-title">
-        <div class="card-head">
-          <h2 id="cop-title">Compliance Copilot</h2>
-          <span class="pill pill-neutral">Gemini · grounded on account data</span>
-        </div>
-        <p class="muted copilot-hint">Pick an account and get a structured risk narrative with a recommended action. The model reasons only from data served by this board.</p>
-        <div class="copilot-controls">
-          <select id="cop-account" aria-label="Account to analyze"><option value="">Select an account…</option></select>
-          <button class="btn btn-primary" id="cop-run" type="button">Analyze</button>
-        </div>
-        <div id="cop-output" class="copilot-output hidden"></div>
-        <div id="cop-error" class="banner banner-error hidden" role="alert"></div>
-        <div id="cop-loading" class="copilot-loading hidden">
-          <span class="spinner" aria-hidden="true"></span> Building grounded risk narrative…
-        </div>
-      </section>
-    </div>
+    <section id="tab-overview" class="tab-panel hidden" aria-label="Overview"></section>
+    <section id="tab-data" class="tab-panel hidden" aria-label="Data explorer"></section>
+    <section id="tab-eda" class="tab-panel hidden" aria-label="Exploratory data analysis"></section>
+    <section id="tab-findings" class="tab-panel hidden" aria-label="Findings"></section>
+    <section id="tab-ml" class="tab-panel hidden" aria-label="ML model"></section>
+    <section id="tab-engine" class="tab-panel hidden" aria-label="AI engine"></section>
   </main>
 
   <footer>
-    <p>Personal portfolio project on a dummy dataset — no real customer data. Not affiliated with, or endorsed by, any payments company.
-       Analytical methodology: <a href="https://github.com/cardavil/Fraud_Exploration/blob/main/outputs/EDA_FINDINGS.md" target="_blank" rel="noopener">EDA findings</a>.</p>
+    <p>
+      <a href="https://github.com/cardavil/Fraud_Exploration" target="_blank" rel="noopener">Repo &amp; methodology</a> ·
+      <a href="https://github.com/cardavil/Fraud_Exploration/blob/main/outputs/EDA_FINDINGS.md" target="_blank" rel="noopener">Full EDA findings</a> ·
+      <a href="https://github.com/cardavil/Fraud_Exploration/tree/main/docs" target="_blank" rel="noopener">Design docs</a>
+    </p>
+    <p>Personal portfolio project on a dummy dataset — no real customer data. Not affiliated with, or endorsed by, any payments company.</p>
   </footer>
 
+  <div id="modal-backdrop" class="modal-backdrop hidden" role="presentation">
+    <div id="modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div class="modal-head">
+        <h3 id="modal-title"></h3>
+        <button class="modal-close" id="modal-close" aria-label="Close">&times;</button>
+      </div>
+      <div id="modal-body"></div>
+    </div>
+  </div>
+  <div id="chart-tooltip" class="chart-tooltip hidden" role="tooltip"></div>
+
   <script src="config.js"></script>
-  <script src="app.js"></script>
+  <script src="js/core.js"></script>
+  <script src="js/charts.js"></script>
+  <script src="js/tab-overview.js"></script>
+  <script src="js/tab-data.js"></script>
+  <script src="js/tab-eda.js"></script>
+  <script src="js/tab-findings.js"></script>
+  <script src="js/tab-ml.js"></script>
+  <script src="js/tab-engine.js"></script>
+  <script>FE.boot();</script>
 </body>
 </html>
