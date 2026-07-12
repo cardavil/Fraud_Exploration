@@ -421,13 +421,13 @@ tbody tr:hover { background: var(--row-hover); }
 /* ================= v2.2: live scoring & what-if playground ================= */
 .anom-badges { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
 #ml-live h4 { margin: 14px 0 4px; font-size: .92rem; }
-.story-card {
+.detail-card {
   background: var(--tint); border-radius: 8px; padding: 14px 18px;
   max-width: 980px; font-size: .95rem;
 }
-.story-card p { margin: 0 0 10px; }
-.story-card p:last-child { margin-bottom: 0; }
-.story-card a { color: var(--brand-blue-ink); }
+.detail-card p { margin: 0 0 10px; }
+.detail-card p:last-child { margin-bottom: 0; }
+.detail-card a { color: var(--brand-blue-ink); }
 
 /* ================= v3: tier headings ================= */
 .tier-heading {

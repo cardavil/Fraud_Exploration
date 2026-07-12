@@ -74,7 +74,7 @@ window.FE.tabs.ml = {
     const ov = val.overfitting;
     const cv = val.convergent_validity;
 
-    /* ---------- tier 1: transaction needles ---------- */
+    /* ---------- tier 1: transaction-level detections ---------- */
     const t1v = state.tier1;
     const txnScoreRows = state.data.transaction_scores;
     const topTxns = txnScoreRows.filter((t) => t.anomaly === -1)
@@ -96,26 +96,27 @@ window.FE.tabs.ml = {
     const custRows = [...state.data.customer_scores].sort((a, b) => b.score - a.score).slice(0, 15);
 
     el.innerHTML = `
-      <p class="tab-intro">Risk lives at three levels, and each tier catches what the others
-      structurally cannot: <strong>transactions</strong> hold the needles, <strong>accounts</strong>
-      the behavioral patterns, <strong>customers</strong> the schemes and the legal subject.
-      No fraud labels exist, so every tier is unsupervised, validated for stability and
-      memorization, and fully explainable. The account model also runs live in your browser below.</p>
+      <p class="tab-intro">Detection runs at three levels — transaction, account and customer —
+      because each level captures behavior the others cannot: individual outliers, behavioral
+      patterns, and cross-account activity tied to the legal subject. All models are
+      unsupervised Isolation Forests, validated for stability and generalization, and
+      explainable feature by feature. The account model also runs in the browser for
+      independent verification.</p>
 
+      <h3 class="tier-heading">Tier 1 — Transaction-level detection</h3>
       <div class="card">
         <div class="card-head">
-          <h3>Tier 1 — transactions: the needles</h3>
+          <h3>Method and results</h3>
           <span class="muted">${fmtInt(t1v.n_flagged)} flagged (${fmtMoney(t1v.value_flagged, true)}) ·
-            ${t1v.convergence_vs_rules.model_only} invisible to the rules ·
+            ${t1v.convergence_vs_rules.model_only} model-only ·
             ${fmtPct(t1v.bootstrap.share_of_detections_stable)} bootstrap-stable</span>
         </div>
-        <p>Each transaction is scored in context — amount <em>relative to its own account's
-        history</em>, threshold band, geography, cash, whether the account should even be
-        transacting, burst timing, counterparty novelty. This is the tier that catches what
-        account averages dilute: ${t1v.convergence_vs_rules.flagged_by_both} of
-        ${fmtInt(t1v.n_flagged)} detections overlap the rules engine;
-        <strong>${t1v.convergence_vs_rules.model_only} are model-only needles</strong>, incl.
-        ${t1v.top_needles_outside_rules.slice(0, 2).map((t) => fmtMoney(t.amount, true)).join(" and ")} wires.</p>
+        <p>Each transaction is scored in context: amount relative to its own account's history,
+        reporting-threshold band, geography, cash, account status, burst timing and counterparty
+        novelty. ${t1v.convergence_vs_rules.flagged_by_both} of ${fmtInt(t1v.n_flagged)}
+        detections overlap the rules engine;
+        <strong>${t1v.convergence_vs_rules.model_only} are model-only detections</strong>,
+        including ${t1v.top_model_only.slice(0, 2).map((t) => fmtMoney(t.amount, true)).join(" and ")} transfers.</p>
         <div class="table-wrap"><table>
           <thead><tr><th>Transaction</th><th>Account</th><th class="num">Amount</th>
           <th class="num">Score</th><th>Why</th><th>Rules?</th></tr></thead>
@@ -129,16 +130,15 @@ window.FE.tabs.ml = {
         </table></div>
       </div>
 
-      <h3 class="tier-heading">Tier 2 — accounts: the behavioral patterns</h3>
+      <h3 class="tier-heading">Tier 2 — Account-level detection</h3>
       <div class="ml-grid">
         <div class="card">
-          <h3>Why Isolation Forest</h3>
-          <p>Isolation Forest isolates observations by random recursive splits: anomalies are
-          isolated in fewer splits, so their average path length is short. It fits this problem
-          because it needs <strong>no labels</strong>, handles mixed-scale behavioral features,
-          and its output is <strong>auditable</strong> — every flagged account can be explained
-          by which features deviate, which is what a compliance reviewer needs.</p>
-          <h3>How it was applied</h3>
+          <h3>Model</h3>
+          <p>Isolation Forest isolates observations through random recursive splits; anomalies
+          require fewer splits, so their average path length is short. It suits this problem
+          because it requires no labels, handles mixed-scale behavioral features, and every
+          flagged account can be explained by which features deviate.</p>
+          <h3>Method</h3>
           <p><code>transactions</code> + tier-1 scores → 16 features per account →
           <code>StandardScaler</code> → <code>IsolationForest(n_estimators=300,
           contamination=0.08, random_state=42)</code>. Code: <code>analysis/anomaly.py</code>
@@ -150,11 +150,11 @@ window.FE.tabs.ml = {
           </table></div>
         </div>
         <div class="card">
-          <h3>Parameter behavior — a real sweep, not defaults on faith</h3>
+          <h3>Parameter sensitivity</h3>
           <p><code>analysis/model_sensitivity.py</code> refits over contamination ∈ {4%…12%} ×
-          trees ∈ {100, 300, 500}: <strong>contamination sets how many accounts flag</strong>
-          (a review-capacity dial) while <strong>the ranking stays stable</strong> — the top-5
-          is identical (Jaccard 1.0) for nearly every configuration.</p>
+          trees ∈ {100, 300, 500}. Contamination determines how many accounts flag (a
+          review-capacity setting), while the ranking stays stable: the top-5 is identical
+          (Jaccard 1.0) for nearly every configuration.</p>
           <div class="chart-slot" id="ml-sweep"></div>
           <p class="muted">Chosen: contamination 8% ≈ ${sens.base.n_anomalies} of
           ${sens.base.n_accounts} accounts (a realistic enhanced-review workload), 300 trees,
@@ -164,31 +164,30 @@ window.FE.tabs.ml = {
 
       <div class="card">
         <div class="card-head">
-          <h3>Validation — what unsupervised rigor can and cannot claim</h3>
-          <span class="muted">analysis/model_validation.py · no labels → no "accuracy"; these are the honest substitutes</span>
+          <h3>Validation</h3>
+          <span class="muted">analysis/model_validation.py · unsupervised setting: no labels, no accuracy metric — stability and generalization checks below</span>
         </div>
         <div class="ml-grid">
           <div>
-            <h4>Memorization check (the overfitting analog)</h4>
+            <h4>Generalization (train / held-out comparison)</h4>
             <p>${ov.n_splits} random 70/30 splits: fit on train, score both sides. Mean score
             train <strong>${ov.mean_score_train}</strong> vs held-out
-            <strong>${ov.mean_score_holdout}</strong> — gap
-            <strong>${ov.gap} ± ${ov.gap_std}</strong>. A gap ≈ 0 means the forest scores unseen
-            accounts the same as the ones it grew on: <strong>no memorization</strong>.</p>
+            <strong>${ov.mean_score_holdout}</strong>, gap
+            <strong>${ov.gap} ± ${ov.gap_std}</strong>. A gap near zero indicates the model
+            scores unseen accounts consistently with training accounts — no memorization.</p>
             <h4>Stability</h4>
             <p>Across ${val.seed_stability.n_seeds} random seeds the anomaly set keeps a Jaccard
             of <strong>${val.seed_stability.jaccard_mean}</strong> vs the base run
-            (min ${val.seed_stability.jaccard_min}) — the core detections are not one seed's
-            opinion, and the per-account confidence below shows exactly which ones wobble.</p>
-            <h4>Convergent validity — the honest substitute for accuracy</h4>
-            <p>Against the rules engine's alerts as a <em>weak</em> reference (they are not ground
-            truth): ${cv.flagged_with_alert} of ${cv.flagged_total} flagged accounts also have
-            alerts; score↔alert correlation is <strong>${cv.score_alert_correlation}</strong>
-            (p=${cv.correlation_p}). Read correctly, near-zero correlation is the point:
-            <strong>the model is orthogonal to the rules</strong> — it surfaces a risk dimension
-            (behavioral bursts, velocity) the geography-driven rules never look at. Judged only
-            against rule alerts it would look "inaccurate"; judged as a complementary detector,
-            it found ${cv.flagged_total - cv.flagged_with_alert} risky accounts the rules missed.</p>
+            (min ${val.seed_stability.jaccard_min}). The per-detection confidence in the
+            results below identifies which individual detections are sensitive to resampling.</p>
+            <h4>Comparison with rule-based alerts (weak reference)</h4>
+            <p>Rule alerts are not ground truth, but they provide a reference:
+            ${cv.flagged_with_alert} of ${cv.flagged_total} flagged accounts also have alerts;
+            the score↔alert correlation is <strong>${cv.score_alert_correlation}</strong>
+            (p=${cv.correlation_p}). The near-zero correlation indicates the model captures a
+            risk dimension — velocity and burst behavior — that the geography-driven rules do
+            not cover; as a complementary detector it identified
+            ${cv.flagged_total - cv.flagged_with_alert} accounts with no alert history.</p>
           </div>
           <div>
             <div class="chart-slot" id="ml-scoredist"></div>
@@ -226,22 +225,40 @@ window.FE.tabs.ml = {
         </div>
       </div>
 
+      <div class="card" id="ml-live">
+        <div class="card-head">
+          <h3>In-browser verification and account detail</h3>
+          <span class="muted">the trained forest (300 trees) exported to JSON; inference reimplemented in dependency-free JS</span>
+        </div>
+        <p id="ml-verify" class="loading-cell">Loading the exported forest and recomputing every score locally…</p>
+        <div id="ml-detail" class="hidden">
+          <h4>Account detail</h4>
+          <p class="muted">Customer profile, account activity, model assessment across the three
+          tiers, and the corresponding alert and screening records.</p>
+          <div class="copilot-controls">
+            <select id="detail-account" aria-label="Account to inspect"></select>
+          </div>
+          <div id="detail-body"></div>
+        </div>
+      </div>
+
+      <h3 class="tier-heading">Tier 3 — Customer-level detection</h3>
       <div class="card">
         <div class="card-head">
-          <h3>Tier 3 — customers: the schemes and the subject</h3>
+          <h3>Method and ranking</h3>
           <span class="muted">${t3v.n_flagged} anomalous of ${fmtInt(state.data.customer_scores.length)} active customers ·
             ${t3v.kyc_only_customers.count} KYC-only records excluded ·
             seed stability ${t3v.seed_stability.jaccard_mean}</span>
         </div>
-        <p>SARs are filed on people, not accounts — and some schemes only exist at this level.
-        The customer model sees account structure, cross-account signals (structuring split
-        across the customer's own accounts, value through non-active accounts) and KYC posture
-        (rating, PEP, screening state, post-match activity). The proof of the tier:
-        <strong>CUST0054 — zero anomalous accounts, every transaction under the threshold, yet
-        2 cross-account structuring days, never screened, ${fmtMoney(3888353, true)} across 4
-        accounts.</strong> Coherence with tier 2:
-        ${fmtPct(t3v.cross_tier.anomalous_account_customers_in_top15)} of anomalous-account
-        customers rank in this top-15.</p>
+        <p>Regulatory filings concern the customer, and some patterns are only visible at this
+        level. The customer model combines account structure, cross-account signals
+        (structuring split across the customer's own accounts, value through non-active
+        accounts) and KYC attributes (rating, PEP, screening state, post-match activity).
+        CUST0054 illustrates the tier's coverage: no anomalous accounts and every transaction
+        under the reporting threshold, flagged on 2 cross-account structuring days, no
+        screening on record, ${fmtMoney(3888353, true)} across 4 accounts. Cross-tier
+        consistency: ${fmtPct(t3v.cross_tier.anomalous_account_customers_in_top15)} of
+        anomalous-account customers rank in this top-15.</p>
         <div class="table-wrap"><table>
           <thead><tr><th>#</th><th>Customer</th><th class="num">Score</th><th class="num">Accounts</th>
           <th class="num">Anomalous accts</th><th class="num">Structuring days</th><th>Screening</th>
@@ -258,23 +275,6 @@ window.FE.tabs.ml = {
             <td>${r.anomaly === -1 ? '<span class="badge badge-sanctioned">anomalous</span>' : ""}</td></tr>`).join("")}
           </tbody>
         </table></div>
-      </div>
-
-      <div class="card" id="ml-live">
-        <div class="card-head">
-          <h3>Live scoring — this model is running in your browser right now</h3>
-          <span class="muted">the trained forest (300 trees) exported to JSON, inference in ~80 lines of JS</span>
-        </div>
-        <p id="ml-verify" class="loading-cell">Loading the exported forest and recomputing every score locally…</p>
-        <div id="ml-story" class="hidden">
-          <h4>The story behind each account</h4>
-          <p class="muted">Pick an account: who the customer is, what the account actually did,
-          what the model read in that behavior, and what the rules engine did about it.</p>
-          <div class="copilot-controls">
-            <select id="story-account" aria-label="Account for the story"></select>
-          </div>
-          <div id="story-body"></div>
-        </div>
       </div>`;
 
     /* ---------- charts ---------- */
@@ -282,7 +282,7 @@ window.FE.tabs.ml = {
     for (const g of sens.grid) (byTrees[g.n_estimators] ??= []).push(g);
     lineChart(el.querySelector("#ml-sweep"), {
       title: "Anomalies flagged vs contamination, by forest size",
-      howToRead: "Each line is a forest size; the x-axis is the contamination parameter. The lines overlap almost perfectly: contamination linearly dials how many accounts flag, while forest size barely changes the outcome — evidence the detections are robust, not parameter luck.",
+      howToRead: "Each line is a forest size; the x-axis is the contamination parameter. The lines overlap almost perfectly: contamination determines how many accounts flag, while forest size barely changes the outcome, indicating the detections are robust to parameter choice.",
       fmt: fmtInt,
       series: Object.entries(byTrees).map(([trees, rows], i) => ({
         name: `${trees} trees`,
@@ -292,7 +292,7 @@ window.FE.tabs.ml = {
     });
     barChart(el.querySelector("#ml-scoredist"), {
       title: "Score distribution and the model's cutoff",
-      howToRead: `Each bar counts accounts per score bin; red bins sit above the anomaly cutoff (${val.score_distribution.cutoff}). A visible gap between the bulk and the flagged tail means the detections are structure, not an arbitrary percentile slice.`,
+      howToRead: `Each bar counts accounts per score bin; red bins sit above the anomaly cutoff (${val.score_distribution.cutoff}). Separation between the bulk and the flagged tail indicates the detections reflect distinct structure rather than a percentile split of a continuous mass.`,
       fmt: fmtInt,
       data: val.score_distribution.bins.map((b) => ({
         label: b.lo.toFixed(2), value: b.count,
@@ -302,7 +302,7 @@ window.FE.tabs.ml = {
     });
     hBarChart(el.querySelector("#ml-ablation"), {
       title: "Feature ablation — how much the anomaly set changes without each feature",
-      howToRead: "Each bar is 1 − Jaccard between the anomaly set with and without that feature: longer = the feature matters more. Transaction velocity dominates — consistent with the single-day-burst pattern the model keeps finding.",
+      howToRead: "Each bar is 1 − Jaccard between the anomaly set with and without that feature: longer bars indicate more influential features. Transaction velocity dominates, consistent with the single-day burst pattern in the detections.",
       fmt: (v) => v.toFixed(2),
       data: val.ablation.slice(0, 6).map((a) => ({
         label: a.feature, value: Math.round((1 - a.jaccard_vs_base) * 100) / 100,
@@ -344,10 +344,10 @@ window.FE.tabs.ml = {
         <span class="muted"> — features rebuilt from the served transactions, standardized and pushed
         through the exported forest. Same numbers, two independent implementations.</span>`;
 
-      /* account story — the customer and the account, told from the served data */
-      const story = el.querySelector("#ml-story");
-      story.classList.remove("hidden");
-      const select = el.querySelector("#story-account");
+      /* account detail — customer profile, activity, model assessment and controls */
+      const detail = el.querySelector("#ml-detail");
+      detail.classList.remove("hidden");
+      const select = el.querySelector("#detail-account");
       const anomIds = new Set(anoms.map((a) => a.account_id));
       select.innerHTML = [...byAccount.keys()].sort((a, b) =>
         (anomIds.has(b) - anomIds.has(a)) || (served.get(b) - served.get(a)))
@@ -356,7 +356,7 @@ window.FE.tabs.ml = {
       const customers = new Map(state.data.customers.map((c) => [c.customer_id, c]));
       const accountsById = new Map(state.data.accounts.map((a) => [a.account_id, a]));
 
-      function renderStory() {
+      function renderDetail() {
         const id = select.value;
         const account = accountsById.get(id);
         const customer = customers.get(account.customer_id) ?? {};
@@ -393,17 +393,17 @@ window.FE.tabs.ml = {
           return `<span class="badge ${anomalous ? "badge-sanctioned" : "badge-plain"}">${escapeHtml(x.account_id)} · ${escapeHtml(x.status)}${anomalous ? " · anomalous" : ""}</span>`;
         }).join(" ");
         const customerParagraph = siblings.length
-          ? `<p><strong>The customer's full picture:</strong> this is one of
-             ${fmtInt(siblings.length + 1)} accounts — ${fmtMoney(customerTotal, true)} moved across
-             all of them. Other accounts: ${siblingHtml}.
+          ? `<p><strong>Customer overview:</strong> one of ${fmtInt(siblings.length + 1)} accounts;
+             ${fmtMoney(customerTotal, true)} moved across all of them.
+             Other accounts: ${siblingHtml}.
              ${anomalousSiblings.length
                ? `<strong>${fmtInt(anomalousSiblings.length + 1)} of this customer's accounts are
-                  independently anomalous — that is customer-level risk, not an account quirk.</strong>`
+                  independently anomalous.</strong>`
                : ""}</p>`
-          : `<p><strong>The customer's full picture:</strong> this is the customer's only account.</p>`;
+          : `<p><strong>Customer overview:</strong> this is the customer's only account.</p>`;
 
-        story.querySelector("#story-body").innerHTML = `
-          <div class="story-card">
+        detail.querySelector("#detail-body").innerHTML = `
+          <div class="detail-card">
             <p><strong>${escapeHtml(customer.full_name ?? account.customer_id)}</strong>
             (${escapeHtml(account.customer_id)}) — ${escapeHtml(customer.occupation ?? "occupation unknown")},
             ${escapeHtml(customer.nationality ?? "nationality unknown")}, KYC-rated
@@ -416,14 +416,14 @@ window.FE.tabs.ml = {
               ? ` — <strong>including ${fmtMoney(burstValue)} on ${escapeHtml(burstDay)} alone</strong>` : ""}.
             ${geo.length ? geo.join("; ") + "." : "No sanctioned, offshore or threshold-band exposure."}</p>
             ${customerParagraph}
-            <p><strong>The model's reading:</strong> score
+            <p><strong>Model assessment:</strong> score
             <strong>${score.toFixed(4)}</strong> vs cutoff ${cutoff.toFixed(3)} →
             ${isAnomalous
               ? '<span class="badge badge-sanctioned">anomalous</span>'
               : '<span class="badge badge-clear">normal</span>'}
             <span class="badge badge-plain">recomputed in your browser ✓</span><br>
             ${servedRow ? explainDeviations(servedRow) || "no single feature dominates — broad deviation" : ""}</p>
-            <p><strong>Across the tiers:</strong> tier 1 flagged
+            <p><strong>Detection across tiers:</strong> tier 1 flagged
             ${fmtInt(txns.filter((t) => txnScoreMap.get(t.transaction_id)?.anomaly === -1).length)}
             of its ${fmtInt(txns.length)} transactions;
             ${(() => {
@@ -432,7 +432,7 @@ window.FE.tabs.ml = {
                 ? `at customer level ${escapeHtml(account.customer_id)} scores ${cs.score.toFixed(3)}${cs.anomaly === -1 ? ' — <span class="badge badge-sanctioned">anomalous customer</span>' : ""}`
                 : "the customer is KYC-only at tier 3 (no scored activity)";
             })()}.</p>
-            <p><strong>What the controls did:</strong>
+            <p><strong>Alerts and screening:</strong>
             ${alerts.length
               ? `${fmtInt(alerts.length)} alert(s) — ${alerts.map((a) => `${escapeHtml(a.alert_type)} (${escapeHtml(a.status)})`).join(", ")}.`
               : isAnomalous
@@ -441,12 +441,12 @@ window.FE.tabs.ml = {
             ${screenings.length
               ? ` Customer screened ${fmtInt(screenings.length)} time(s)${match ? ` — <strong>confirmed sanctions match on ${escapeHtml(match.screening_date)} (${escapeHtml(match.review_status)})</strong>` : ""}.`
               : " The customer has <strong>never been screened</strong>."}</p>
-            <p class="muted">For the full grounded narrative and a recommended action, run this
-            account through the five-agent copilot in the <a href="#engine">AI Engine tab</a>.</p>
+            <p class="muted">A full narrative with a recommended action is available for this
+            customer in the <a href="#engine">AI Engine tab</a>.</p>
           </div>`;
       }
-      select.addEventListener("change", renderStory);
-      renderStory();
+      select.addEventListener("change", renderDetail);
+      renderDetail();
     })();
   },
 };

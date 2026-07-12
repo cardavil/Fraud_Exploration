@@ -31,9 +31,9 @@
   "flagged_by_both": 63,
   "model_only": 17,
   "rules_flag_rate_overall": 0.26,
-  "note": "partial overlap is the design goal: the rules are geography/type-driven; tier 1 adds amount-context, burst timing and account-status needles"
+  "note": "partial overlap is the design goal: the rules are geography/type-driven; tier 1 adds amount-context, burst timing and account-status detections"
  },
- "top_needles_outside_rules": [
+ "top_model_only": [
   {
    "transaction_id": "TXN000073",
    "account_id": "ACC00033",

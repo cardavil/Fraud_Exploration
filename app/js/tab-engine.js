@@ -19,16 +19,17 @@ window.FE.tabs.engine = {
 
     const DEFENSES = [
       ["Model wrapper", "One wrapper for every call: retry with backoff on the primary model, then a fallback chain across model aliases (<code>gemini-flash-latest → flash-lite → 2.0-flash</code>). Aliases, not pinned ids — pinned Gemini versions get retired for new API users."],
-      ["Data anonymization", "Customer PII never reaches a prompt: <code>full_name</code> and <code>date_of_birth</code> are never even selected from the database; the model sees a pseudonym (<code>Customer CUST0000</code>). Dummy data here — but the pipeline is built as if it weren't."],
+      ["Data anonymization", "Customer PII never reaches a prompt: <code>full_name</code> and <code>date_of_birth</code> are never selected from the database, and the model sees a pseudonym (<code>Customer CUST0000</code>). The dataset is synthetic; the anonymization step follows production practice regardless."],
       ["Prompt-injection defenses", "All account data is framed as <code>&lt;data&gt;</code> = third-party DATA, not instructions; every string is sanitized (control chars, code fences, length caps); output is forced through a JSON schema; the reviewer agent drops anything not traceable to the provided figures."],
       ["Per-agent audit trail", "Every run writes one row per agent to <code>copilot_audit</code> (service-role only): model used, attempts, fallback, latency. The same audit returns in the response — rendered below after each analysis."],
       ["Abuse controls", "The endpoint is public by design (the anon key ships with this page), so limits are enforced in Postgres, not in-process: 8 requests/min per IP and a global daily cap via one atomic RPC."],
     ];
 
     el.innerHTML = `
-      <p class="tab-intro">The Compliance Copilot is not one prompt — it is a five-agent pipeline
-      running inside a Supabase Edge Function, with the same guardrails a production deployment
-      would need. This tab shows the machine; the button at the bottom runs it for real.</p>
+      <p class="tab-intro">The Compliance Copilot is a five-agent pipeline running in a Supabase
+      Edge Function, with production-style guardrails: retry and fallback handling, data
+      anonymization, prompt-injection defenses and a per-agent audit trail. The sections below
+      describe the architecture; the runner at the bottom executes a live analysis.</p>
 
       <div class="card">
         <h3>Pipeline</h3>
@@ -70,7 +71,7 @@ window.FE.tabs.engine = {
 
       <div class="card">
         <div class="card-head">
-          <h3>Run it — grounded risk narrative for one customer</h3>
+          <h3>Run an analysis — grounded risk narrative for one customer</h3>
           <span class="muted">~30 s: five sequential model calls over every account the customer holds</span>
         </div>
         <div class="copilot-controls">

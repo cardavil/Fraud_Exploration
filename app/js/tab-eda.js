@@ -94,10 +94,10 @@ window.FE.tabs.eda = {
         including ${fmtInt(dupes)} duplicate records dropped.</p>`)}
 
       ${step(2, "Audited cleaning — every treatment logged", "31 treatments · expandable examples", `
-        <p>No silent fixes: each treatment writes to the audit trail (served live from the
-        <code>cleaning_log</code> table). Compliance-relevant calls stand out — an empty PEP flag is
-        recoded <em>Unknown</em>, never assumed <em>No</em>; suspicious values are
-        <strong>kept and flagged</strong>, not deleted. Click a row for its real examples.</p>
+        <p>Every treatment is written to an audit trail, served live from the
+        <code>cleaning_log</code> table. Compliance-relevant decisions are explicit: an empty PEP
+        flag is recoded <em>Unknown</em>, never assumed <em>No</em>, and suspicious values are
+        retained and flagged rather than deleted. Click a row to see its examples.</p>
         <div class="table-wrap">
           <table>
             <thead><tr><th></th><th>Table</th><th>Issue</th><th>Treatment</th><th class="num">Rows</th></tr></thead>

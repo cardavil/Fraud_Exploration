@@ -41,7 +41,7 @@ window.FE.tabs.findings = {
         note: `${k.hrUnalerted.n} sanctioned-country txns without an alert`,
         what: "Total value of transactions with counterparties in sanctioned or high-risk jurisdictions (Iran, North Korea, Syria, Russia, Myanmar, Afghanistan) that never generated a compliance alert.",
         formula: `${fmtInt(k.hrUnalerted.total)} sanctioned-country txns − ${fmtInt(k.hrUnalerted.total - k.hrUnalerted.n)} with an alert = <strong>${fmtInt(k.hrUnalerted.n)} unalerted</strong> worth <strong>${fmtMoney(k.hrUnalerted.value)}</strong>`,
-        why: "These are the highest-inherent-risk flows in the book. Every one was detected (all are flagged) — none was worked. This is exposure sitting in plain sight, and the first number a regulator would ask about.",
+        why: "These are the highest-inherent-risk flows in the portfolio. Every one was detected by the rules and none was escalated, leaving the exposure unmanaged despite being fully visible to the monitoring program.",
       },
       {
         id: "gap", cls: "kpi-risk", label: "Escalation gap",
@@ -49,7 +49,7 @@ window.FE.tabs.findings = {
         note: `${fmtInt(k.gap.n)} of ${fmtInt(k.gap.of)} flagged txns never became a case`,
         what: "Share of transactions flagged for review by the monitoring rules that never received a compliance alert.",
         formula: `${fmtInt(k.gap.n)} flagged-without-alert ÷ ${fmtInt(k.gap.of)} flagged = <strong>${fmtPct(k.gap.n / k.gap.of, 1)}</strong> (${fmtMoney(k.gap.value, true)} unworked)`,
-        why: "Detection and escalation are different controls. Rules are firing, but the output isn't converted into cases — the monitoring program produces signals nobody consumes.",
+        why: "Detection and escalation are separate controls. The rules fire, but their output is not converted into cases, so the monitoring program's coverage is not translating into risk management.",
       },
       {
         id: "screening", cls: "kpi-warn", label: "Screening coverage",
@@ -57,7 +57,7 @@ window.FE.tabs.findings = {
         note: `${fmtInt(k.screening.total - k.screening.done)} of ${fmtInt(k.screening.total)} customers never screened`,
         what: "Share of the customer base that has been through sanctions screening at least once.",
         formula: `${fmtInt(k.screening.done)} screened ÷ ${fmtInt(k.screening.total)} customers = <strong>${fmtPct(k.screening.done / k.screening.total, 1)}</strong>`,
-        why: "The unscreened third includes sanctioned-nationality customers and PEPs. Screening that isn't universal isn't a control — it's a sample.",
+        why: "The unscreened portion includes sanctioned-nationality customers and PEPs. Partial coverage does not provide the assurance the screening control is designed to deliver.",
       },
       {
         id: "fp", cls: "kpi-warn", label: "False-positive rate",
@@ -65,7 +65,7 @@ window.FE.tabs.findings = {
         note: `${fmtInt(k.fp.n)} of ${fmtInt(k.fp.of)} closed alerts were false positives`,
         what: "Share of closed compliance alerts resolved as false positives.",
         formula: `${fmtInt(k.fp.n)} closed as FP ÷ ${fmtInt(k.fp.of)} closed alerts = <strong>${fmtPct(k.fp.n / k.fp.of, 1)}</strong>`,
-        why: "Analyst capacity is being spent clearing noise while real flags (see the escalation gap) go unworked. High FP rates usually mean rule thresholds were never tuned against outcomes.",
+        why: "Analyst capacity is consumed by false positives while detected risk goes unworked. Sustained high false-positive rates typically indicate rule thresholds have not been tuned against outcomes.",
       },
       {
         id: "crit", cls: "kpi-risk", label: "Unresolved Critical / High",
@@ -73,7 +73,7 @@ window.FE.tabs.findings = {
         note: "high-severity alerts still open in the backlog",
         what: "Compliance alerts with Critical or High severity whose status is not Closed (Open, Escalated or Under Review).",
         formula: `Critical/High alerts with status ∉ {Closed…} = <strong>${k.critHigh}</strong>; backlog median age 90 days, max 417`,
-        why: "A two-speed operation: fresh alerts get closed fast while the old, severe ones rot. Backlog age on high-severity items is a standard exam finding.",
+        why: "Recent alerts are resolved quickly while older high-severity alerts remain open. Backlog age on high-severity items is a standard audit finding.",
       },
       {
         id: "nonactive", cls: "kpi-risk", label: "Value through non-active accounts",
@@ -117,7 +117,7 @@ window.FE.tabs.findings = {
           </button>`).join("")}
       </div>
       <div class="findings-grid">
-        ${card("gap", "Detection works; escalation doesn't",
+        ${card("gap", "Flagged transactions rarely become cases",
           `All ${fmtInt(k.hrUnalerted.total)} sanctioned-country transactions were flagged by the rules —
            but only ${fmtInt(k.hrUnalerted.total - k.hrUnalerted.n)} ever became an alert, leaving
            <strong>${fmtMoney(k.hrUnalerted.value, true)} unworked</strong>. Overall,
@@ -129,7 +129,7 @@ window.FE.tabs.findings = {
            match was confirmed — and ${fmtInt(k.screening.total - k.screening.done)} of
            ${fmtInt(k.screening.total)} customers (incl. sanctioned-nationality and PEP customers)
            were never screened at all.`)}
-        ${card("structuring", "A structuring pattern in plain sight",
+        ${card("structuring", "Concentration under the $10,000 reporting threshold",
           `${fmtInt(k.structuring.n)} transactions (${fmtPct(k.structuring.share, 1)}) sit in the
            $9,000–9,999 band — ${k.structuring.ratio}× the neighboring bands, collapsing right above
            $10,000. Only 9 structuring alerts exist.`)}
@@ -148,18 +148,18 @@ window.FE.tabs.findings = {
           drillLink("See the open Critical alerts", "compliance_alerts",
             [{ col: "status", kind: "categorical", value: "Open" },
              { col: "severity", kind: "categorical", value: "Critical" }]))}
-        ${card("needles", "Needles & schemes — what single-level monitoring misses",
+        ${card("crosstier", "Detections outside single-level monitoring",
           (() => {
-            const needles = state.data.transaction_scores
+            const modelOnly = state.data.transaction_scores
               .filter((t) => t.anomaly === -1 && !t.flagged_by_rules);
-            const schemers = state.data.customer_scores.filter((c) => c.structuring_days > 0);
-            return `The three-tier models expose two blind spots: <strong>${fmtInt(needles.length)}
-             transaction needles</strong> the rules never flagged (top:
-             ${fmtMoney(Math.max(...needles.map((t) => t.amount || 0)), true)} — extreme for its own
-             account, invisible in account averages), and <strong>${fmtInt(schemers.length)}
-             customers with cross-account structuring days</strong> — daily sums over $10,000 split
-             under the threshold across their own accounts, invisible at both transaction and
-             account level.`;
+            const structuringCustomers = state.data.customer_scores.filter((c) => c.structuring_days > 0);
+            return `The three-tier models cover two gaps: <strong>${fmtInt(modelOnly.length)}
+             transactions</strong> flagged by the model but not by the rules (largest:
+             ${fmtMoney(Math.max(...modelOnly.map((t) => t.amount || 0)), true)}, an extreme amount
+             for its own account that account-level averages absorb), and
+             <strong>${fmtInt(structuringCustomers.length)} customers with cross-account
+             structuring days</strong> — daily totals over $10,000 split under the threshold
+             across their own accounts, not visible at transaction or account level.`;
           })(),
           drillLink("See tier-1 scores", "transaction_scores",
             [{ col: "anomaly", kind: "min", value: -1 }, { col: "anomaly", kind: "max", value: -1 },
@@ -257,9 +257,9 @@ window.FE.tabs.findings = {
       ],
     });
 
-    hBarChart(el.querySelector("#fc-needles"), {
-      title: "Top model-only needles — flagged by tier 1, missed by the rules",
-      howToRead: "Each bar is one transaction the tier-1 model flagged but the rules engine never did. The tooltip shows why: usually an amount many times the account's own median, on an account whose averages look normal.",
+    hBarChart(el.querySelector("#fc-crosstier"), {
+      title: "Largest model-only transaction detections",
+      howToRead: "Each bar is a transaction flagged by the tier-1 model but not by the rules engine. The tooltip shows the driver — typically an amount many times the account's own median.",
       fmt: (v) => fmtMoney(v, true),
       data: state.data.transaction_scores
         .filter((t) => t.anomaly === -1 && !t.flagged_by_rules && t.amount)

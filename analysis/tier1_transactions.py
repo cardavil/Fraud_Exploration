@@ -105,9 +105,9 @@ validation = {
         "model_only": len(anom) - overlap,
         "rules_flag_rate_overall": round(float(out.flagged_by_rules.mean()), 2),
         "note": "partial overlap is the design goal: the rules are geography/type-driven; "
-                "tier 1 adds amount-context, burst timing and account-status needles",
+                "tier 1 adds amount-context, burst timing and account-status detections",
     },
-    "top_needles_outside_rules": [
+    "top_model_only": [
         {"transaction_id": r.transaction_id, "account_id": r.account_id,
          "amount": r.amount, "score": round(r.score, 4)}
         for r in anom[anom.flagged_by_rules == 0].nlargest(5, "score").itertuples()
@@ -118,5 +118,5 @@ with open("app/data/tier1_validation.json", "w", encoding="utf-8") as f:
 
 print(f"tier1: {len(anom)} anomalous txns (${anom.amount.sum():,.0f})")
 print(f"  stable detections (freq>=0.8): {stable_share:.0%} | seed jaccard {np.mean(seed_j):.2f}/{np.min(seed_j):.2f}")
-print(f"  overlap with rules: {overlap}/{len(anom)} | model-only needles: {len(anom) - overlap}")
-print("  top model-only:", [(t['transaction_id'], t['amount']) for t in validation['top_needles_outside_rules'][:3]])
+print(f"  overlap with rules: {overlap}/{len(anom)} | model-only detections: {len(anom) - overlap}")
+print("  top model-only:", [(t['transaction_id'], t['amount']) for t in validation['top_model_only'][:3]])
