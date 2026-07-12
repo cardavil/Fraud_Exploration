@@ -1,0 +1,18 @@
+{
+  "mcpServers": {
+    "github-fe": {
+      "type": "http",
+      "url": "https://api.githubcopilot.com/mcp/",
+      "headers": {
+        "Authorization": "Bearer ${FE_GITHUB_PAT:-}"
+      }
+    },
+    "supabase-fe": {
+      "type": "http",
+      "url": "https://mcp.supabase.com/mcp",
+      "headers": {
+        "Authorization": "Bearer ${FE_SUPABASE_PAT:-}"
+      }
+    }
+  }
+}

@@ -8,7 +8,7 @@ Two-layer strategy:
   summary with up to 5 insights. Must stand alone. Submission deadline: **14 July 2026**.
 - **Layer 2 (differentiator/portfolio):** a live "Fraud & Compliance Exploration Board" —
   static web app + Supabase (read-only Postgres) + Cloudflare Pages + a Gemini-powered
-  "Compliance Copilot" (serverless proxy). Framed in the submission as
+  "Compliance Copilot" (Supabase Edge Function). Framed in the submission as
   "a prototype of how this analysis could evolve into a self-serve tool."
 
 Tone rule for all written deliverables: concise, business-first, numbers in headlines.
@@ -52,8 +52,8 @@ Offshore set: Cayman Islands, British Virgin Islands, Panama, Cyprus, Malta.
 /data/            original .db + clean.db  (small, fine to commit; it's dummy data)
 /outputs/         findings, cleaning log, CSVs
 /app/             static frontend (index.html, app.js, styles.css) — Cloudflare Pages root
-/functions/api/   copilot.js — Cloudflare Pages Function proxying Gemini
 /supabase/        seed.sql (DDL + data + RLS read-only policies)
+/supabase/functions/copilot/   index.ts — Supabase Edge Function proxying Gemini
 /powerbi/         star-schema CSVs, measures.md (DAX), theme.json, layout_spec.md
 README.md         architecture diagram, screenshots, methodology, privacy note
 ```
@@ -71,14 +71,17 @@ Single-page, no framework needed (or minimal). Panels:
   chargeback trend.
 - Filterable transactions table (country, flagged, amount band, account status).
 - Anomaly view: account list sorted by Isolation Forest score with feature explanation.
-- Copilot panel: pick an account → POST /api/copilot → structured risk narrative +
-  recommended action (Escalate / Request docs / Close as FP).
+- Copilot panel: pick an account → POST to the `copilot` Edge Function → structured
+  risk narrative + recommended action (Escalate / Request docs / Close as FP).
 Design: clean, dark-friendly, risk color semantics (red = sanctioned, amber = offshore).
 Keep it read-only. Loading states + graceful errors.
 
-### 4. Copilot (`/functions/api/copilot.js`)
-- Cloudflare Pages Function. Reads `GEMINI_API_KEY` from env (secret set in CF dashboard
-  or via wrangler). NEVER expose the key client-side; never commit it.
+### 4. Copilot (`/supabase/functions/copilot/index.ts`)
+- Supabase Edge Function (Deno). Reads `GEMINI_API_KEY` from env — stored as a
+  Supabase secret (`supabase secrets set GEMINI_API_KEY=...`). NEVER expose the key
+  client-side; never commit it.
+- CORS: allow the Cloudflare Pages origin; frontend calls the function with the
+  anon key (RLS keeps data read-only regardless).
 - Input: account_id. Server fetches that account's profile/txns/score from Supabase,
   builds a grounded prompt, calls Gemini (gemini-2.0-flash or newer), returns JSON:
   { risk_summary, key_factors[], recommended_action, confidence }.
@@ -98,21 +101,31 @@ Keep it read-only. Loading states + graceful errors.
 - `theme.json`: corporate-neutral with risk accent colors.
 
 ### 6. Deploy
-- Push to GitHub (Carlos's credentials/MCP). Cloudflare Pages: build output = `/app`,
-  functions auto-detected from `/functions`. Set `GEMINI_API_KEY` secret.
-  Optional: `wrangler pages deploy` if CLI access is provided.
+- Frontend: push to GitHub via MCP `github-fe`; Cloudflare Pages is connected to the
+  repo (Git integration) and auto-deploys on push. Build output = `/app`, no build
+  command, no wrangler, no Cloudflare credentials needed locally.
+- Copilot: `supabase functions deploy copilot` + `supabase secrets set GEMINI_API_KEY`.
 
 ### 7. Submission package (Layer 1)
 - One-page executive summary (the Top-5 from EDA_FINDINGS.md, tightened).
 - .pbix built from /powerbi package.
 - Closing line linking the live board + repo.
 
+## Access via MCP (`.mcp.json` — tokens in env vars, NEVER in files)
+- **GitHub**: MCP server `github-fe`; fine-grained PAT scoped to this repo only,
+  read from env var `FE_GITHUB_PAT`. Do NOT use `gh` CLI or ambient git
+  credentials (multi-account machine).
+- **Supabase**: MCP server `supabase-fe`; personal access token read from env var
+  `FE_SUPABASE_PAT`. Once the Supabase project exists, scope the server by adding
+  `?project_ref=<ref>` (and `&read_only=true` after seeding) to the URL.
+- Open Claude Code IN this folder so `.mcp.json` loads. Token values live only in
+  Windows user env vars — never in CLAUDE.md, code, or commits.
+
 ## Environment variables expected (provided via MCP / env — never hardcode)
+- `FE_GITHUB_PAT` — GitHub fine-grained PAT for this repo (MCP `github-fe`)
+- `FE_SUPABASE_PAT` — Supabase personal access token (MCP `supabase-fe`)
 - `SUPABASE_URL`, `SUPABASE_ANON_KEY` (frontend-safe)
-- `SUPABASE_ACCESS_TOKEN` or DB URL if using Supabase CLI/MCP for seeding
-- `GEMINI_API_KEY` (server-side only → Cloudflare secret)
-- `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` (if deploying via wrangler)
-- GitHub access via MCP or `gh` CLI already authenticated
+- `GEMINI_API_KEY` (server-side only → Supabase Edge Function secret; never local/frontend)
 
 ## Conventions
 - Python: pandas; keep scripts re-runnable end-to-end (`clean.py` → `anomaly.py`).
