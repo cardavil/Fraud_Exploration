@@ -6,7 +6,7 @@
    a what-if playground. */
 window.FE.tabs.ml = {
   render(el) {
-    const { state, fmtInt, fmtMoney, fmtPct, escapeHtml } = window.FE;
+    const { state, fmtInt, fmtMoney, fmtPct, escapeHtml, openModal, closeModal, goTo } = window.FE;
     const { barChart, hBarChart, lineChart } = window.FE.charts;
     const sens = state.sensitivity;
     const val = state.validation;
@@ -266,8 +266,9 @@ window.FE.tabs.ml = {
         <p id="ml-verify" class="loading-cell">Loading the exported forest and recomputing every score locally…</p>
         <div id="ml-detail" class="hidden">
           <h4>Account detail</h4>
-          <p class="muted">Customer profile, account activity, model assessment across the three
-          tiers, and the corresponding alert and screening records.</p>
+          <p class="muted">Account activity, model assessment and alert records. The holder's
+          full profile — accounts, tier-3 model, screening — opens from the Customer overview
+          button.</p>
           <div class="sentinel-controls">
             <select id="detail-account" aria-label="Account to inspect"></select>
           </div>
@@ -294,7 +295,7 @@ window.FE.tabs.ml = {
           <th class="num">Total value</th><th></th></tr></thead>
           <tbody>${custRows.map((r, i) => `
             <tr><td>${i + 1}</td>
-            <td><strong>${escapeHtml(r.customer_id)}</strong> <span class="muted">${escapeHtml(r.full_name ?? "")}</span></td>
+            <td><a href="#" class="drill-link cust-open" data-cust="${escapeHtml(r.customer_id)}"><strong>${escapeHtml(r.customer_id)}</strong></a> <span class="muted">${escapeHtml(r.full_name ?? "")}</span></td>
             <td class="num">${r.score.toFixed(3)}</td>
             <td class="num">${fmtInt(r.n_accounts)}</td>
             <td class="num">${r.n_anomalous_accounts ? `<strong>${fmtInt(r.n_anomalous_accounts)}</strong>` : "0"}</td>
@@ -323,6 +324,66 @@ window.FE.tabs.ml = {
         { col: "anomaly", kind: "min", value: -1 },
         { col: "anomaly", kind: "max", value: -1 },
       ]);
+    });
+
+    /* Customer overview modal — the single customer-level view, opened from the
+       account detail and from the tier-3 ranking. */
+    function openCustomerOverview(customerId) {
+      const customer = state.data.customers.find((c) => c.customer_id === customerId) ?? {};
+      const accounts = state.data.accounts.filter((a) => a.customer_id === customerId);
+      const scoreById = new Map(scores.map((s) => [s.account_id, s]));
+      const anomalousAccounts = accounts.filter((a) => scoreById.get(a.account_id)?.anomaly === -1);
+      const totalValue = accounts.reduce((s, a) => s + (scoreById.get(a.account_id)?.total ?? 0), 0);
+      const cs = state.data.customer_scores.find((x) => x.customer_id === customerId);
+      const screenings = state.data.sanctions_screening.filter((s) => s.customer_id === customerId);
+      const match = screenings.find((s) => s.match_result === "Confirmed Match");
+
+      openModal(`Customer overview — ${customerId}`, `
+        <p><strong>${escapeHtml(customer.full_name ?? customerId)}</strong> ·
+        ${escapeHtml(customer.occupation ?? "occupation unknown")} ·
+        ${escapeHtml(customer.nationality ?? "nationality unknown")} ·
+        ${escapeHtml(customer.customer_type ?? "")}<br>
+        KYC rating <strong>${escapeHtml(customer.risk_rating ?? "?")}</strong>
+        ${customer.pep_flag === "Yes" ? '· <span class="badge badge-sanctioned">PEP</span>' : ""}
+        ${customer.pep_flag === "Unknown" ? '· <span class="badge badge-offshore">PEP status unknown</span>' : ""}
+        · onboarded ${escapeHtml(customer.onboarding_date ?? "?")} (${escapeHtml(customer.onboarding_channel ?? "?")})</p>
+        <p><strong>Accounts (${fmtInt(accounts.length)})</strong> — ${fmtMoney(totalValue, true)} moved across all of them:<br>
+        ${accounts.map((a) => {
+          const anomalous = scoreById.get(a.account_id)?.anomaly === -1;
+          return `<span class="badge ${anomalous ? "badge-sanctioned" : "badge-plain"}">${escapeHtml(a.account_id)} · ${escapeHtml(a.status)}${anomalous ? " · anomalous" : ""}</span>`;
+        }).join(" ")}
+        ${anomalousAccounts.length > 1 ? `<br><strong>${fmtInt(anomalousAccounts.length)} of this customer's accounts are independently anomalous.</strong>` : ""}</p>
+        <div class="modal-formula">
+        ${cs
+          ? `Customer model (tier 3): score <strong>${cs.score.toFixed(3)}</strong>
+             ${cs.anomaly === -1 ? '<span class="badge badge-sanctioned">anomalous</span>' : '<span class="badge badge-clear">normal</span>'}<br>
+             structuring days: <strong>${fmtInt(cs.structuring_days)}</strong> ·
+             tier-1 share: ${fmtPct(cs.pct_txn_anomalous)} ·
+             sanctioned-value share: ${fmtPct(cs.hr_value_share)} ·
+             non-active-value share: ${fmtPct(cs.nonactive_value_share)}
+             ${cs.post_match_value > 0 ? `<br><strong>${fmtMoney(cs.post_match_value)} moved after a confirmed sanctions match</strong>` : ""}`
+          : "KYC-only record at tier 3 — no scored activity."}
+        </div>
+        <p><strong>Screening</strong> — ${screenings.length
+          ? `${fmtInt(screenings.length)} screening(s)${match
+              ? `; <strong>confirmed match on ${escapeHtml(match.screening_date)} (${escapeHtml(match.review_status)})</strong>` : "; no confirmed matches"}.`
+          : '<span class="badge badge-sanctioned">never screened</span>'}</p>
+        <p><a href="#engine" class="modal-link" id="ov-run-sentinel">Run Sentinel on this customer &rarr;</a></p>`);
+
+      document.getElementById("ov-run-sentinel")?.addEventListener("click", (e) => {
+        e.preventDefault();
+        closeModal();
+        goTo("engine");
+        const sentinelSelect = document.getElementById("sn-account");
+        if (sentinelSelect) sentinelSelect.value = customerId;
+      });
+    }
+
+    el.querySelectorAll(".cust-open").forEach((link) => {
+      link.addEventListener("click", (e) => {
+        e.preventDefault();
+        openCustomerOverview(link.dataset.cust);
+      });
     });
 
     /* ---------- charts ---------- */
@@ -407,19 +468,16 @@ window.FE.tabs.ml = {
         (anomIds.has(b) - anomIds.has(a)) || (served.get(b) - served.get(a)))
         .map((id) => `<option value="${id}">${id}${anomIds.has(id) ? " ⚠ anomalous" : ""}</option>`).join("");
 
-      const customers = new Map(state.data.customers.map((c) => [c.customer_id, c]));
       const accountsById = new Map(state.data.accounts.map((a) => [a.account_id, a]));
 
       function renderDetail() {
         const id = select.value;
         const account = accountsById.get(id);
-        const customer = customers.get(account.customer_id) ?? {};
         const txns = byAccount.get(id);
         const f = liveFeatures.get(id);
         const { score, isAnomalous, cutoff } = iforest.score(f);
         const servedRow = scores.find((s) => s.account_id === id);
         const alerts = state.data.compliance_alerts.filter((a) => a.account_id === id);
-        const screenings = state.data.sanctions_screening.filter((s) => s.customer_id === account.customer_id);
 
         const byDay = new Map();
         for (const t of txns) byDay.set(t.transaction_date,
@@ -432,72 +490,41 @@ window.FE.tabs.ml = {
         if (f.pct_hr > 0) geo.push(`<strong>${fmtPct(f.pct_hr)} went to sanctioned countries</strong>`);
         if (f.pct_off > 0) geo.push(`${fmtPct(f.pct_off)} to offshore centers`);
         if (f.pct_struct > 0) geo.push(`${fmtPct(f.pct_struct)} sat in the $9,000–9,999 reporting-threshold band`);
-        const match = screenings.find((s) => s.match_result === "Confirmed Match");
-
-        /* the customer's full picture — most customers hold more than one account */
-        const scoreById = new Map(scores.map((s) => [s.account_id, s]));
-        const siblings = state.data.accounts
-          .filter((x) => x.customer_id === account.customer_id && x.account_id !== id);
-        const anomalousSiblings = siblings.filter((x) => scoreById.get(x.account_id)?.anomaly === -1);
-        const customerTotal = [id, ...siblings.map((x) => x.account_id)]
-          .reduce((s, accId) => s + (scoreById.get(accId)?.total ?? 0), 0);
-        const siblingHtml = siblings.map((x) => {
-          const sc = scoreById.get(x.account_id);
-          const anomalous = sc?.anomaly === -1;
-          return `<span class="badge ${anomalous ? "badge-sanctioned" : "badge-plain"}">${escapeHtml(x.account_id)} · ${escapeHtml(x.status)}${anomalous ? " · anomalous" : ""}</span>`;
-        }).join(" ");
-        const customerParagraph = siblings.length
-          ? `<p><strong>Customer overview:</strong> one of ${fmtInt(siblings.length + 1)} accounts;
-             ${fmtMoney(customerTotal, true)} moved across all of them.
-             Other accounts: ${siblingHtml}.
-             ${anomalousSiblings.length
-               ? `<strong>${fmtInt(anomalousSiblings.length + 1)} of this customer's accounts are
-                  independently anomalous.</strong>`
-               : ""}</p>`
-          : `<p><strong>Customer overview:</strong> this is the customer's only account.</p>`;
+        const tier1Flagged = txns.filter((t) => txnScoreMap.get(t.transaction_id)?.anomaly === -1).length;
 
         detail.querySelector("#detail-body").innerHTML = `
           <div class="detail-card">
-            <p><strong>${escapeHtml(customer.full_name ?? account.customer_id)}</strong>
-            (${escapeHtml(account.customer_id)}) — ${escapeHtml(customer.occupation ?? "occupation unknown")},
-            ${escapeHtml(customer.nationality ?? "nationality unknown")}, KYC-rated
-            <strong>${escapeHtml(customer.risk_rating ?? "?")}</strong>${customer.pep_flag === "Yes" ? ", <strong>PEP</strong>" : ""}${customer.pep_flag === "Unknown" ? ", PEP status unknown" : ""} —
-            opened this ${escapeHtml(account.account_type ?? "")} account on ${escapeHtml(account.open_date ?? "?")}.
-            Its status today: <strong>${escapeHtml(account.status)}</strong>.</p>
-            <p>Across ${fmtInt(spanDays)} days of activity it moved
+            <p><strong>${escapeHtml(account.account_type ?? "")} account ${escapeHtml(id)}</strong>
+            — opened ${escapeHtml(account.open_date ?? "?")} · status
+            <strong>${escapeHtml(account.status)}</strong> · branch ${escapeHtml(account.branch_country ?? "?")}.
+            Held by ${escapeHtml(account.customer_id)}
+            <a href="#" class="drill-link" id="detail-cust-btn">Customer overview &rarr;</a></p>
+            <p><strong>Activity:</strong> across ${fmtInt(spanDays)} days it moved
             <strong>${fmtMoney(f.total)}</strong> in ${fmtInt(f.n_tx)} transactions
             (${f.tx_per_month.toFixed(1)}/month, ${fmtMoney(f.velocity_value, true)}/month)${burstValue > f.total * 0.5
               ? ` — <strong>including ${fmtMoney(burstValue)} on ${escapeHtml(burstDay)} alone</strong>` : ""}.
             ${geo.length ? geo.join("; ") + "." : "No sanctioned, offshore or threshold-band exposure."}</p>
-            ${customerParagraph}
             <p><strong>Model assessment:</strong> score
             <strong>${score.toFixed(4)}</strong> vs cutoff ${cutoff.toFixed(3)} →
             ${isAnomalous
               ? '<span class="badge badge-sanctioned">anomalous</span>'
               : '<span class="badge badge-clear">normal</span>'}
             <span class="badge badge-plain">recomputed in your browser ✓</span><br>
-            ${servedRow ? explainDeviations(servedRow) || "no single feature dominates — broad deviation" : ""}</p>
-            <p><strong>Detection across tiers:</strong> tier 1 flagged
-            ${fmtInt(txns.filter((t) => txnScoreMap.get(t.transaction_id)?.anomaly === -1).length)}
-            of its ${fmtInt(txns.length)} transactions;
-            ${(() => {
-              const cs = state.data.customer_scores.find((x) => x.customer_id === account.customer_id);
-              return cs
-                ? `at customer level ${escapeHtml(account.customer_id)} scores ${cs.score.toFixed(3)}${cs.anomaly === -1 ? ' — <span class="badge badge-sanctioned">anomalous customer</span>' : ""}`
-                : "the customer is KYC-only at tier 3 (no scored activity)";
-            })()}.</p>
-            <p><strong>Alerts and screening:</strong>
+            ${servedRow ? explainDeviations(servedRow) || "no single feature dominates — broad deviation" : ""}<br>
+            Tier 1 flagged ${fmtInt(tier1Flagged)} of the account's ${fmtInt(txns.length)} transactions.</p>
+            <p><strong>Alerts:</strong>
             ${alerts.length
               ? `${fmtInt(alerts.length)} alert(s) — ${alerts.map((a) => `${escapeHtml(a.alert_type)} (${escapeHtml(a.status)})`).join(", ")}.`
               : isAnomalous
                 ? '<span class="anom-alert-gap">the rules engine never raised an alert on this account.</span>'
-                : "no alerts — consistent with the model's reading."}
-            ${screenings.length
-              ? ` Customer screened ${fmtInt(screenings.length)} time(s)${match ? ` — <strong>confirmed sanctions match on ${escapeHtml(match.screening_date)} (${escapeHtml(match.review_status)})</strong>` : ""}.`
-              : " The customer has <strong>never been screened</strong>."}</p>
+                : "no alerts on this account."}</p>
             <p class="muted">A full narrative with a recommended action is available for this
             customer in the <a href="#engine">AI Engine tab</a>.</p>
           </div>`;
+        detail.querySelector("#detail-cust-btn").addEventListener("click", (e) => {
+          e.preventDefault();
+          openCustomerOverview(account.customer_id);
+        });
       }
       select.addEventListener("change", renderDetail);
       renderDetail();

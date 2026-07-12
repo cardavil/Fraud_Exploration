@@ -281,3 +281,15 @@ SVG hecho a mano, sin librerias (CSP-safe). Tres formas, un solo sistema de inte
 | Panel de integridad | EDA paso 3 | Badges computados live: 7 relaciones FK (violaciones), duplicados de PK por tabla, columnas con >20% vacios en ambar |
 | Chips de estado | Header de cada paso EDA | Resumen del paso visible sin expandir ("31 issues", "counts 6/6 OK", "n = 1,587") |
 | Drill-links | Cleaning log y finding cards | `FE.openData(tabla, filtros)` abre el tab Data con la tabla y filtros pre-aplicados; solo filtros expresables por la UI (valor categorico, min/max, contains) — multi-valor no se enlaza |
+
+---
+
+## 8. Customer overview modal (v3.3, 2026-07-12)
+
+Vista unica de cliente, reutiliza el componente de modal de los KPI popups. Se abre desde:
+(a) el boton "Customer overview" del Account detail, (b) el customer_id del ranking Tier 3.
+Contenido: identidad y KYC completos, todas las cuentas como badges (estado + veredicto del
+modelo) con valor total, modelo de cliente Tier 3 (score, structuring days, shares, post-match),
+historial de screening, y CTA "Run Sentinel" que preselecciona al cliente en el AI Engine.
+Regla de alcance por nivel: el Account detail habla SOLO de la cuenta; todo lo del cliente
+vive en este modal.

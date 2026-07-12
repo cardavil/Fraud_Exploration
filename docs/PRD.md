@@ -221,3 +221,8 @@ en la verificacion. **Vigente.**
 tematica del portfolio de fraude; decision del propietario consciente del proyecto homonimo).
 Rename completo: slug de la Edge Function (/functions/v1/sentinel), tablas sentinel_usage /
 sentinel_ip_usage / sentinel_audit, RPC sentinel_hit, frontend, docs y glosario. **Vigente.**
+
+**2026-07-12** — v3.3: el Account detail queda estrictamente a nivel cuenta (feedback del
+propietario: mezclaba perfil del cliente en una vista de cuenta). La informacion de cliente
+se consolida en el modal "Customer overview", invocable desde el Account detail y desde el
+ranking del Tier 3 — una sola vista de cliente para todo el board. **Vigente.**
