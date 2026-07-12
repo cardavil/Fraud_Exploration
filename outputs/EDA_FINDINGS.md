@@ -99,14 +99,34 @@ $15.3M moved through Closed/Dormant/Frozen accounts — either the status field 
 - Sharp acceleration since Mar-2026 (see §4). 25 (36%) unresolved.
 - Concentration: GreenLeaf Grocers and Horizon Holdings (9 each), then a tight cluster at 6–7 — top-6 merchants account for 64% of cases. Win rate roughly balanced (21 merchant / 16 cardholder).
 
-## 11. ML anomaly detection (Isolation Forest, account level)
+## 11. ML anomaly detection — three tiers (transaction → account → customer)
 
-Features per account: volume, amount μ/σ/max, % high-risk-country, % offshore, % cash, % structuring-zone, % international, velocity (txns and value per month). 300 trees, 8% contamination.
+Risk lives at three levels and each tier catches what the others structurally cannot
+(v3, 2026-07-12; Isolation Forests, 300 trees, fixed seed; all features interpretable
+as reason codes).
 
-- **9 anomalous accounts detected; 5 of them have never had a compliance alert** — the model surfaces risk the rule engine misses.
-- Dominant pattern: **single-day burst accounts** — e.g., ACC00100 (13 txns, $663K in one day), ACC00062 (13 txns, $639K in one day), ACC00007 (13 txns in one day). None generated a "Rapid Movement of Funds" alert.
-- Also caught: ACC00032 (45% sanctioned-country transactions, $604K) and ACC00099 (67% cash, 22% structuring-zone).
-- All model outputs are explainable — each account's feature profile shows *why* it scored anomalous (outputs in `account_features_scores.csv`).
+**Tier 1 — transactions** (`transaction_scores.csv`, contamination 5%): contextual
+features — amount relative to the account's own history, $9-10k band, geography, cash,
+non-active account status, burst timing, counterparty novelty. **80 transactions flagged
+($7.9M); 17 are model-only needles the rules never saw**, incl. $423K and $424K wires.
+84% of detections stable under bootstrap.
+
+**Tier 2 — accounts** (`account_features_scores.csv`, 16 features = 12 behavioral +
+tier-1 aggregates + burstiness + recency): **9 anomalous accounts, 3 never alerted.**
+Burst accounts hold the top (ACC00100 $663K/day, ACC00062 $639K/day, ACC00007 — none
+raised a "Rapid Movement of Funds" alert), and the tier-1 feed now catches what pure
+aggregates diluted: **two High-risk DORMANT accounts entered — ACC00089 ($1.9M moved
+while dormant) and ACC00084 ($438K)**. Validation: train/held-out gap −0.009 (no
+memorization), seed Jaccard 0.80, top-decile alert rate 0.70 vs 0.41.
+
+**Tier 3 — customers** (`customer_scores.csv`, 59 active customers; 24 KYC-only records
+without any account excluded from scoring — a data-governance finding in itself):
+account structure + cross-account signals + KYC posture. **5 anomalous customers,
+seed-stable at 1.0.** The catch that justifies the tier: **CUST0054 — zero anomalous
+accounts, every transaction under the threshold, yet 2 cross-account structuring days,
+never screened, $3.9M across 4 accounts.** CUST0003 (two independently anomalous
+accounts, never screened) ranks #2. Coherence: 88% of anomalous-account customers rank
+in the customer top-15.
 
 ---
 
@@ -116,4 +136,4 @@ Features per account: volume, amount μ/σ/max, % high-risk-country, % offshore,
 2. **Confirmed sanctions matches keep transacting:** 4 confirmed matches, zero resolved, ~$1.85M moved after matching; 34% of the customer base — including sanctioned-nationality and PEP customers — has never been screened.
 3. **A structuring pattern hides in plain sight:** 276 transactions (17%) sit in the $9,000–9,999 band — 3.3× the expected rate — yet only 9 structuring alerts exist.
 4. **Controls on account status are not enforced:** $15.3M flowed through Closed, Dormant, and Frozen accounts; the `is_international` flag misclassifies 148 sanctioned-country transactions as domestic.
-5. **Monitoring hasn't scaled and is mis-aimed:** volume tripled while alerting stayed flat; the false-positive rate is 77%; the KYC risk rating shows no statistical relationship to actual behavior (Cramér's V = 0.05) — and an interpretable ML model found 5 high-risk accounts (incl. $600K+ single-day bursts) the rules never caught. Chargebacks are up ~20× in value in four months.
+5. **Monitoring hasn't scaled and is mis-aimed:** volume tripled while alerting stayed flat; the false-positive rate is 77%; the KYC risk rating shows no statistical relationship to actual behavior (Cramér's V = 0.05) — and a three-tier interpretable ML stack (transaction/account/customer) surfaces what the geography-driven rules miss: 17 transaction needles incl. $424K wires, High-risk dormant accounts moving $1.9M, and a customer structuring across 4 of their own accounts. Chargebacks are up ~20× in value in four months.

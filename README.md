@@ -80,8 +80,9 @@ exploration tool or a model.
    and Frozen accounts; the `is_international` flag is unreliable.
 5. **Monitoring hasn't scaled and is mis-aimed**: volume tripled while alerting stayed
    flat; 77% false-positive rate; the KYC risk rating shows no relationship with actual
-   behavior (Cramér's V = 0.05). The Isolation Forest surfaces 5 high-risk accounts the
-   rules never caught.
+   behavior (Cramér's V = 0.05). A three-tier ML stack (transaction / account / customer)
+   surfaces what the rules miss: $424K needle wires, $1.9M through a dormant High-risk
+   account, and a customer structuring across 4 of their own accounts.
 
 Full statistical detail, methodology and the cleaning audit trail:
 [outputs/EDA_FINDINGS.md](outputs/EDA_FINDINGS.md) · [outputs/cleaning_log.csv](outputs/cleaning_log.csv)

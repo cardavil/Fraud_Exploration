@@ -40,9 +40,12 @@ data is stale or the blocking control is inoperative; both are audit findings.
 Transaction volume tripled (≈90 → ≈270/month) while alert creation stayed flat; 77% of
 closed alerts are false positives, and the backlog holds 8 unresolved Critical/High alerts
 with a median age of 90 days. The KYC risk rating shows **no statistical relationship** with
-flagged activity (Cramér's V = 0.05) — while an interpretable Isolation Forest surfaces
-9 structurally anomalous accounts, **5 of which never had an alert**, including single-day
-bursts of $600K+. Chargeback value is compounding ~20× in four months on top.
+flagged activity (Cramér's V = 0.05) — while a three-tier interpretable ML stack
+(transaction / account / customer) surfaces what the rules miss at every level: 17
+transaction needles including $424K wires, single-day burst accounts of $600K+, **$1.9M
+moved through a dormant High-risk account**, and a customer running structuring **across 4
+of their own accounts** while never screened. Chargeback value is compounding ~20× in four
+months on top.
 
 ---
 

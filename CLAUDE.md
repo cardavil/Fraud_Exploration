@@ -37,8 +37,10 @@ Never oversell; label Layer 2 explicitly as beyond the brief.
    accounts. `is_international` flag unreliable (148 sanctioned-country txns marked domestic).
 5. Ops: volume tripled while alerting stayed flat; 77% false-positive rate; backlog median
    age 90d (max 417d), 8 open Critical/High, 3 unassigned. KYC risk rating uncorrelated
-   with behavior (Cramér's V = 0.05). Chargebacks value ~20× in 4 months. Isolation Forest
-   found 9 anomalous accounts, 5 never alerted (single-day bursts, e.g. ACC00100 $663K/day).
+   with behavior (Cramér's V = 0.05). Chargebacks value ~20× in 4 months. v3 ML = three
+   tiers: 80 anomalous txns (17 needles the rules missed), 9 anomalous accounts (3 never
+   alerted; incl. $1.9M through a dormant High-risk account), 5 anomalous customers
+   (CUST0054: structuring across 4 own accounts, never screened).
 
 High-risk country set used everywhere: Iran, North Korea, Syria, Russia, Myanmar, Afghanistan.
 Offshore set: Cayman Islands, British Virgin Islands, Panama, Cyprus, Malta.
