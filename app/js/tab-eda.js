@@ -86,10 +86,10 @@ window.FE.tabs.eda = {
       before&rarr;after examples, or jump to the affected rows in the Data tab.</p>
 
       ${step(1, "Raw dataset intake", `${fmtInt(log.length)} issues found`, `
-        <p>Six SQLite tables arrive dirty: duplicate primary keys, inconsistent casing
-        (<code>'india'</code>, <code>'CARD PAYMENT'</code>), stray whitespace, empty compliance
-        flags and unreliable booleans. <strong>${fmtInt(log.length)} distinct issues</strong> were
-        identified, affecting <strong>${fmtInt(totalTreated)} values</strong> —
+        <p>The six source tables contained data-quality issues: duplicate primary keys,
+        inconsistent casing (<code>'india'</code>, <code>'CARD PAYMENT'</code>), stray whitespace,
+        empty compliance flags and unreliable booleans. <strong>${fmtInt(log.length)} distinct
+        issues</strong> affecting <strong>${fmtInt(totalTreated)} values</strong>,
         including ${fmtInt(dupes)} duplicate records dropped.</p>`)}
 
       ${step(2, "Audited cleaning — every treatment logged", "31 treatments · expandable examples", `
@@ -132,7 +132,7 @@ window.FE.tabs.eda = {
         </div>`)}
 
       ${step(3, "Typed, keyed and verified", `counts ${countsOk}/6 ✓ · FKs ${fkTotal} violations`, `
-        <p>Dates are parsed to real date types, primary/foreign keys enforced on the serving layer,
+        <p>Dates are parsed to date types, primary/foreign keys enforced on the serving layer,
         and the clean row counts verified live against the pipeline's expected output:</p>
         <div class="check-row">${Object.entries(EXPECTED).map(([t, n]) => {
           const ok = d[t].length === n;
@@ -155,7 +155,7 @@ window.FE.tabs.eda = {
           <summary>Notes on the amber items</summary>
           <p>Empty <code>resolution_date</code> values correspond to unresolved alerts and
           disputes — structurally expected, and their share is itself the backlog finding.
-          One caveat survives cleaning: <code>is_international</code> is unreliable (148
+<code>is_international</code> remains unreliable after cleaning (148
           sanctioned-country transactions marked domestic) and is treated as a finding, not a
           usable field.</p>
         </details>`)}
@@ -177,7 +177,7 @@ window.FE.tabs.eda = {
 
       ${step(5, "Distributions and trends", "4 figures", `<div class="chart-grid" id="eda-charts"></div>`)}
 
-      ${step(6, "Associations — what actually drives risk flags", "5 pairs · 1 null result", `
+      ${step(6, "Associations — what drives risk flags", "5 pairs · 1 null result", `
         <div class="table-wrap"><table>
           <thead><tr><th>Association</th><th class="num">Cramér's V</th><th class="num">p</th><th>Reading</th></tr></thead>
           <tbody>${S.associations.map((a) => {
