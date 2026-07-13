@@ -71,6 +71,23 @@ window.FE.tabs.eda = {
     const dupTotal = dupResults.reduce((s, x) => s + x.dupes, 0);
     const countsOk = Object.entries(EXPECTED).filter(([t, n]) => d[t].length === n).length;
 
+    /* The same checks on the RAW source (state.raw) — these surface the issues
+       live, before cleaning: duplicate primary keys and empty columns. */
+    const draw = state.raw;
+    const rawDupResults = Object.entries(PKS).map(([table, pk]) =>
+      ({ table, dupes: draw[table].length - new Set(draw[table].map((r) => r[pk])).size }));
+    const rawNullWarnings = [];
+    for (const table of Object.keys(PKS)) {
+      const rows = draw[table];
+      for (const col of Object.keys(rows[0] ?? {})) {
+        const empty = rows.filter((r) => r[col] === null || r[col] === undefined || r[col] === "").length;
+        if (empty / rows.length > NULL_WARN) {
+          rawNullWarnings.push({ label: `${table}.${col}`, share: empty / rows.length, n: empty });
+        }
+      }
+    }
+    const rawDupTotal = rawDupResults.reduce((s, x) => s + x.dupes, 0);
+
     const step = (n, title, chip, body) => `
       <div class="eda-step">
         <div class="eda-step-head">
@@ -85,12 +102,21 @@ window.FE.tabs.eda = {
       <code>analysis/clean.py</code> with every treatment logged; click any treatment to see real
       before&rarr;after examples, or jump to the affected rows in the Data tab.</p>
 
-      ${step(1, "Raw dataset intake", `${fmtInt(log.length)} issues found`, `
-        <p>The six source tables contained data-quality issues: duplicate primary keys,
-        inconsistent casing (<code>'india'</code>, <code>'CARD PAYMENT'</code>), stray whitespace,
-        empty compliance flags and unreliable booleans. <strong>${fmtInt(log.length)} distinct
-        issues</strong> affecting <strong>${fmtInt(totalTreated)} values</strong>,
-        including ${fmtInt(dupes)} duplicate records dropped.</p>`)}
+      ${step(1, "Raw dataset intake", `raw source · ${rawDupTotal} duplicate keys`, `
+        <p>The six source tables are served raw, exactly as delivered. The checks below run live
+        on that raw data — row counts, duplicate primary keys and empty columns — the issues that
+        cleaning then resolves.</p>
+        <h4 class="integrity-title">Row counts — raw source</h4>
+        <div class="check-row">${Object.keys(PKS).map((t) =>
+          `<span class="badge badge-plain">${t}: ${fmtInt(draw[t].length)}</span>`).join(" ")}
+        </div>
+        <h4 class="integrity-title">Duplicate primary keys found live</h4>
+        <div class="check-row">${rawDupResults.map((x) =>
+          `<span class="badge ${x.dupes ? "badge-sanctioned" : "badge-clear"}">${x.table}: ${x.dupes}</span>`).join(" ")}
+        </div>
+        <div class="check-row">${rawNullWarnings.map((w) =>
+          `<span class="badge badge-offshore">${escapeHtml(w.label)}: ${fmtPct(w.share)} empty (${fmtInt(w.n)})</span>`).join(" ")}
+        </div>`)}
 
       ${step(2, "Audited cleaning — every treatment logged", "31 treatments · expandable examples", `
         <p>Every treatment is written to an audit trail, served live from the
@@ -138,7 +164,7 @@ window.FE.tabs.eda = {
           const ok = d[t].length === n;
           return `<span class="badge ${ok ? "badge-clear" : "badge-sanctioned"}">${t}: ${fmtInt(d[t].length)}${ok ? " ✓" : ` (expected ${n})`}</span>`;
         }).join(" ")}</div>
-        <h4 class="integrity-title">Integrity panel — computed live on the served data</h4>
+        <h4 class="integrity-title">Integrity panel — computed live on the cleaned data</h4>
         <div class="check-row">${fkResults.map((f) =>
           `<span class="badge ${f.violations ? "badge-sanctioned" : "badge-clear"}">${escapeHtml(f.label)}: ${f.violations} violations</span>`).join(" ")}
         </div>

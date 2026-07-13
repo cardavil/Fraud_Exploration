@@ -1,4 +1,4 @@
-/* Data explorer: every served table, in two views.
+/* Data explorer: the raw source tables (as delivered, pre-cleaning), in two views.
    Rows  — the records, filterable column by column (filters derive from the
            data itself: categoricals→select, numerics→min/max, dates→range).
    Profile — one row per COLUMN: detected type, non-null share, uniques,
@@ -10,16 +10,12 @@ window.FE.tabs.data = {
     const PAGE = 25;
     const NULL_WARN = 0.2;     // empty share above this gets an amber badge
     const TABLE_NOTES = {
-      customers: "KYC master — one row per customer.",
-      accounts: "Accounts with status and balance; FK to customers.",
-      transactions: "The transaction ledger (1,600 rows).",
+      customers: "Customer master (KYC), as delivered.",
+      accounts: "Accounts with status and balance.",
+      transactions: "The transaction ledger.",
       compliance_alerts: "Alerts raised by the monitoring rules.",
-      sanctions_screening: "Screening events; FK to customers.",
-      chargebacks: "Disputes; FK to transactions/accounts.",
-      account_scores: "Tier 2 — Isolation Forest features + scores per account (16 features).",
-      transaction_scores: "Tier 1 — contextual features + score per transaction.",
-      customer_scores: "Tier 3 — subject-level features + score per active customer.",
-      cleaning_log: "The audit trail of every cleaning treatment applied.",
+      sanctions_screening: "Screening events.",
+      chargebacks: "Disputes.",
     };
     let current = "transactions", view = "rows", filters = {}, page = 0;
     const profileCache = new Map();
@@ -37,7 +33,7 @@ window.FE.tabs.data = {
     /* ---------- profile view ---------- */
     function profileFor(table) {
       if (profileCache.has(table)) return profileCache.get(table);
-      const rows = state.data[table];
+      const rows = state.raw[table];
       const cols = Object.keys(rows[0] ?? {});
       const profile = cols.map((col) => {
         const values = rows.map((r) => r[col]);
@@ -71,7 +67,7 @@ window.FE.tabs.data = {
     function renderProfile() {
       const profile = profileFor(current);
       el.querySelector("#dx-summary").textContent =
-        `${profile.length} columns · ${fmtInt(state.data[current].length)} rows`;
+        `${profile.length} columns · ${fmtInt(state.raw[current].length)} rows`;
       el.querySelector("#dx-head").innerHTML = `<tr>
         <th>Column</th><th>Type</th><th class="num">Non-null</th><th class="num">Unique</th>
         <th class="num">Min / Median / Max</th><th>Sample</th><th>Flags</th></tr>`;
@@ -97,7 +93,7 @@ window.FE.tabs.data = {
 
     /* ---------- rows view (filters + pagination) ---------- */
     function buildFilters() {
-      const rows = state.data[current];
+      const rows = state.raw[current];
       const cols = Object.keys(rows[0] ?? {});
       filters = {};
       return cols.map((col) => {
@@ -145,14 +141,14 @@ window.FE.tabs.data = {
     }
 
     function renderRows() {
-      const rows = applyFilters(state.data[current]);
-      const cols = Object.keys(state.data[current][0] ?? {});
+      const rows = applyFilters(state.raw[current]);
+      const cols = Object.keys(state.raw[current][0] ?? {});
       const start = page * PAGE;
       const slice = rows.slice(start, start + PAGE);
       const amountCol = cols.find((c) => c === "amount" || c === "account_balance");
       const value = amountCol ? rows.reduce((s, r) => s + (r[amountCol] || 0), 0) : null;
       el.querySelector("#dx-summary").textContent =
-        `${fmtInt(rows.length)} of ${fmtInt(state.data[current].length)} rows` +
+        `${fmtInt(rows.length)} of ${fmtInt(state.raw[current].length)} rows` +
         (value !== null ? ` · ${fmtMoney(value, true)} total ${amountCol.replace("_", " ")}` : "");
       el.querySelector("#dx-head").innerHTML =
         `<tr>${cols.map((c) => `<th>${escapeHtml(c)}</th>`).join("")}</tr>`;
@@ -218,7 +214,7 @@ window.FE.tabs.data = {
           <label class="table-pick">Table
             <select id="dx-table">
               ${Object.keys(TABLE_NOTES).map((t) =>
-                `<option value="${t}">${t} (${fmtInt(state.data[t].length)})</option>`).join("")}
+                `<option value="${t}">${t} (${fmtInt(state.raw[t].length)})</option>`).join("")}
             </select>
           </label>
           <div class="view-toggle" role="group" aria-label="View">

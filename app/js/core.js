@@ -7,8 +7,13 @@ window.FE = (() => {
   const TABLES = ["customers", "accounts", "transactions", "compliance_alerts",
     "sanctions_screening", "chargebacks", "account_scores",
     "transaction_scores", "customer_scores", "cleaning_log"];
+  // Raw source tables (pre-cleaning), served for the Data explorer and the EDA
+  // integrity panel so the quality issues are identified live. Analysis always
+  // reads the clean tables in state.data; state.raw is exploration-only.
+  const RAW_SOURCE = ["customers", "accounts", "transactions",
+    "compliance_alerts", "sanctions_screening", "chargebacks"];
 
-  const state = { data: {}, stats: null, sensitivity: null, examples: null,
+  const state = { data: {}, raw: {}, stats: null, sensitivity: null, examples: null,
                   validation: null, kpis: null, ready: false };
   const tabs = {};          // name -> { render(el), rendered }
   const $ = (id) => document.getElementById(id);
@@ -150,6 +155,9 @@ window.FE = (() => {
           ? "transactions?select=*&order=transaction_date.desc,transaction_id.asc"
           : `${t}?select=*`)));
       TABLES.forEach((t, i) => { state.data[t] = results[i]; });
+      const rawResults = await Promise.all(
+        RAW_SOURCE.map((t) => supabaseFetchAll(`raw_${t}?select=*`)));
+      RAW_SOURCE.forEach((t, i) => { state.raw[t] = rawResults[i]; });
       computeKpis();
       state.ready = true;
       $("global-loading").classList.add("hidden");
