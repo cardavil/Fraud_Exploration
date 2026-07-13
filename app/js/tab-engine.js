@@ -27,10 +27,9 @@ window.FE.tabs.engine = {
     ];
 
     el.innerHTML = `
-      <p class="tab-intro">The Compliance Sentinel is a five-agent pipeline running in a Supabase
-      Edge Function, with production-style guardrails: retry and fallback handling, data
-      anonymization, prompt-injection defenses and a per-agent audit trail. The sections below
-      describe the architecture; the runner at the bottom executes a live analysis.</p>
+      <p class="tab-intro">The Compliance Sentinel is a five-agent pipeline in a Supabase Edge
+      Function: retry and fallback handling, data anonymization, prompt-injection defenses and a
+      per-agent audit trail. The runner at the bottom executes a live analysis.</p>
 
       <div class="card">
         <h3>Pipeline</h3>

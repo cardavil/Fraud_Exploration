@@ -96,12 +96,9 @@ window.FE.tabs.ml = {
     const custRows = [...state.data.customer_scores].sort((a, b) => b.score - a.score).slice(0, 15);
 
     el.innerHTML = `
-      <p class="tab-intro">Detection runs at three levels — transaction, account and customer —
-      because each level captures behavior the others cannot: individual outliers, behavioral
-      patterns, and cross-account activity tied to the legal subject. All models are
-      unsupervised Isolation Forests, validated for stability and generalization, and
-      explainable feature by feature. The account model also runs in the browser for
-      independent verification.</p>
+      <p class="tab-intro">Three unsupervised Isolation Forests score risk at the transaction,
+      account and customer level. The account model also runs in the browser for independent
+      verification.</p>
 
       <h3 class="tier-heading">Tier 1 — Transaction-level detection</h3>
       <div class="card">
