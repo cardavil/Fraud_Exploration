@@ -213,9 +213,6 @@ window.FE.tabs.data = {
     }
 
     el.innerHTML = `
-      <p class="tab-intro">Read live from Supabase — public anon key, row-level security allows
-      <code>SELECT</code> only. <strong>Rows</strong> lists records with data-driven filters;
-      <strong>Profile</strong> summarizes each column: type, completeness, cardinality, sample values.</p>
       <div class="card">
         <div class="card-head">
           <label class="table-pick">Table
@@ -251,7 +248,10 @@ window.FE.tabs.data = {
             <button class="btn btn-ghost" id="dx-next" type="button">Next &rarr;</button>
           </div>
         </div>
-      </div>`;
+      </div>
+      <p class="tab-foot">Read live from Supabase — public anon key, row-level security allows
+      <code>SELECT</code> only. <strong>Rows</strong> lists records with data-driven filters;
+      <strong>Profile</strong> summarizes each column: type, completeness, cardinality, sample values.</p>`;
 
     el.querySelector("#dx-table").addEventListener("change", (e) => {
       current = e.target.value;

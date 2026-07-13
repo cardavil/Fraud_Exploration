@@ -270,6 +270,7 @@ details.notes p { margin: 8px 0 0; }
 .tab-panel { padding-top: 4px; }
 .tab-intro { max-width: 980px; color: var(--muted); font-size: .95rem; margin: 14px 0 20px; }
 .tab-intro a { color: var(--brand-blue-ink); }
+.tab-foot { color: var(--muted); font-size: .8rem; margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--line); }
 
 /* Power BI embed: 16:9 to match the report canvas, responsive to the card width. */
 .pbi-frame {
