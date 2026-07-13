@@ -1,0 +1,35 @@
+{
+  "name": "Fraud & Compliance Exploration",
+  "dataColors": ["#2E5BFF", "#0A1633", "#5A6B8C", "#9DB1F2", "#204AE0", "#B9C4DE", "#8FA3C7", "#D7DEF0"],
+  "good": "#2FA36B",
+  "neutral": "#E8A33D",
+  "bad": "#D64545",
+  "maximum": "#0A1633",
+  "center": "#5A6B8C",
+  "minimum": "#D7DEF0",
+  "background": "#FFFFFF",
+  "foreground": "#0A1633",
+  "tableAccent": "#2E5BFF",
+  "textClasses": {
+    "callout": { "fontFace": "Segoe UI", "fontSize": 28, "color": "#0A1633" },
+    "title": { "fontFace": "Segoe UI Semibold", "fontSize": 12, "color": "#0A1633" },
+    "header": { "fontFace": "Segoe UI Semibold", "fontSize": 11, "color": "#0A1633" },
+    "label": { "fontFace": "Segoe UI", "fontSize": 10, "color": "#5A6B8C" }
+  },
+  "visualStyles": {
+    "*": {
+      "*": {
+        "background": [{ "show": true, "color": { "solid": { "color": "#FFFFFF" } }, "transparency": 0 }],
+        "border": [{ "show": true, "color": { "solid": { "color": "#E3E8F2" } }, "radius": 10 }],
+        "dropShadow": [{ "show": false }],
+        "title": [{ "show": true, "fontColor": { "solid": { "color": "#0A1633" } }, "fontFamily": "Segoe UI Semibold", "fontSize": 12 }]
+      }
+    },
+    "page": {
+      "*": {
+        "background": [{ "color": { "solid": { "color": "#F5F7FB" } }, "transparency": 0 }],
+        "outspace": [{ "color": { "solid": { "color": "#F5F7FB" } } }]
+      }
+    }
+  }
+}
