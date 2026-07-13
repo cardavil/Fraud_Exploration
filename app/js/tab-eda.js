@@ -81,10 +81,9 @@ window.FE.tabs.eda = {
       </div>`;
 
     el.innerHTML = `
-      <p class="tab-intro">The analysis, step by step — not a summary of results but the process
-      that produced them. Cleaning runs in <code>analysis/clean.py</code> with every treatment
-      logged; click any treatment below to see real before&rarr;after examples, and jump from a
-      treatment straight to the affected rows in the Data tab.</p>
+      <p class="tab-intro">The cleaning and analysis process, step by step. Cleaning runs in
+      <code>analysis/clean.py</code> with every treatment logged; click any treatment to see real
+      before&rarr;after examples, or jump to the affected rows in the Data tab.</p>
 
       ${step(1, "Raw dataset intake", `${fmtInt(log.length)} issues found`, `
         <p>Six SQLite tables arrive dirty: duplicate primary keys, inconsistent casing

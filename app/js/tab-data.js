@@ -213,10 +213,9 @@ window.FE.tabs.data = {
     }
 
     el.innerHTML = `
-      <p class="tab-intro">The serving layer, raw. Every table is read live from Supabase with the
-      public anon key — row-level security only allows <code>SELECT</code>. <strong>Rows</strong>
-      shows the records with filters built from the data itself; <strong>Profile</strong> examines
-      the table column by column: type, completeness, cardinality and sample values.</p>
+      <p class="tab-intro">Read live from Supabase — public anon key, row-level security allows
+      <code>SELECT</code> only. <strong>Rows</strong> lists records with data-driven filters;
+      <strong>Profile</strong> summarizes each column: type, completeness, cardinality, sample values.</p>
       <div class="card">
         <div class="card-head">
           <label class="table-pick">Table

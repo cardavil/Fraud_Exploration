@@ -102,12 +102,12 @@ window.FE.tabs.findings = {
     ];
 
     el.innerHTML = `
-      <p class="tab-intro">What the analysis actually surfaced. The tiles are the live KPI surface —
-      click one for its definition, exact formula and why it matters. Below, each theme gets its
-      evidence chart with hover tooltips and an <span class="muted">&#9432; how to read</span> note.
-      The five headline insights distilled from these findings live in the
+      <p class="tab-intro">The tiles are the live KPI surface — click one for its definition, exact
+      formula and why it matters. Below, each theme has its evidence chart with hover tooltips and an
+      <span class="muted">&#9432; how to read</span> note. The five headline insights distilled from
+      these findings live in the
       <a href="https://github.com/cardavil/Fraud_Exploration/blob/main/reports/EXECUTIVE_SUMMARY.md"
-         target="_blank" rel="noopener">executive summary</a> (the assessment deliverable).</p>
+         target="_blank" rel="noopener">executive summary</a>.</p>
       <div class="kpi-strip kpi-grid-4">
         ${KPIS.map((x) => `
           <button class="kpi-tile ${x.cls}" data-kpi="${x.id}">
