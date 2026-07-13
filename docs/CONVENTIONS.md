@@ -128,6 +128,6 @@ de BigQuery (proyecto `fraud-exploration-cd`). Reglas del modelo semantico:
 | Columnas de fecha | las fisicas (texto ISO) permanecen ocultas; cada una tiene su columna calculada tipada Date en sentence case ("Transaction date") |
 | Medidas | termino canonico del KPI tile o del glosario, verbatim, en sentence case ("Unalerted high-risk value", "Unresolved Critical / High"); un concepto nuevo exige su fila de glosario en el mismo commit (§1) |
 | Formulas | identicas a la superficie canonica (KPI tile / `eda_stats.json`); toda cifra reproduce EDA_FINDINGS (§3) |
-| Tabla de medidas | todas las medidas viven en `_Measures` (tabla calculada dummy con su unica columna oculta; "Measures" a secas es nombre reservado del motor) |
+| Tabla de medidas | todas las medidas viven en `KPI` (tabla calculada dummy con su unica columna oculta; termino del glosario §1 — "Measures" a secas es nombre reservado del motor) |
 | Display folders | numerados por el orden de insights del executive summary: 00 Base, 01 Escalation gap, 02 Sanctions screening, 03 Structuring, 04 Account controls, 05 Operations |
 | Tabla Date | calculada (CALENDAR 2025-2026) y marcada como date table; unica relacion activa a `transactions[Transaction date]`; Alert/Chargeback/Screening date se activan con USERELATIONSHIP en medidas puente (Alerts created, Monthly chargeback value) |
