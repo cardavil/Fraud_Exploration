@@ -116,3 +116,16 @@ poder auditarla commit a commit.
   al final del card o seccion, despues de los datos que anotan — nunca antes.
 
 | evidence strength | fuerza de evidencia computada del checklist de señales (strong/moderate/limited) | confidence, confianza del modelo |
+
+## 6. Capa semantica Power BI (2026-07-13)
+
+El .pbix (entregable Layer 1) importa las 9 tablas del dataset `fraud_exploration`
+de BigQuery (proyecto `fraud-exploration-cd`). Reglas del modelo semantico:
+
+| Objeto | Convencion |
+|---|---|
+| Tablas y columnas fisicas | snake_case identico al warehouse — lineage 1:1 con BigQuery; nunca se renombran |
+| Columnas de fecha | las fisicas (texto ISO) permanecen ocultas; cada una tiene su columna calculada tipada Date en sentence case ("Transaction date") |
+| Medidas | termino canonico del KPI tile o del glosario, verbatim, en sentence case ("Unalerted high-risk value", "Unresolved Critical / High"); un concepto nuevo exige su fila de glosario en el mismo commit (§1) |
+| Formulas | identicas a la superficie canonica (KPI tile / `eda_stats.json`); toda cifra reproduce EDA_FINDINGS (§3) |
+| Display folders | tema de finding en sentence case (Escalation gap, Sanctions screening, Structuring, Account controls, Alert operations, Chargebacks); medidas base sin carpeta |
