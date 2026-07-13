@@ -65,7 +65,7 @@ body {
 
 main { max-width: 1560px; margin: 0 auto; padding: 20px 28px 40px; }
 
-footer { max-width: 1560px; margin: 0 auto; padding: 0 28px 32px; color: var(--muted); font-size: .8rem; }
+footer { max-width: 1560px; margin: 0 auto; padding: 0 28px 32px; color: var(--muted); font-size: .8rem; text-align: center; }
 footer a { color: var(--brand-blue-ink); }
 
 .two-col {
