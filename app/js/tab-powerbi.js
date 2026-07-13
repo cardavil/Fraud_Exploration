@@ -13,7 +13,6 @@ window.FE.tabs.powerbi = {
           <iframe title="Fraud &amp; Compliance dashboard" src="${CFG.POWERBI_URL}"
             frameborder="0" allowfullscreen loading="lazy"></iframe>
         </div>
-        <p class="muted">Dummy dataset only — no real customer data.</p>
       </div>`;
   },
 };
