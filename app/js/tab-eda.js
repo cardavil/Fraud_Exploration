@@ -98,10 +98,6 @@ window.FE.tabs.eda = {
       </div>`;
 
     el.innerHTML = `
-      <p class="tab-intro">The cleaning and analysis process, step by step. Cleaning runs in
-      <code>analysis/clean.py</code> with every treatment logged; click any treatment to see real
-      before&rarr;after examples, or jump to the affected rows in the Data tab.</p>
-
       ${step(1, "Raw dataset intake", `raw source · ${rawDupTotal} duplicate keys`, `
         <p>The six source tables are served raw, exactly as delivered. The checks below run live
         on that raw data — row counts, duplicate primary keys and empty columns — the issues that
@@ -229,6 +225,10 @@ window.FE.tabs.eda = {
           ${S.spearman_vs_rating.map((s) => `${escapeHtml(s.feature)} ρ=${s.rho >= 0 ? "+" : ""}${s.rho} (p=${s.p})`).join(", ")}.
           Only % cash reaches statistical significance.</p>
         </details>`)}
+
+      <p class="tab-foot">Cleaning runs in <code>analysis/clean.py</code> with every treatment
+      logged; click any treatment to see before&rarr;after examples, or jump to the affected rows
+      in the Data tab.</p>
     `;
 
     /* expandable treatment rows + drill links */
