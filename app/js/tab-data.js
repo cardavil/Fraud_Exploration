@@ -165,7 +165,7 @@ window.FE.tabs.data = {
         if (val === "" || val === null) return true;
         const [col, kind] = key.split("::");
         const v = r[col];
-        if (kind === "categorical") return String(v) === val;
+        if (kind === "categorical") return String(v).toLowerCase() === String(val).toLowerCase();
         if (kind === "min") return asNum(v) != null && asNum(v) >= Number(val);
         if (kind === "max") return asNum(v) != null && asNum(v) <= Number(val);
         if (kind === "from") return v != null && v >= val;

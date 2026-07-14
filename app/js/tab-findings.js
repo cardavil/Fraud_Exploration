@@ -154,10 +154,7 @@ window.FE.tabs.findings = {
              <strong>${fmtInt(structuringCustomers.length)} customers with cross-account
              structuring days</strong> — daily totals over $10,000 split under the threshold
              across their own accounts, not visible at transaction or account level.`;
-          })(),
-          drillLink("See tier-1 scores", "transaction_scores",
-            [{ col: "anomaly", kind: "min", value: -1 }, { col: "anomaly", kind: "max", value: -1 },
-             { col: "flagged_by_rules", kind: "max", value: 0 }]))}
+          })())}
         ${card("chargebacks", "Chargebacks are accelerating",
           `Monthly chargeback value grew ~${k.chargebacks.ratio.toFixed(0)}× in four months
            (${fmtMoney(k.chargebacks.from, true)} → ${fmtMoney(k.chargebacks.to, true)}).
