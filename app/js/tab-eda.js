@@ -269,7 +269,6 @@ window.FE.tabs.eda = {
     el.innerHTML = `
       <div class="card">
         <div class="card-head"><h3>Data quality — raw source</h3></div>
-        <p class="muted">Computed live on the raw tables, before any cleaning — the issues the ETL then resolves.</p>
         <div class="check-row">${Object.keys(PKS).map((t) =>
           `<span class="badge badge-plain">${t}: ${fmtInt(state.raw[t].length)}</span>`).join(" ")}</div>
         <h4 class="integrity-title">Duplicate primary keys</h4>
