@@ -166,10 +166,7 @@ window.FE.tabs.findings = {
       </div>
       <p class="tab-foot">The tiles are the live KPI surface — click one for its definition, exact
       formula and why it matters. Each theme has its evidence chart with hover tooltips and an
-      <span class="muted">&#9432; how to read</span> note. The five headline insights distilled from
-      these findings live in the
-      <a href="https://github.com/cardavil/Fraud_Exploration/blob/main/reports/EXECUTIVE_SUMMARY.md"
-         target="_blank" rel="noopener">executive summary</a>.</p>`;
+      <span class="muted">&#9432; how to read</span> note.</p>`;
 
     el.querySelectorAll(".kpi-tile").forEach((tile) => {
       tile.addEventListener("click", () => {
