@@ -17,7 +17,7 @@ window.FE.tabs.dss = {
       </div>`;
 
     el.innerHTML = `
-      ${step(1, "Descriptive statistics", "", `
+      ${step(1, "Descriptive statistics — transaction amounts", "", `
         <div class="stat-row">
           ${[["n (valid amounts)", fmtInt(S.descriptive.n_valid)],
              ["Mean", fmtMoney(S.descriptive.mean)],
@@ -34,15 +34,15 @@ window.FE.tabs.dss = {
 
       ${step(2, "Distributions and trends", "4 figures", `<div class="chart-grid" id="dss-charts"></div>`)}
 
-      ${step(3, "Associations — what drives risk flags", "5 pairs · 1 null result", `
+      ${step(3, "Correlation — what relates to risk flags", "5 pairs · 1 null result", `
         <div class="table-wrap"><table>
-          <thead><tr><th>Association</th><th class="num">Cramér's V</th><th class="num">p</th><th>Reading</th></tr></thead>
+          <thead><tr><th>Variable pair</th><th class="num">Cramér's V</th><th class="num">p</th><th>Reading</th></tr></thead>
           <tbody>${S.associations.map((a) => {
             const strong = a.cramers_v >= 0.3;
             const none = a.cramers_v < 0.1;
             const reading = a.pair.startsWith("risk_rating")
               ? "<strong>The KYC risk rating has no relationship with flagged activity</strong>"
-              : none ? "No meaningful association"
+              : none ? "No meaningful relationship"
               : strong ? "Strong driver" : "Weak but real effect";
             return `<tr><td>${escapeHtml(a.pair)}</td>
               <td class="num"><strong>${a.cramers_v.toFixed(3)}</strong></td>
@@ -53,7 +53,7 @@ window.FE.tabs.dss = {
         disconnected from observed behavior.</strong></p>
         <details class="notes">
           <summary>Definitions and supporting detail</summary>
-          <p><strong>Cramér's V</strong> measures the strength of association between two
+          <p><strong>Cramér's V</strong> measures the strength of the relationship between two
           categorical variables, from 0 (none) to 1 (perfect); <strong>p</strong> is the
           probability of seeing an association at least this strong by chance.</p>
           <p>Per-customer correlations between the assigned rating and observed behavior:

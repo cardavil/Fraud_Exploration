@@ -1,11 +1,9 @@
 /* EDA: explore the raw source data (as delivered, pre-cleaning) and surface its
    quality issues — the phase that decides what the ETL must fix.
-   A quality panel (row counts, duplicate keys, empty columns computed live on
-   the raw tables) sits above the explorer:
-   Rows  — the records, filterable on demand (add a filter per column) and sortable.
-   Profile — one row per COLUMN: detected type, non-null share, uniques,
-           min/median/max, sample values, PK badge and a >20%-empty warning.
-   FE.openData(table, filters) deep-links here with filters pre-applied. */
+   Step 1 (Database) is the explorer: Rows browses the records with on-demand
+   filters and sortable columns; Profile assesses each column (type, completeness,
+   uniques, PK, empties). Step 2 (Data quality) summarizes the issues found live
+   on the raw tables. FE.openData(table, filters) deep-links here with filters. */
 window.FE.tabs.eda = {
   render(el) {
     const { state, fmtInt, fmtMoney, fmtPct, escapeHtml, takeDataPreset } = window.FE;
@@ -23,7 +21,7 @@ window.FE.tabs.eda = {
     let activeCols = [], sort = { col: null, dir: 1 };
     const profileCache = new Map();
 
-    /* ---------- data-quality panel: computed live on the raw source ---------- */
+    /* ---------- data-quality summary: computed live on the raw source ---------- */
     const PKS = { customers: "customer_id", accounts: "account_id", transactions: "transaction_id",
       compliance_alerts: "alert_id", sanctions_screening: "screening_id", chargebacks: "chargeback_id" };
     const rawDupResults = Object.entries(PKS).map(([table, pk]) =>
@@ -38,6 +36,7 @@ window.FE.tabs.eda = {
         }
       }
     }
+    const rawDupTotal = rawDupResults.reduce((s, x) => s + x.dupes, 0);
 
     const isDate = (v) => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v);
     // Raw values arrive as text; detect type by parsing so amounts behave as
@@ -266,20 +265,17 @@ window.FE.tabs.eda = {
       el.querySelector("#dx-view-profile").classList.toggle("active", view === "profile");
     }
 
-    el.innerHTML = `
-      <div class="card">
-        <div class="card-head"><h3>Data quality — raw source</h3></div>
-        <div class="check-row">${Object.keys(PKS).map((t) =>
-          `<span class="badge badge-plain">${t}: ${fmtInt(state.raw[t].length)}</span>`).join(" ")}</div>
-        <h4 class="integrity-title">Duplicate primary keys</h4>
-        <div class="check-row">${rawDupResults.map((x) =>
-          `<span class="badge ${x.dupes ? "badge-sanctioned" : "badge-clear"}">${x.table}: ${x.dupes}</span>`).join(" ")}</div>
-        ${rawNullWarnings.length ? `<h4 class="integrity-title">Empty columns</h4>
-        <div class="check-row">${rawNullWarnings.map((w) =>
-          `<span class="badge badge-offshore">${escapeHtml(w.label)}: ${fmtPct(w.share)} empty (${fmtInt(w.n)})</span>`).join(" ")}</div>` : ""}
-      </div>
+    const step = (n, title, chip, body) => `
+      <div class="eda-step">
+        <div class="eda-step-head">
+          <span class="eda-step-n">${n}</span><h3>${title}</h3>
+          ${chip ? `<span class="eda-chip">${chip}</span>` : ""}
+        </div>
+        <div class="eda-step-body">${body}</div>
+      </div>`;
 
-      <div class="card">
+    el.innerHTML = `
+      ${step(1, "Database", "6 raw source tables", `
         <div class="card-head">
           <label class="table-pick">Table
             <select id="dx-table">
@@ -312,11 +308,21 @@ window.FE.tabs.eda = {
             <button class="btn btn-ghost" id="dx-prev" type="button">&larr; Prev</button>
             <button class="btn btn-ghost" id="dx-next" type="button">Next &rarr;</button>
           </div>
-        </div>
-      </div>
+        </div>`)}
+
+      ${step(2, "Data quality — raw source", `${rawDupTotal} duplicate keys`, `
+        <div class="check-row">${Object.keys(PKS).map((t) =>
+          `<span class="badge badge-plain">${t}: ${fmtInt(state.raw[t].length)}</span>`).join(" ")}</div>
+        <h4 class="integrity-title">Duplicate primary keys</h4>
+        <div class="check-row">${rawDupResults.map((x) =>
+          `<span class="badge ${x.dupes ? "badge-sanctioned" : "badge-clear"}">${x.table}: ${x.dupes}</span>`).join(" ")}</div>
+        ${rawNullWarnings.length ? `<h4 class="integrity-title">Empty columns</h4>
+        <div class="check-row">${rawNullWarnings.map((w) =>
+          `<span class="badge badge-offshore">${escapeHtml(w.label)}: ${fmtPct(w.share)} empty (${fmtInt(w.n)})</span>`).join(" ")}</div>` : ""}`)}
+
       <p class="tab-foot">Read live from Supabase — public anon key, row-level security allows
-      <code>SELECT</code> only. The quality panel is computed on the raw source; the explorer's
-      <strong>Rows</strong> and <strong>Profile</strong> views assess it column by column before cleaning.</p>`;
+      <code>SELECT</code> only. Browse the raw records (Rows), profile each column (Profile), and
+      read the quality issues the cleaning then resolves.</p>`;
 
     el.querySelector("#dx-table").addEventListener("change", (e) => {
       current = e.target.value;
