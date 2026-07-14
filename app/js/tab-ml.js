@@ -263,9 +263,6 @@ window.FE.tabs.ml = {
         <p id="ml-verify" class="loading-cell">Loading the exported forest and recomputing every score locally…</p>
         <div id="ml-detail" class="hidden">
           <h4>Account detail</h4>
-          <p class="muted">Account activity, model assessment and alert records. The holder's
-          full profile — accounts, tier-3 model, screening — opens from the Customer overview
-          button.</p>
           <div class="sentinel-controls">
             <select id="detail-account" aria-label="Account to inspect"></select>
           </div>
