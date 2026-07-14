@@ -2,8 +2,7 @@
    behave (real sweep), how it VALIDATES (overfitting, bootstrap confidence,
    stability, convergent validity, ablation — model_validation.json), what it
    found, and — live — the model itself running in the browser (iforest.js):
-   every score recomputed client-side and verified against the pipeline, plus
-   a what-if playground. */
+   every score recomputed client-side and verified against the pipeline. */
 window.FE.tabs.ml = {
   render(el) {
     const { state, fmtInt, fmtMoney, fmtPct, escapeHtml, openModal, closeModal, goTo } = window.FE;
@@ -476,7 +475,7 @@ window.FE.tabs.ml = {
     });
     hBarChart(el.querySelector("#ml-ablation"), {
       title: "Feature ablation — how much the anomaly set changes without each feature",
-      howToRead: "Each bar is 1 − Jaccard between the anomaly set with and without that feature: longer bars indicate more influential features. Transaction velocity dominates, consistent with the single-day burst pattern in the detections.",
+      howToRead: "Each bar is 1 − Jaccard between the anomaly set with and without that feature: longer bars indicate more influential features. The share of high-risk-country transactions (pct_hr) is the most influential feature — removing it changes the flagged set the most — consistent with the sanctioned-country exposure that drives the detections.",
       fmt: (v) => v.toFixed(2),
       data: val.ablation.slice(0, 6).map((a) => ({
         label: a.feature, value: Math.round((1 - a.jaccard_vs_base) * 100) / 100,

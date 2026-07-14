@@ -1,7 +1,7 @@
 """
 Export the EDA's statistical results to app/data/eda_stats.json so the board
-renders the exact figures documented in outputs/EDA_FINDINGS.md — one source,
-no client-side reimplementation of statistics.
+renders the exact figures computed here — one source, no client-side
+reimplementation of statistics.
 
 Run from the repo root: python analysis/export_eda_stats.py
 """

@@ -1,10 +1,11 @@
-// Compliance Sentinel v2 — five-agent pipeline as a Supabase Edge Function.
+// Compliance Sentinel v3.1 — five-agent pipeline as a Supabase Edge Function.
 //
-// POST { account_id } →
+// POST { customer_id } or { account_id } (an account resolves to its holder; the
+//   subject is always the customer, and the pipeline sees all of the holder's accounts) →
 //   anonymized tool context → profile_analyst → behavior_analyst →
 //   anomaly_interpreter → risk_synthesizer → compliance_reviewer →
-//   { risk_summary, key_factors[], recommended_action, confidence,
-//     audit[] (per-agent model tracking), run_id, pipeline }
+//   { risk_summary, key_factors[], recommended_action, next_steps[], evidence_strength,
+//     signal_families, run_id, subject, pipeline, audit[] (per-agent model tracking) }
 //
 // Every agent call goes through one model wrapper (retry + backoff + fallback
 // chain, key in a header). Customer PII is pseudonymized before any model

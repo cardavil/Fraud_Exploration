@@ -1,8 +1,21 @@
 # CLAUDE.md — Fraud & Compliance Exploration Engine
 
+## Working rules — read before making ANY change
+- **The code is the source of truth.** The Markdown docs — this file, `docs/`, `powerbi/*.md`,
+  `README.md` — are normally **outdated / desfasados**. Treat every claim in a doc (and every
+  recalled memory) as suspect until verified against the actual code, data, or artifact. Never
+  state a fact from a doc without opening the real source first; cite `file:line`, or say
+  explicitly that it is unverified.
+- **Never describe an artifact you have not directly observed** (the published Power BI pages,
+  a deployed page, a screenshot you no longer have). If you can't see it, say so — do not narrate
+  a spec or a plan as if it were the live thing.
+- **Change pattern, in strict order: audit → diagnose → plan → approve → execute.** Do not
+  execute (edit, delete, push, deploy) until the user has explicitly approved the plan.
+  Destructive or outward-facing actions always need explicit approval in the moment.
+
 ## Who / why
-Carlos Davila is completing a home task for a **Data & Operations Analyst** role at Nuvei
-(Global Risk & Compliance Transformation team) AND turning it into a portfolio project.
+This is a home task for a **Data & Operations Analyst** role at Nuvei (Global Risk &
+Compliance Transformation team), turned into a portfolio project by the author.
 Two-layer strategy:
 - **Layer 1 (mandated deliverable, judged first):** Power BI dashboard + concise executive
   summary with up to 5 insights. Must stand alone. Submission deadline: **14 July 2026**.
@@ -21,8 +34,9 @@ Never oversell; label Layer 2 explicitly as beyond the brief.
   (31 issues: duplicates, whitespace, casing, empty PEP flags recoded 'Unknown', etc.).
 - `anomaly.py` — Isolation Forest (300 trees, 8% contamination, account-level behavioral
   features). Outputs `outputs/account_features_scores.csv`, `outputs/anomalous_accounts.csv`.
-- `outputs/EDA_FINDINGS.md` — the full analysis. **Read this first.** Contains stats,
-  trends, correlations, and the drafted Top-5 insights.
+- `outputs/` — the model score CSVs and `cleaning_log.csv`. The full analysis (stats, trends,
+  correlations, Top-5 insights) lives in the board (EDA / ETL / DSS / Findings tabs) and the
+  README "Key findings" section. There is no `EDA_FINDINGS.md`.
 - `outputs/unalerted_highrisk_txns.csv` — 147 sanctioned-country txns with no alert ($4.3M).
 
 ## Key findings (memorize — they drive the dashboard and app copy)
@@ -46,19 +60,18 @@ High-risk country set used everywhere: Iran, North Korea, Syria, Russia, Myanmar
 Offshore set: Cayman Islands, British Virgin Islands, Panama, Cyprus, Malta.
 "Now" for age calculations: 2026-07-11.
 
-## Build plan — status 2026-07-12 (v2)
+## Build plan — status 2026-07-14
 
-Steps 1–4 and 6 are BUILT AND DEPLOYED, plus the v2 iteration: the board is
-six tabs (Overview with 8 KPI popups, Data explorer, EDA as a 6-step process,
-Findings with evidence charts, ML model card with a real sensitivity sweep,
-AI Engine), the sentinel is a **five-agent pipeline** with retry/fallback
-wrapper, PII anonymization, injection defenses, Postgres rate limiting
-(8/min/IP + 250/day) and a per-agent `sentinel_audit` trail. Model aliases
-only (`gemini-flash-latest` / `-lite-` — pinned 2.5 ids 404 for new users).
-Design docs live in `docs/` (PRD, TRD, DATABASE, UI, APPFLOW, CONVENTIONS,
-MOCKUPS); the 5-insight deliverable in `reports/EXECUTIVE_SUMMARY.md`.
-Step 5 (Power BI) EXCLUDED from this build; step 7 (submission email + .pbix)
-pending — deadline 2026-07-14.
+All steps are BUILT AND DEPLOYED. The board has **seven tabs** — Power BI · EDA · ETL · DSS ·
+Findings · ML Model · AI Engine (default tab: Power BI). The Power BI report (Layer 1, step 5)
+is built as **four pages** (Overview · Risk deep-dive · Controls & operations · Detection
+layers), published via Publish-to-web, and **embedded** as the board's first tab. The sentinel
+is a **five-agent pipeline** (v3.1) with retry/fallback wrapper, PII anonymization, injection
+defenses, Postgres rate limiting (8/min/IP + 250/day) and a per-agent `sentinel_audit` trail.
+Model aliases only (`gemini-flash-latest` / `-lite-` — pinned 2.5 ids 404 for new users).
+Design docs live in `docs/` (PRD, TRD, DATABASE, UI, APPFLOW, CONVENTIONS, MOCKUPS) and
+`powerbi/` (layout_spec, measures, theme). The headline insights live in the README "Key
+findings" section and the board's Findings tab.
 
 ### 1. Repo skeleton
 ```
@@ -68,13 +81,14 @@ pending — deadline 2026-07-14.
 /app/             static frontend (index.html, app.js, styles.css) — Cloudflare Pages root
 /supabase/        seed.sql (DDL + data + RLS read-only policies)
 /supabase/functions/sentinel/   index.ts — Supabase Edge Function proxying Gemini
-/powerbi/         star-schema CSVs, measures.md (DAX), theme.json, layout_spec.md
+/powerbi/         layout_spec.md, measures.md (measure catalog), theme.json
 README.md         architecture diagram, screenshots, methodology, privacy note
 ```
 
 ### 2. Supabase (`supabase/seed.sql`)
 - Generate DDL + INSERTs from `data/clean.db` (script it; don't hand-write 1,600 inserts).
-- Add derived table `account_scores` from `outputs/account_features_scores.csv`.
+- Add the derived score tables (`transaction_scores`, `account_scores`, `customer_scores`)
+  from the model outputs, and the six `raw_*` source tables that back the live EDA explorer.
 - Enable RLS on all tables with a single `SELECT`-only policy for `anon`.
 - Env vars (already provisioned by Carlos): `SUPABASE_URL`, `SUPABASE_ANON_KEY`.
   Anon key is public-safe because of RLS; it goes in the frontend config.
@@ -96,23 +110,27 @@ Keep it read-only. Loading states + graceful errors.
   client-side; never commit it.
 - CORS: allow the Cloudflare Pages origin; frontend calls the function with the
   anon key (RLS keeps data read-only regardless).
-- Input: account_id. Server fetches that account's profile/txns/score from Supabase,
-  builds a grounded prompt, calls Gemini (gemini-2.0-flash or newer), returns JSON:
-  { risk_summary, key_factors[], recommended_action, confidence }.
-- Add a system instruction: compliance-analyst persona, cite only provided data,
-  no fabrication.
+- Input: `{ customer_id }` or `{ account_id }`; the analysis subject is always the CUSTOMER
+  (an account resolves to its holder, and the pipeline sees all of the holder's accounts).
+  Five agents (profile → behavior → anomaly interpretation → synthesis → compliance QA) run
+  over deterministic tool fetchers and return JSON: `{ risk_summary, key_factors[],
+  recommended_action, next_steps[], evidence_strength, signal_families, run_id, subject,
+  pipeline, audit[] }`. recommended_action is one of a fixed six-step ladder; there is no
+  `confidence` — `evidence_strength` (strong/moderate/limited) is computed in code from a
+  deterministic 7-family signal checklist and caps how severe the action can be.
+- System instruction: compliance-analyst persona, cite only provided data, no fabrication.
 - README privacy note: dummy data only; in production PII would be masked / model
   on-prem — this note matters for an AML audience.
 
-### 5. Power BI package (`/powerbi`)
-- Export star schema from clean.db: FactTransactions, FactAlerts, FactChargebacks,
-  FactScreening, DimCustomer, DimAccount, DimDate (generate), plus account_scores.
-- `measures.md`: DAX for every KPI above (escalation rate, FP rate, backlog aging,
-  screening coverage, structuring-band share, value through non-active accounts,
-  MoM chargeback growth).
-- `layout_spec.md`: 3 pages — Executive Overview / Risk Deep-Dive / Operations —
-  with per-visual field mapping so assembly in PBI Desktop is mechanical.
-- `theme.json`: corporate-neutral with risk accent colors.
+### 5. Power BI package (`/powerbi`) — BUILT
+- The `.pbix` model imports the nine warehouse tables (snake_case) plus two model tables:
+  `KPI` (all 22 measures, in display folders 00–05) and `DATE` (calculated calendar, marked
+  as the date table). Visible date columns are calculated and sentence-case; the physical
+  ISO-text date columns are hidden.
+- `measures.md`: catalog of the 22 measures with their DAX, generated from the live model.
+- `layout_spec.md`: the four report pages — Overview / Risk deep-dive / Controls & operations /
+  Detection layers — with per-visual field mapping.
+- `theme.json`: corporate-neutral tokens; red/amber reserved for risk semantics only.
 
 ### 6. Deploy
 - Frontend: push to GitHub via MCP `github-fe`; Cloudflare Pages is connected to the
@@ -121,8 +139,9 @@ Keep it read-only. Loading states + graceful errors.
 - Sentinel: `supabase functions deploy sentinel` + `supabase secrets set GEMINI_API_KEY`.
 
 ### 7. Submission package (Layer 1)
-- One-page executive summary (the Top-5 from EDA_FINDINGS.md, tightened).
-- .pbix built from /powerbi package.
+- One-page executive summary of the Top-5 insights (sourced from the README "Key findings"
+  section and the board's Findings tab).
+- The `.pbix` (four pages), published to web and embedded in the board.
 - Closing line linking the live board + repo.
 
 ## Access via MCP (`.mcp.json` — tokens in env vars, NEVER in files)
@@ -144,5 +163,6 @@ Keep it read-only. Loading states + graceful errors.
 ## Conventions
 - Python: pandas; keep scripts re-runnable end-to-end (`clean.py` → `anomaly.py`).
 - Never "fix" suspicious data silently — log to cleaning_log.csv pattern.
-- All counts/values in copy must trace to EDA_FINDINGS.md; if code changes numbers,
-  update the findings doc in the same commit.
+- All counts/values in copy must trace to a verified source (the live Power BI model, a
+  precomputed `app/data/*.json`, or the README "Key findings" section); if code changes
+  numbers, update the copy that cites them in the same commit.

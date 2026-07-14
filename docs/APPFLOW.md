@@ -1,213 +1,345 @@
 # APPFLOW — Fraud & Compliance Exploration Board
 
-Los cuatro flujos del sistema: el recorrido del visitante por el board, el pipeline de datos
-de SQLite crudo a Supabase y Pages, el request del sentinel de punta a punta (con sus caminos
-de degradacion) y el flujo de deploy. Fuentes: `app/js/core.js`, `app/js/tab-*.js`,
-`supabase/functions/sentinel/index.ts`, `supabase/deploy_function.py`, `wrangler.toml`.
-Docs hermanos: [UI.md](UI.md) (sistema visual) · [MOCKUPS.md](MOCKUPS.md) (wireframes) ·
-[TRD.md](TRD.md) (diseno tecnico) · [PRD.md](PRD.md) (producto).
-Fecha: 2026-07-12.
+This document describes the four runtime flows of the system: the visitor's path through the
+board, the data pipeline that carries the dummy dataset from raw SQLite to Supabase and
+Cloudflare Pages, the Compliance Sentinel request end to end (including its degradation paths),
+and the deploy flow. Sources: `app/index.html`, `app/config.js`, `app/js/core.js`,
+`app/js/tab-*.js`, `supabase/functions/sentinel/index.ts`, `supabase/deploy_function.py`,
+`supabase/rate_limit.sql`, `supabase/audit.sql`, `wrangler.toml`.
+Related documents: [PRD.md](PRD.md) (product), [TRD.md](TRD.md) (technical design),
+[DATABASE.md](DATABASE.md) (schema), [UI.md](UI.md) (visual system),
+[MOCKUPS.md](MOCKUPS.md) (wireframes), [CONVENTIONS.md](CONVENTIONS.md) (terminology and rules).
+Date: 2026-07-14. Application build: `2026-07-13-r49` (`index.html:6`).
 
 ---
 
-## 1. Flujo del visitante
+## 1. Visitor flow
 
-El board es un recorrido guiado: del resumen ejecutivo (Overview) hacia la evidencia
-(Data → EDA → Findings → ML) y remata en la maquina (AI Engine). Router por hash en
-`core.js`: cada tab es linkeable (`#overview` ... `#engine`) y se renderiza lazy en su
-primera activacion.
+The board is a single-page application served as static files from Cloudflare Pages. It presents
+**seven tabs** in a fixed order, led by the embedded Power BI report. Navigation is hash-based:
+every tab is directly linkable (`#powerbi` … `#engine`) and each tab module renders lazily on its
+first activation. The tab set and default are declared in `index.html:25-31` and `core.js:99,164`.
 
-```
-Visitante llega (Cloudflare Pages)
-        |
-        v
-FE.boot()  -- en paralelo: data/eda_stats.json + data/model_sensitivity.json
-        |     + 8 tablas via PostgREST (paginado Range de a 1,000)
-        |     -> computeKpis(): una sola fuente para tiles y popups
-        v
-#overview  OVERVIEW — 8 KPI tiles (grid 4x2, MOCKUPS §2)
-        |
-        |  click en un tile
-        v
-POPUP (modal): definicion + formula viva + why it matters + link al tab
-        |
-        |  click en "See the full picture in the <tab> tab ->"
-        v
-#data      DATA — 8 tablas crudas, filtros derivados por tipo de columna
-        |
-        v
-#eda       EDA — proceso en 6 pasos (cleaning log en vivo, stats, charts)
-        |
-        v
-#findings  FINDINGS — 6 hallazgos tematicos, cada uno con su chart de evidencia
-        |
-        v
-#ml        ML MODEL — model card + sweep de sensibilidad + cuentas anomalas
-        |
-        v
-#engine    AI ENGINE — pipeline visible + guardrails + runner en vivo
-        |
-        |  selecciona cuenta + Analyze  (~30 s, 5 llamadas secuenciales)
-        v
-POST al sentinel -> 5 stages pulsing -> verdict + audit por agente (§3)
-```
+| # | Hash / `data-tab` | Button label | Panel and module |
+|---|---|---|---|
+| 1 | `powerbi`  | Power BI  | `#tab-powerbi`, `tab-powerbi.js` — default tab |
+| 2 | `eda`      | EDA       | `#tab-eda`, `tab-eda.js` — the raw-data explorer |
+| 3 | `etl`      | ETL       | `#tab-etl`, `tab-etl.js` |
+| 4 | `dss`      | DSS       | `#tab-dss`, `tab-dss.js` |
+| 5 | `findings` | Findings  | `#tab-findings`, `tab-findings.js` — the KPI surface |
+| 6 | `ml`       | ML Model  | `#tab-ml`, `tab-ml.js` |
+| 7 | `engine`   | AI Engine | `#tab-engine`, `tab-engine.js` — the Sentinel runner |
 
-Notas:
-- Si `boot()` falla, ningun tab se renderiza: banner de error global con retry (UI §5).
-- La navegacion tambien funciona directo por URL con hash; hash desconocido cae a
-  `overview` (`activateTab` en `core.js`).
+There is no Overview tab and no Data tab. The former data explorer is now the **EDA** tab, and
+the KPI grid lives in the **Findings** tab rather than a standalone overview.
 
-## 2. Flujo de datos
-
-Pipeline reproducible de punta a punta: cada paso es un script re-ejecutable y ningun
-numero se edita a mano (CONVENTIONS §2). Rama izquierda: el dato servido (Supabase).
-Rama derecha: los estadisticos precalculados que viajan como JSON estatico con el frontend.
+### Boot sequence (`core.js:128-171`)
 
 ```
-data/Risk_and_compliance_dummy_dataset.db     (SQLite crudo, 6 tablas sucias)
+Visitor loads the page (Cloudflare Pages serves /app)
         |
         v
-analysis/clean.py  ------------------------>  outputs/cleaning_log.csv
-        |                                     (31 issues, cero fixes silenciosos)
-        v
-data/clean.db      (SQLite limpio)
+FE.boot()
+  1. Wire UI: tab-button clicks -> goTo(tab); window 'hashchange' -> activateTab;
+     modal close button, backdrop click and Escape key.
+  2. Fetch six precomputed JSON artifacts from /app/data in parallel:
+       eda_stats.json, model_sensitivity.json, cleaning_examples.json,
+       model_validation.json, tier1_validation.json, tier3_validation.json
+     -> state.stats / sensitivity / examples / validation / tier1 / tier3
+  3. Fetch the 10 clean tables from Supabase (PostgREST) in parallel, each
+     paginated with Range headers (1,000 rows per page, supabaseFetchAll):
+       customers, accounts, transactions, compliance_alerts, sanctions_screening,
+       chargebacks, account_scores, transaction_scores, customer_scores, cleaning_log
+     (transactions ordered transaction_date desc, transaction_id asc) -> state.data
+  4. Fetch the 6 raw source tables in parallel (raw_customers … raw_chargebacks)
+     -> state.raw  (exploration-only; analysis always reads state.data)
+  5. computeKpis() -> state.kpis  (one derived-number source for the Findings
+     tiles and their popups; reads state.data plus state.stats)
+  6. state.ready = true; hide #global-loading;
+     activateTab(location.hash.slice(1) || "powerbi")
         |
-        +--------------------------------------------+
-        |                                            |
-        v                                            v
-analysis/anomaly.py                        analysis/export_eda_stats.py
-  Isolation Forest 300 trees / 8%                    |
-        |                                            v
-        v                                  app/data/eda_stats.json
-outputs/account_features_scores.csv                  |
-outputs/anomalous_accounts.csv             analysis/model_sensitivity.py
-        |                                            |
-        v                                            v
-supabase/generate_seed.py                  app/data/model_sensitivity.json
-        |                                            |
-        v                                            |
-supabase/seed.sql                                    |
-  (DDL + INSERTs + RLS SELECT-only)                  |
-        |                                            |
-        v                                            v
-supabase/apply_seed.py                     Cloudflare Pages
-        |                                    (sirve /app como estaticos)
-        v                                            |
-Supabase Postgres  (8 tablas; anon = solo SELECT)    |
-        |                                            |
-        v                                            v
-PostgREST /rest/v1  ----------------->  navegador: FE.boot()
-  (supabaseFetchAll pagina con                (junta ambas ramas en
-   headers Range 0-999, 1000-1999, ...)        window.FE.state)
+        |  on any failure in steps 2-5:
+        v
+  hide #global-loading; show #global-error banner with a retry link (reload)
 ```
 
-Notas:
-- Las 8 tablas servidas: `customers`, `accounts`, `transactions`, `compliance_alerts`,
-  `sanctions_screening`, `chargebacks`, `account_scores` (derivada del modelo) y
-  `cleaning_log` (el audit trail de limpieza, servido como dato).
-- Division de responsabilidad: lo que es join/filtro se computa en vivo en el navegador
-  (`computeKpis`, `tab-findings.js`); lo que es estadistica (percentiles, Cramer's V,
-  sweep del modelo) viene precalculado en los JSON — asi cada cifra traza a un script.
+The three network waves are awaited in sequence (JSON, then clean tables, then raw tables); the
+requests within each wave run concurrently. Until `state.ready` is true no tab renders its body,
+so a boot failure surfaces the global error banner rather than a half-populated tab.
 
-## 3. Flujo del sentinel end-to-end
+### Tab router and lazy rendering (`core.js:97-119`)
 
-Un POST dispara el pipeline de 5 agentes dentro del Edge Function
-(`supabase/functions/sentinel/index.ts`). Detalle de agentes y wrapper en TRD §4-§5.
+`activateTab(name)` resolves an unknown or empty hash to `powerbi`, toggles the `active` class on
+the tab buttons and the `hidden` class on the panels, and — only when `state.ready` is true and the
+tab has not rendered before — calls `tabs[name].render(panel)` once and marks it `rendered`. It then
+syncs the URL hash with `history.replaceState`. `goTo(name)` activates the tab and scrolls to the
+top. A `hashchange` listener routes back-and-forward navigation and pasted `#hash` URLs through the
+same `activateTab`.
+
+### What each tab renders
+
+- **Power BI** (`tab-powerbi.js`) — embeds the published report (`CFG.POWERBI_URL`, a Power BI
+  "Publish to web" link) in a responsive 16:9 iframe with an "Open full screen" link.
+- **EDA** (`tab-eda.js`) — the explorer over the six `raw_*` source tables (as delivered,
+  pre-cleaning). Step 1 (Database) offers a table picker and two views: **Rows** (25 per page,
+  sortable columns, and on-demand removable filter chips whose widget is derived from the detected
+  column kind — categorical, number, date or free text) and **Profile** (per column: detected type,
+  non-null share, distinct count, primary-key detection, an amber flag when more than 20% is empty,
+  and min/median/max for numeric columns). Step 2 (Data quality — raw source) computes duplicate
+  primary keys and empty-column warnings live on the raw tables. This tab is the deep-link target
+  described below.
+- **ETL** (`tab-etl.js`) — the cleaning applied in response to what EDA surfaced. Step 1 serves the
+  audit trail live from the `cleaning_log` table (31 logged treatments); each treatment with
+  captured examples expands to before→after rows from `cleaning_examples.json`. Step 2 validates the
+  cleaned data live: row counts against the pipeline's expected totals (customers 83, accounts 105,
+  transactions 1,600, compliance_alerts 65, sanctions_screening 95, chargebacks 70), foreign-key
+  integrity, duplicate primary keys and empty-column warnings.
+- **DSS** (`tab-dss.js`) — descriptive and sampling statistics over the cleaned data, drawn from
+  `eda_stats.json`: transaction-amount descriptives, four distribution/trend charts, and a
+  categorical association table (Cramér's V) with a Spearman note.
+- **Findings** (`tab-findings.js`) — the live KPI surface: **eight KPI tiles**, each opening a modal
+  with its definition, its exact live formula and why it matters, followed by thematic deep-dive
+  cards each carrying an evidence chart. Several cards expose drill links into the EDA explorer.
+  Join/filter figures are computed live via `computeKpis`; statistical figures come from
+  `eda_stats.json`.
+- **ML Model** (`tab-ml.js`) — the three-tier detection model. Tier 1 (transaction level) shows the
+  method and a table of the highest-scored anomalous transactions with driver chips and a
+  rules-engine comparison. Tier 2 (account level) documents the Isolation Forest
+  (`n_estimators=300, contamination=0.08, random_state=42`, 16 features), a parameter-sensitivity
+  sweep, validation checks (generalization, seed stability, convergent validity, score distribution,
+  feature ablation), the ranked anomalous accounts with bootstrap confidence and never-alerted flags,
+  and an in-browser verification that recomputes every account score client-side (`iforest.js`) and
+  matches it against the pipeline, plus a per-account detail view. Tier 3 (customer level) ranks
+  customers and opens a customer-overview modal with the full cross-table record; that modal links
+  to the AI Engine tab, preselecting the customer for analysis.
+- **AI Engine** (`tab-engine.js`) — the Sentinel made visible: the pipeline diagram, the five agent
+  cards with their tools and outputs, the guardrail grid, and the live runner (see section 3).
+
+### Deep-linking into the EDA explorer (`core.js:112-119`, `tab-eda.js:244-261`)
+
+Findings deep-dive cards call `FE.openData(table, presetFilters)`. This stashes a pending preset
+(`{ table, filters }`), routes to the EDA tab with `goTo("eda")`, and applies the preset. Each
+filter is `{ col, kind, value }`, where `kind` is one of `categorical`, `min`, `max`, `from`, `to`
+or `contains`. If the EDA tab has already rendered, `applyPreset()` runs immediately; otherwise the
+tab consumes the pending preset (`peekDataPreset` / `takeDataPreset`) on its first render. The
+explorer selects the target table, adds the requested filter chips and shows the filtered rows.
+
+---
+
+## 2. Data flow
+
+The pipeline is reproducible end to end: each step is a re-runnable script and no number is edited
+by hand. One branch produces the data served from Supabase; a second branch produces the precomputed
+statistics and validation artifacts that ship as static JSON with the frontend; a third branch loads
+the warehouse tables into BigQuery for the Power BI report (Layer 1).
 
 ```
-POST /functions/v1/sentinel   body: { account_id }
+data/Risk_and_compliance_dummy_dataset.db      (raw SQLite; 6 dirty source tables)
+        |
+        v
+analysis/clean.py  --------------------------> outputs/cleaning_log.csv
+        |                                       (audit trail; no silent fixes)
+        v
+data/clean.db      (cleaned SQLite)
+        |
+        +-------------------+-----------------------------+
+        |                   |                             |
+        v                   v                             v
+THREE-TIER MODEL     STATIC ARTIFACTS               POWER BI (Layer 1)
+tier1_transactions.py  export_eda_stats.py          analysis/load_bigquery.py
+account_features.py    model_sensitivity.py           imports the 9 warehouse
+  + anomaly.py         model_validation.py             tables into BigQuery;
+tier3_customers.py     export_cleaning_examples.py     the .pbix model reads them
+  |                    export_model.py                  (published, embedded in
+  |  transaction /       |                               the Power BI tab)
+  |  account /           v
+  |  customer          app/data/*.json  (six files loaded at boot,
+  |  score tables        plus the exported Isolation Forest for
+  |                      in-browser verification via iforest.js)
+  v                       |
+SERVING LAYER             |
+supabase/generate_seed.py         supabase/generate_raw_seed.py
+        |                                 |
+        v                                 v
+supabase/seed.sql                 supabase/raw_seed.sql
+  (10 clean tables incl. score       (6 raw_* source tables, pre-cleaning,
+   tables + cleaning_log;             for the EDA explorer + integrity panel)
+   RLS SELECT-only for anon)          |
+        |                             |
+        +--------------+--------------+
+                       v
+              supabase/apply_seed.py -> Supabase Postgres
+                       |
+                       v
+              PostgREST /rest/v1
+                       |
+                       v            +--- Cloudflare Pages serves /app (static JSON branch)
+              browser: FE.boot() <--+
+                (merges both branches into window.FE.state)
+```
+
+Notes:
+
+- The 10 clean tables served into `state.data` (`core.js:7-9`) are `customers`, `accounts`,
+  `transactions`, `compliance_alerts`, `sanctions_screening`, `chargebacks`, `account_scores`,
+  `transaction_scores`, `customer_scores` and `cleaning_log`. The three score tables are the
+  outputs of the three-tier model; `cleaning_log` is the cleaning audit trail served as data.
+- The 6 raw source tables served into `state.raw` (`core.js:13-14,158-160`) are `raw_customers`,
+  `raw_accounts`, `raw_transactions`, `raw_compliance_alerts`, `raw_sanctions_screening` and
+  `raw_chargebacks`. They exist so the EDA explorer and the ETL integrity panel can identify the
+  original quality issues live.
+- Row-level security allows the public `anon` role `SELECT` only, which is why the anon key ships
+  safely in `app/config.js`.
+- Division of responsibility: anything that is a join or filter is computed live in the browser
+  (`computeKpis`, `tab-findings.js`, the ETL and EDA integrity checks); anything statistical
+  (descriptives, associations, the model sensitivity sweep and validation) is precomputed and
+  travels as JSON, so every figure traces back to a script.
+
+---
+
+## 3. Compliance Sentinel flow (end to end)
+
+A single POST drives a five-agent pipeline inside the Supabase Edge Function
+(`supabase/functions/sentinel/index.ts`, pipeline `v3.1`). The subject of the analysis is always
+the **customer**: an `account_id` input resolves to its holder, and the pipeline then sees all of
+that holder's accounts. The in-app runner (`tab-engine.js`) posts `{ customer_id }` with the anon
+key as the bearer token.
+
+```
+POST /functions/v1/sentinel   body: { customer_id } (CUST0000) OR { account_id } (ACC00000)
   |
-  |   OPTIONS ------------------> 200 (CORS: ALLOWED_ORIGINS
-  |                                    + *.fraud-exploration.pages.dev)
-  |   metodo != POST -----------> 405
-  |   falta GEMINI_API_KEY -----> 503
+  |   OPTIONS ------------------> 200 (CORS: fraud-exploration.pages.dev,
+  |                                    *.fraud-exploration.pages.dev, localhost:8000)
+  |   method != POST -----------> 405
+  |   GEMINI_API_KEY missing ---> 503
   v
-VALIDACION
-  |   body no es JSON ----------> 400
-  |   no matchea ^ACC\d{5}$ ----> 400
+VALIDATION (index.ts:443-453)
+  |   body is not JSON ---------> 400
+  |   matches neither
+  |   ^CUST\d{4}$ nor ^ACC\d{5}$ > 400
   v
-RATE LIMITER — RPC sentinel_hit(ip, 8/min, 250/dia)   [atomico, en Postgres]
-  |   limite alcanzado ---------> 429
-  |   RPC caido ----------------> fail open (una caida del limiter
-  |                                no tumba la demo)
+RATE LIMITER (index.ts:455-459)  RPC sentinel_hit(ip, 8/min, 250/day)  [atomic, in Postgres]
+  |   over the limit -----------> 429
+  |   RPC outage ---------------> FAIL OPEN (a limiter outage must not take the demo down)
   v
-LOOKUP CUENTA — accounts?account_id=eq.{id}&select=customer_id
-  |   no existe ----------------> 404
+RESOLVE SUBJECT TO THE CUSTOMER (index.ts:461-477)
+  |   account_id given -> look up holder; unknown account -> 404
+  |   fetch ALL of the customer's accounts; no accounts (KYC-only record) -> 404
   v
 run_id = crypto.randomUUID()
   v
-LOOP x5 agentes (secuencial):  profile_analyst -> behavior_analyst ->
-  |                            anomaly_interpreter -> risk_synthesizer ->
-  |                            compliance_reviewer
-  |
-  |  por agente:
-  |   1. TOOLS declarados (least privilege): fetchers deterministas;
-  |      full_name y date_of_birth jamas se seleccionan (pseudonimo
-  |      "Customer CUST0000"); los 2 agentes heavy no tienen tools,
-  |      reciben las notas previas
-  |   2. SANITIZE — sanitizeDeep(): control chars -> espacio,
-  |      ``` -> ', strings cap a 300 chars, recursivo
-  |   3. PROMPT — persona + instruccion + <data>JSON</data>
-  |      (todo dato enmarcado como DATA de terceros, no instrucciones)
-  |   4. callModel(): cadena preferido -> fallbacks (max 3 modelos:
-  |      gemini-flash-latest -> flash-lite-latest -> 2.0-flash);
-  |      preferido 2 intentos con backoff 500ms*intentos, resto 1;
-  |      timeout 25 s; responseSchema JSON; temperature 0.2;
-  |      API key en header x-goog-api-key (nunca en la URL)
-  |
-  |  DEGRADACION (3 caminos):
-  |   - nota de analista (fast) caida --> placeholder
-  |     { risk_level: "medium", assessment: "unavailable", key_points: [] }
-  |     y el pipeline sigue: el synthesizer ve lo que exista
-  |   - reviewer caido con draft ------> final = draft del synthesizer,
-  |     flaggeado en el audit (ok: false en su fila)
-  |   - synthesizer caido -------------> throw -> 500
+BUILD SIGNAL CHECKLIST (buildSignalChecklist, index.ts:288-311)  [deterministic, in code]
+  |   7 families over transaction_scores / account_scores / customer_scores:
+  |     tier-1 outlier transactions · anomalous accounts (hard) ·
+  |     anomalous customer model · cross-account structuring days (hard) ·
+  |     never screened · post-match activity (hard) · sanctioned or non-active flows
+  |   evidence_strength = strong (>=3 present incl. >=1 hard)
+  |                     / moderate (>=2) / limited (else)
   v
-PERSISTIR AUDIT — INSERT en sentinel_audit (service-role only):
-  |   run_id, account_id, agente, modelo usado, intentos, fallback,
-  |   latencia, ok — un fallo aqui se loggea pero NO es fatal
+FIVE AGENTS, SEQUENTIAL (AGENTS, index.ts:324-370)
+  |   profile_analyst   (fast)  tools: profileFetcher, screeningFetcher
+  |   behavior_analyst  (fast)  tools: txnAggregator, txnSampler, txnOutlierFetcher, alertFetcher
+  |   anomaly_interpreter(fast) tools: scoreFetcher
+  |   risk_synthesizer  (heavy) no tools; sees the three notes + the signal checklist -> draft
+  |   compliance_reviewer(heavy)no tools; QA-checks the draft against the notes  -> final
+  |
+  |  per agent:
+  |   1. run the agent's declared tools only (least privilege). The 7 deterministic tools
+  |      never select full_name or date_of_birth; the customer is pseudonymized as
+  |      "Customer CUST0000".
+  |   2. sanitizeDeep(): strip control chars, replace code fences, cap strings to 300 chars,
+  |      applied recursively to every tool payload.
+  |   3. build the prompt: PERSONA + DATA_FRAME + task instruction + <data>JSON</data>
+  |      (all account data framed as third-party DATA, never as instructions).
+  |   4. callModel(): preferred model then fallback chain, max 3 models
+  |        [gemini-flash-latest, gemini-flash-lite-latest, gemini-2.0-flash];
+  |      preferred retried twice, fallbacks once; backoff 500ms * attempts;
+  |      25s timeout; responseSchema JSON; temperature 0.2;
+  |      API key in the x-goog-api-key header, never in the URL.
+  |      (heavy tier = gemini-flash-latest, fast tier = gemini-flash-lite-latest;
+  |       both overridable via the GEMINI_MODEL / GEMINI_MODEL_FAST secrets.)
+  |
+  |  DEGRADATION (index.ts:400-410):
+  |   - an analyst note (fast) returns null -> placeholder
+  |     { risk_level: "medium", assessment: "unavailable", key_points: [] };
+  |     the pipeline continues and the synthesizer sees whatever exists
+  |   - the reviewer returns null but a draft exists -> ship the synthesizer's draft,
+  |     flagged in the audit (ok: false on its row)
+  |   - the synthesizer (draft) returns null -> throw -> 500
   v
-200 JSON:
-  { risk_summary, key_factors[], recommended_action, confidence,
-    run_id, pipeline: "v2", audit[] }
+PERSIST AUDIT (persistAudit, index.ts:415-428)  INSERT into sentinel_audit (service-role only):
+  |   run_id, account_id (the customer id), agent, model_used, attempts,
+  |   fallback_used, latency_ms, ok — a failure here is logged, never fatal
+  v
+200 JSON (index.ts:483-497):
+  { ...final (risk_summary, key_factors[], recommended_action, next_steps[]),
+    evidence_strength,                 // code-computed value overrides the model's echo
+    signal_families { present, total, list[] },
+    run_id, subject, pipeline: "v3.1",
+    audit[] (per agent: agent, model_used, attempts, fallback_used, latency_ms, ok) }
+  (There is no `confidence` field.)
         |
         v
-frontend (tab-engine.js): stages done/failed + latencias,
-verdict con badge de accion, tabla de audit por agente (MOCKUPS §8)
+frontend (tab-engine.js): stages marked done/failed with latencies; the verdict renders the
+recommended-action badge, evidence strength with "N of M signal families", key factors, next
+steps, the signals present, and the per-agent audit table.
 ```
 
-## 4. Flujo de deploy
+Additional detail:
 
-Dos artefactos, dos caminos independientes. Detalle en TRD §9.
+- **Recommended action** is one of a fixed six-step ladder (`ACTIONS`, `index.ts:251-258`): Close as
+  false positive · Continue standard monitoring · Enhanced monitoring · Initiate sanctions screening
+  · Request KYC refresh / documentation · Escalate to compliance review. The `ACTION_RUBRIC`
+  (`index.ts:260-271`) caps severity by evidence strength: `limited` allows only Close/Continue/
+  Initiate screening; `moderate` additionally allows Enhanced monitoring and KYC refresh; Escalate
+  requires `strong`. The handler overwrites the model's `evidence_strength` with the checklist's
+  computed value, so the cap is deterministic.
+- **The seven tools** (`TOOLS`, `index.ts:133-175`): `profileFetcher`, `screeningFetcher`,
+  `txnAggregator`, `txnSampler`, `txnOutlierFetcher`, `scoreFetcher`, `alertFetcher`.
+- **CORS** (`corsHeaders`, `index.ts:38-48`): the allow-list is `fraud-exploration.pages.dev`,
+  any `*.fraud-exploration.pages.dev` subdomain, `localhost:8000` and `127.0.0.1:8000`; other
+  origins fall back to the first allowed origin.
+- **Rate limiting** is enforced in Postgres, not in-process, because edge isolates do not share
+  memory. `sentinel_hit` (`supabase/rate_limit.sql`) atomically increments a per-IP minute counter
+  and a global daily counter and returns whether both are within limits; the tables are
+  service-role only.
+
+---
+
+## 4. Deploy flow
+
+There are two independently deployed artifacts. The data serving layer is provisioned once and is
+not part of either deploy.
 
 ```
-FRONTEND (estaticos)                     SENTINEL (Edge Function)
---------------------                     -----------------------
-git push a main (GitHub)                 cambio en functions/sentinel/index.ts
-        |                                        |
-        v                                        v
-Cloudflare Pages                         python supabase/deploy_function.py
-  (integracion Git: build en push)         (auth: SUPABASE_ACCESS_TOKEN
-  lee wrangler.toml:                        en env var; sin Docker, sin CLI)
-    pages_build_output_dir = "app"               |
-    sin comando de build                         v
-        |                                Supabase Management API
-        v                                  POST /v1/projects/{ref}
-https://fraud-exploration.pages.dev            /functions/deploy?slug=sentinel
-  (sirve /app tal cual)                    multipart: metadata (entrypoint
-                                           index.ts, verify_jwt: true)
-                                           + el fuente index.ts
-                                                 |
-                                                 v
-                                         Edge Function sentinel en vivo
-                                           (secrets aparte:
-                                            GEMINI_API_KEY y overrides
-                                            GEMINI_MODEL / _FAST via
-                                            Supabase secrets)
+FRONTEND (static site)                    SENTINEL (Edge Function)
+----------------------                    ------------------------
+git push to main (GitHub)                 change functions/sentinel/index.ts
+        |                                         |
+        v                                         v
+Cloudflare Pages (Git integration)        supabase functions deploy sentinel
+  builds on every push; reads               (or the repo's Management-API path:
+  wrangler.toml:                             python supabase/deploy_function.py —
+    name = "fraud-exploration"               multipart upload, no Docker, no CLI;
+    pages_build_output_dir = "app"           auth via SUPABASE_ACCESS_TOKEN;
+    (no build command)                        metadata entrypoint index.ts,
+        |                                      verify_jwt: true)
+        v                                         |
+https://fraud-exploration.pages.dev              v
+  (serves /app as-is)                     Edge Function 'sentinel' live
+                                            secrets set separately:
+                                              GEMINI_API_KEY (required),
+                                              optional GEMINI_MODEL /
+                                              GEMINI_MODEL_FAST overrides
 ```
 
-Notas:
-- El seed de datos NO es parte del deploy: se corre una vez con
-  `supabase/apply_seed.py` (§2) y el board lee siempre lo mismo.
-- El frontend no tiene paso de build: `wrangler.toml` solo declara que la raiz
-  publicable es `app/`.
+Notes:
+
+- The frontend has no build step. `wrangler.toml` only declares that the publishable root is
+  `app/`; Cloudflare Pages serves those files directly and needs no local Cloudflare credentials.
+- `GEMINI_API_KEY` is server-side only. It is stored as a Supabase secret and is never exposed to
+  the client or committed to the repository.
+- The data serving layer is provisioned once and stays fixed for the board: `apply_seed.py` loads
+  `seed.sql` (the 10 clean tables with SELECT-only RLS) and `raw_seed.sql` (the 6 `raw_*` tables),
+  and the guard tables are applied through the Management API — `rate_limit.sql` (the `sentinel_hit`
+  RPC and its usage tables) and `audit.sql` (the `sentinel_audit` table).

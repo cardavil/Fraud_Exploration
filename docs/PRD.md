@@ -1,79 +1,121 @@
 # PRD — Fraud & Compliance Exploration Board
 
-Definicion de producto del board publico de exploracion de riesgo y compliance.
-Terminologia canonica y reglas de codigo/documentacion en [CONVENTIONS.md](CONVENTIONS.md); analisis completo en [../outputs/EDA_FINDINGS.md](../outputs/EDA_FINDINGS.md).
-Fecha del documento: 2026-07-12. Codigo = fuente de verdad (CONVENTIONS §3).
+Product definition for the public fraud-and-compliance exploration board.
+Canonical terminology and code/documentation rules are in [CONVENTIONS.md](CONVENTIONS.md);
+the technical design is in [TRD.md](TRD.md).
+Document date: 2026-07-14. The code is the source of truth (CONVENTIONS §3): every claim
+below is written to match the deployed frontend (`app/`) and Edge Function
+(`supabase/functions/sentinel/index.ts`).
 
 ---
 
-## 1. Problema
+## 1. Product context and goals
 
-Un dataset dummy de riesgo y compliance (6 tablas SQLite, sucio: duplicados, whitespace,
-casing inconsistente, flags PEP vacios) esconde hallazgos materiales — brecha de escalamiento,
-matches de sanciones sin resolver, structuring, controles de estado de cuenta no aplicados,
-monitoreo mal calibrado. El entregable clasico (dashboard + resumen ejecutivo) muestra el
-resultado pero no el proceso.
+A dummy risk-and-compliance dataset (six source tables, delivered dirty: duplicate keys,
+whitespace, inconsistent casing, empty PEP flags) conceals material findings — an escalation
+gap, unresolved sanctions matches, structuring under the reporting threshold, unenforced
+account-status controls, and mis-calibrated monitoring. The classic deliverable (a dashboard
+plus an executive summary) shows the result but not the process.
 
-Este producto convierte ese analisis en una **herramienta self-serve** que evidencia el
-proceso analitico completo: limpieza auditada → EDA → deteccion de anomalias interpretable →
-capa de servicio solo-lectura → board web con un sentinelo de IA aterrizado en los datos servidos.
+This product is a **two-layer portfolio project**:
 
-**Contexto**: proyecto de portfolio (Layer 2 de un hiring assessment). Disclaimer permanente:
-sin afiliacion con ninguna empresa de pagos; datos 100% dummy; ningun dato real de clientes.
-Los 5 insights del assessment NO son UI: viven en `reports/EXECUTIVE_SUMMARY.md` (Layer 1).
+- **Layer 1 — the mandated deliverable.** A Power BI report (four pages) plus a concise
+  executive summary of the headline insights. It must stand alone.
+- **Layer 2 — the differentiator.** A live "Fraud & Compliance Exploration Board": a static
+  frontend on Cloudflare Pages over a read-only Supabase Postgres serving layer, plus a
+  Gemini-backed "Compliance Sentinel" Edge Function. The Power BI report is **embedded as the
+  board's first tab**, so both layers are reachable from one surface.
+
+**Goals**
+
+- Make the full analytical path inspectable end to end: raw data → audited cleaning →
+  descriptive statistics → interpretable anomaly detection → a grounded AI risk narrative.
+- Keep every published figure reproducible and traceable to the code that computes it.
+- Serve everything read-only from a public serving layer that is safe to expose.
+- Demonstrate a production-shaped AI pipeline (least-privilege tools, PII anonymization,
+  injection defenses, deterministic evidence scoring, audit trail) on synthetic data.
+
+**Standing disclaimer.** No affiliation with any payments company; the dataset is 100% dummy;
+no real customer data is present. The headline insights live in the README "Key findings"
+section and in the board's Findings tab (there is no separate findings document).
+
+### Architecture
 
 ```
-SQLite sucio ──> clean.py ──> clean.db ──> anomaly.py ──> scores
-                    │  (audita a cleaning_log)              │
-                    └────────── generate_seed.py <──────────┘
-                                     │
-                                     v
-                    Supabase Postgres (RLS: SELECT-only para anon)
-                       │                          │
-             anon key  │ (solo SELECT)            │ service role
-                       v                          v
-          Board estatico (Cloudflare Pages)   Edge Function sentinel ──> Gemini API
-                       │                          ^
-                       └───── POST {account_id} ──┘
+analysis/clean.py ──► clean data ──► analysis/anomaly.py + account_features.py ──► three-tier scores
+        │  (every treatment audited to cleaning_log)                                       │
+        └──────────────────────────► supabase/seed.sql ◄──────────────────────────────────┘
+                                             │
+                                             ▼
+                         Supabase Postgres  (RLS: SELECT-only for anon)
+                            │                                     ▲
+                  anon key  │ (SELECT only)                       │ service role
+                            ▼                                     │
+          Board — static frontend (Cloudflare Pages)      sentinel Edge Function ──► Gemini API
+                            │                                     ▲
+                            └──── POST { customer_id | account_id } ┘
 ```
 
-## 2. Modelo funcional: quien ve que, quien hace que
+## 2. Functional model — who sees what, who does what
 
-| Actor | Ve | Hace | NO hace |
+| Actor | Sees | Does | Does NOT |
 |---|---|---|---|
-| **Visitante** | Los 6 tabs completos, KPIs vivos, datos de las 8 tablas, charts, model card, pipeline del sentinel | Navega por hash, filtra el explorador, abre popups KPI, corre el sentinel sobre una cuenta | NO escribe nada; NO se autentica; NO ve PII (los datos son dummy y ademas se pseudonimizan en el sentinel) |
-| **Board / sistema** | Las 8 tablas servidas por PostgREST + `eda_stats.json` y `model_sensitivity.json` estaticos | Lee via anon key con RLS SELECT-only; calcula los KPIs en cliente; renderiza charts SVG | NO escribe en Postgres (sin policy de escritura y privilegios revocados); NO llama a Gemini directo |
-| **Sentinel** (Edge Function) | Perfil, screening, transacciones, alertas y scores de UNA cuenta via service role | Corre el pipeline de 5 agentes; escribe SOLO `sentinel_audit` y los contadores de rate limit (RPC `sentinel_hit`) | NO escribe en tablas de datos; NO expone la API key (viaja en header server-side); NO toma decisiones — recomienda |
-| **Owner** | Todo el repo, la consola de Supabase, Cloudflare Pages | Mantiene pipeline Python, seed, secrets y deploy; corrige docs en el mismo commit que el codigo | NO commitea tokens ni datos personales; NO edita datos servidos a mano |
+| **Visitor** | All seven tabs; the embedded Power BI report; the live KPI surface; the raw source tables and the cleaned/scored tables; charts; the ML model tiers; the Sentinel pipeline | Navigates by hash; explores and filters the raw source tables; opens KPI popups; drills from a finding into the explorer; runs the Sentinel on a customer | Writes nothing; does not authenticate; never sees PII (data is dummy and the Sentinel additionally pseudonymizes the customer) |
+| **Board / frontend** | The 10 cleaned tables plus the 6 raw source tables via PostgREST, and the static analysis JSON files in `app/data/` | Reads through the public anon key under RLS SELECT-only; computes the KPIs client-side; renders SVG charts and, for the account model, recomputes every score in-browser | Does not write to Postgres (no write policy, privileges revoked); does not call Gemini directly |
+| **Compliance Sentinel** (Edge Function) | The profile, screening, transactions, alerts and three-tier scores for every account a customer holds, via the service role | Runs the five-agent pipeline; computes the evidence checklist; writes ONLY to `sentinel_audit` and the rate-limit counters (RPC `sentinel_hit`) | Does not write to data tables; does not expose the API key (server-side header only); does not decide — it recommends |
+| **Author / operator** | The full repository, the Supabase console and Cloudflare Pages | Maintains the Python pipeline, the seed, secrets and deploys; corrects docs in the same commit as the code | Does not commit tokens or personal data; does not hand-edit served data |
 
-## 3. Los 6 tabs y su proposito
+## 3. The seven tabs and their purpose
 
-| Tab | Proposito | Fuente de datos |
-|---|---|---|
-| **Overview** | Superficie ejecutiva: 8 KPI tiles calculados en vivo; cada tile abre un popup con definicion, formula exacta con valores vivos, por que importa y link al tab de profundizacion | Las 8 tablas via anon key (`state.kpis` derivado en cliente) |
-| **Data** | Explorador de las 8 tablas servidas, con filtros derivados de los propios datos y paginacion | PostgREST (anon key, SELECT-only) |
-| **EDA** | El proceso analitico en 6 pasos, con el cleaning log vivo (31 issues auditados por `clean.py`) | Tabla `cleaning_log` + `app/data/eda_stats.json` |
-| **Findings** | 6 cards tematicos con charts SVG y tooltip "how to read" por chart | `eda_stats.json` + tablas servidas |
-| **ML Model** | Model card del Isolation Forest (300 arboles, 8% contamination, features por cuenta) + sweep real de sensibilidad | Tabla `account_scores` + `app/data/model_sensitivity.json` |
-| **AI Engine** | Pipeline visual de los 5 agentes, guardrails, y el runner en vivo del sentinel con tabla de auditoria por agente | Edge Function `sentinel` (POST `{account_id}`) + `account_scores` para el selector |
+The board renders seven tabs, in this order. The default landing tab is **Power BI**; each tab
+is addressable by hash and rendered lazily on first activation.
 
-Los 8 KPIs de Overview (de `app/js/tab-overview.js`): unalerted high-risk value, escalation gap,
-screening coverage, false-positive rate, unresolved Critical/High, value through non-active
-accounts, structuring-band share, chargeback growth.
+| Tab | Hash | Purpose | Data source |
+|---|---|---|---|
+| **Power BI** | `#powerbi` | Default tab. Embeds the published Layer-1 report (Publish-to-web) in a responsive frame, with an "open full screen" link | `POWERBI_URL` embed (`app/config.js`) |
+| **EDA** | `#eda` | The data explorer. Step 1 (Database) browses the six raw source tables with on-demand filters and sortable columns (Rows view) and profiles each column — type, completeness, uniques, primary key, empties (Profile view). Step 2 summarizes the data-quality issues computed live on the raw source. Drill-downs from Findings land here | Raw source tables in `state.raw` |
+| **ETL** | `#etl` | The audited cleaning, applied in response to what the EDA surfaced. The treatment log is served live from the `cleaning_log` table; each treatment expands into real before/after examples; the tab closes with an integrity panel (counts, foreign keys, duplicate keys, empties) computed live over the cleaned data | `cleaning_log` + cleaned tables + `app/data/cleaning_examples.json` |
+| **DSS** | `#dss` | Descriptive and sampling statistics over the cleaned data: transaction-amount descriptives, distributions and monthly trends, and categorical association / rank correlation (Cramér's V, Spearman) | `app/data/eda_stats.json` |
+| **Findings** | `#findings` | The KPI surface — eight live tiles, each opening a popup with its definition, the exact formula interpolated with live values, and why it matters — followed by thematic finding cards, each with an evidence chart and a "how to read" note and, where applicable, a drill-down into the EDA explorer | Cleaned tables (client-computed KPIs) + `eda_stats.json` |
+| **ML Model** | `#ml` | Three-tier anomaly detection: Tier 1 (transaction level), Tier 2 (account level, with method, parameter sensitivity, validation, results, and in-browser verification and account detail), and Tier 3 (customer level, with the customer ranking). A "Customer overview" modal is the single customer-level view, opened from the account detail and from the Tier-3 ranking | Score tables + `app/data/model_sensitivity.json`, `model_validation.json`, `tier1_validation.json`, `tier3_validation.json` |
+| **AI Engine** | `#engine` | The Compliance Sentinel made visible: the agent pipeline, tools, model wrapper and guardrails, plus the live runner that analyzes a selected customer and renders the verdict with its per-agent audit table | Edge Function `sentinel` + `customer_scores` for the selector |
 
-## 4. Contrato de salida del sentinel
+There is no "Overview" tab and no "Data" tab; the KPI surface lives at the top of Findings, and
+the table explorer lives inside EDA.
 
-El Edge Function (`supabase/functions/sentinel/index.ts`) fuerza el schema via
-`responseSchema` de Gemini; `recommended_action` es un enum cerrado.
+The **eight KPI tiles** on Findings are: unalerted high-risk value, escalation gap, screening
+coverage, false-positive rate, unresolved Critical/High, value through non-active accounts,
+structuring-band share, and chargeback growth.
+
+The **embedded Power BI report** (Layer 1) is built as four pages: Overview, Risk deep-dive,
+Controls & operations, and Detection layers. Every page carries a reporting-period date slicer,
+a banner and a page navigator.
+
+## 4. Compliance Sentinel — output contract
+
+The Edge Function (`supabase/functions/sentinel/index.ts`) forces its output schema through
+Gemini's `responseSchema`; `recommended_action` is a closed enum. The pipeline identifier in the
+response is `v3.1`.
+
+**Input.** `POST { customer_id }` (`CUST0000`, matched against `^CUST\d{4}$`) OR
+`{ account_id }` (`ACC00000`, matched against `^ACC\d{5}$`). The subject of the analysis is
+always the **customer**: an `account_id` resolves to its holder, and the pipeline then sees all
+of that holder's accounts. An account with no holder returns 404; a KYC-only customer with no
+accounts returns 404.
+
+**Response JSON.**
 
 ```json
 {
-  "risk_summary": "2-4 frases, hechos materiales primero, siempre cuantificado",
-  "key_factors": ["un bullet cuantificado por riesgo distinto"],
-  "recommended_action": "Escalate | Request documentation | Close as false positive",
-  "confidence": 0.78,
-  "run_id": "uuid del run",
-  "pipeline": "v2",
+  "risk_summary": "2-4 sentences, most material facts first, quantified",
+  "key_factors": ["one quantified bullet per distinct risk"],
+  "recommended_action": "one of the six-action ladder (enum)",
+  "next_steps": ["2-4 concrete steps citing specific transactions, dates or gaps"],
+  "evidence_strength": "strong | moderate | limited",
+  "signal_families": { "present": 3, "total": 7, "list": ["family (detail)", "..."] },
+  "run_id": "uuid of the run",
+  "subject": "CUST0000",
+  "pipeline": "v3.1",
   "audit": [
     {
       "agent": "profile_analyst",
@@ -87,153 +129,179 @@ El Edge Function (`supabase/functions/sentinel/index.ts`) fuerza el schema via
 }
 ```
 
-Pipeline interno (5 agentes, secuenciales; tier fast = `gemini-flash-lite-latest`,
-tier heavy = `gemini-flash-latest`):
+There is **no `confidence`** field. Evidence is expressed as `evidence_strength`, computed in
+code (not self-reported by the model) and forced to win over the model's echo in the response.
+
+**Six-action ladder** (`recommended_action` enum), least-to-most severe:
+
+1. Close as false positive
+2. Continue standard monitoring
+3. Enhanced monitoring
+4. Initiate sanctions screening
+5. Request KYC refresh / documentation
+6. Escalate to compliance review
+
+The rubric instructs the model to choose the least severe action that manages the risk, and the
+computed `evidence_strength` **caps** the severity: `limited` evidence permits only actions
+1, 2, or 4 (the last only when never-screened is a present signal); `moderate` evidence
+additionally permits actions 3 and 5; "Escalate to compliance review" requires `strong` evidence.
+
+**Evidence strength** is derived from a deterministic seven-family signal checklist over the
+subject's data: tier-1 outlier transactions, anomalous accounts (Tier 2), anomalous customer
+model (Tier 3), cross-account structuring days, never-screened, post-match activity, and
+sanctioned or non-active flows. `strong` = at least three families present including at least one
+hard signal (anomalous accounts, structuring days, or post-match activity); `moderate` = at least
+two; `limited` otherwise.
+
+**Five-agent pipeline** (sequential): `profile_analyst` → `behavior_analyst` →
+`anomaly_interpreter` → `risk_synthesizer` → `compliance_reviewer`. The first three run on the
+fast tier (`gemini-flash-lite-latest`); the synthesizer and reviewer run on the heavy tier
+(`gemini-flash-latest`). Both tiers are overridable via secrets.
 
 ```
-POST {account_id}
-  -> rate limiter (RPC sentinel_hit en Postgres)
-  -> anonimizador + sanitizador (tools deterministas)
-  -> profile_analyst -> behavior_analyst -> anomaly_interpreter   (fast)
-  -> risk_synthesizer -> compliance_reviewer                      (heavy)
-  -> JSON verdict + audit[]
+POST { customer_id | account_id }
+  -> resolve subject to the customer and all of its accounts
+  -> rate limiter (Postgres RPC sentinel_hit)
+  -> deterministic tool fetchers (anonymized + sanitized) + signal checklist
+  -> profile_analyst -> behavior_analyst -> anomaly_interpreter          (fast tier)
+  -> risk_synthesizer -> compliance_reviewer                             (heavy tier)
+  -> JSON verdict + signal_families + audit[]
 ```
 
-Degradacion (segun `runPipeline`): si cae UNA nota de analista, el synthesizer sigue con lo
-que existe; si cae el reviewer, se sirve el draft del synthesizer marcado en el audit; si cae
-el synthesizer, el pipeline falla con error.
+**Seven deterministic tools** feed the agents under least privilege: `profileFetcher`,
+`screeningFetcher`, `txnAggregator`, `txnSampler`, `txnOutlierFetcher`, `scoreFetcher`,
+`alertFetcher`. Each agent receives only the output of its declared tools.
 
-## 5. Requerimientos funcionales
+**Graceful degradation.** If one analyst note fails, it is replaced with a neutral placeholder
+and the pipeline continues; if the reviewer fails, the synthesizer's draft is shipped, flagged in
+the audit; if the synthesizer fails, the run aborts with an error.
 
-**RF1 — Trazabilidad de cifras**: toda cifra mostrada en la UI traza a
-`outputs/EDA_FINDINGS.md` o a `app/data/eda_stats.json`; si el codigo cambia un numero,
-el doc se corrige en el mismo commit (CONVENTIONS §3).
+## 5. Functional requirements
 
-**RF2 — Serving layer solo lectura**: RLS habilitado en todas las tablas con una unica
-policy SELECT para `anon`; privilegios de escritura revocados ademas de la ausencia de
-policy (defensa en profundidad). La anon key es publica por diseno.
+**FR1 — Embedded Power BI report.** The Power BI tab is the default landing tab and embeds the
+published report from `POWERBI_URL` in a responsive frame, with a full-screen link. The report is
+the Layer-1 deliverable and is public by design (dummy data only).
 
-**RF3 — Popups KPI con formula viva**: cada uno de los 8 tiles abre un modal con
-definicion, la formula exacta interpolando los valores vivos del serving layer, "why it
-matters" y link al tab de profundizacion (PRD §3).
+**FR2 — Read-only serving layer.** RLS is enabled on every served table with a single SELECT
+policy for `anon`; write privileges are revoked in addition to the absence of a write policy
+(defense in depth). The anon key is public by design and ships in `app/config.js`.
 
-**RF4 — Explorador de las 8 tablas**: el tab Data filtra `customers`, `accounts`,
-`transactions`, `compliance_alerts`, `sanctions_screening`, `chargebacks`,
-`account_scores` y `cleaning_log`; los filtros se derivan de los datos, no se hardcodean.
+**FR3 — Raw-source EDA explorer.** The EDA tab browses the six raw source tables (`raw_*`) with
+on-demand, removable filter chips derived from the data (categorical / numeric range / date range
+/ contains), sortable columns and pagination, plus a Profile view (type, completeness, uniques,
+primary-key detection, empty-share badge above 20%). A data-quality summary (duplicate keys and
+empty columns) is computed live on the raw source.
 
-**RF5 — Charts con "how to read"**: cada chart SVG de Findings expone tooltip por punto
-y una nota de como leerlo; los charts se generan en `app/js/charts.js`, sin librerias.
+**FR4 — Audited ETL trail.** The ETL tab renders the cleaning log live from the `cleaning_log`
+table; every treatment with recorded examples expands into a before/after table. Compliance-
+relevant decisions are explicit (an empty PEP flag is recoded `Unknown`, never assumed `No`;
+suspicious values are retained and flagged, not deleted). An integrity panel computed live over
+the cleaned data verifies row counts against expected output and checks foreign keys, duplicate
+keys and empty columns.
 
-**RF6 — Sentinel rate-limited**: 8 requests/min por IP + 250/dia globales, aplicados en
-Postgres via el RPC atomico `sentinel_hit` (no in-process, porque el endpoint es publico).
-Si el limitador falla, el sentinel falla abierto para no tumbar la demo.
+**FR5 — Descriptive and association statistics.** The DSS tab presents transaction-amount
+descriptives, distribution and trend charts, and categorical association (Cramér's V) with rank
+correlation (Spearman) for the KYC rating against behavior, each with a "how to read" note.
 
-**RF7 — Audit por agente persistido**: cada run escribe una fila por agente en
-`sentinel_audit` (solo service role): `run_id`, `account_id`, `agent`, `model_used`,
-`attempts`, `fallback_used`, `latency_ms`, `ok`. El mismo audit vuelve en la respuesta
-y se renderiza como tabla en el tab AI Engine.
+**FR6 — Live KPI surface with formula popups.** Each of the eight Findings tiles opens a modal
+with its definition, the exact formula interpolated with the live serving-layer values, and why
+it matters. Tiles and finding cards are computed client-side from the served tables.
 
-**RF8 — Anonimizacion PII**: `full_name` y `date_of_birth` nunca se seleccionan de la
-base; el modelo ve un pseudonimo (`Customer CUST0000`). Datos dummy, pero el pipeline se
-construye como si no lo fueran.
+**FR7 — Findings drill-down.** Finding cards deep-link into the EDA explorer with a target table
+and pre-applied filters via `FE.openData(table, filters)`.
 
-**RF9 — Defensa contra prompt injection**: todo dato de cuenta viaja envuelto como
-`<data>` (DATA de terceros, no instrucciones); cada string se sanitiza (control chars,
-code fences, tope de 300 chars); la salida se fuerza por JSON schema; el reviewer
-descarta cifras no trazables a las notas.
+**FR8 — Three-tier ML model surface.** The ML tab documents and demonstrates three unsupervised
+Isolation Forests (transaction, account, customer). The account model (300 trees, 8%
+contamination, fixed seed, 16 features, StandardScaler) is additionally recomputed in the browser
+from the served data and verified against the pipeline's served scores. A Customer overview modal
+consolidates the customer-level view and offers a jump to the Sentinel.
 
-**RF10 — Deep links por hash**: cada tab es direccionable por hash (`#data`, `#eda`,
-`#findings`, `#ml`, `#engine`); los links internos y los modales navegan via `goTo(tab)`.
+**FR9 — Sentinel runner.** The AI Engine tab lets a visitor select a customer, run the Sentinel,
+and see the risk summary, the recommended action (enum), evidence strength and signal-family
+count, key factors, next steps, and the per-agent audit table (model used, attempts, fallback,
+latency, ok).
 
-**RF11 — Validacion de entrada del sentinel**: `account_id` debe cumplir `^ACC\d{5}$`;
-metodo POST unico; CORS restringido al origen de Cloudflare Pages y localhost.
+**FR10 — Sentinel input validation and subject resolution.** The Edge Function accepts POST only;
+the body must be `{ customer_id }` (`^CUST\d{4}$`) or `{ account_id }` (`^ACC\d{5}$`); the subject
+resolves to the customer and all of the customer's accounts; unknown account or KYC-only customer
+returns 404.
 
-## 6. No-goals
+**FR11 — Deterministic evidence discipline.** `evidence_strength` and `signal_families` are
+computed in code from the seven-family checklist and returned authoritatively, overriding the
+model's echo; the action rubric caps severity by evidence strength.
 
-| No-goal | Razon |
+**FR12 — PII anonymization.** `full_name` and `date_of_birth` are never selected from the
+database; the model sees the pseudonym `Customer <id>`. The dataset is synthetic, but the pipeline
+is built as though it were not.
+
+**FR13 — Prompt-injection defenses.** All account data is wrapped as `<data>` (third-party DATA,
+not instructions); every string is sanitized (control characters and code fences stripped, length
+capped at 300 characters); output is forced through a JSON schema; the reviewer drops figures not
+traceable to the analyst notes.
+
+**FR14 — Rate limiting and audit persistence.** The public endpoint enforces 8 requests/min per
+IP and a 250/day global cap through the atomic Postgres RPC `sentinel_hit` (not in-process); the
+limiter fails open so an outage does not take the demo down. Every run writes one row per agent to
+`sentinel_audit` (service role only); the same audit returns in the response.
+
+**FR15 — Hash navigation.** Each tab is addressable by hash (`#powerbi`, `#eda`, `#etl`, `#dss`,
+`#findings`, `#ml`, `#engine`); internal links and modals navigate via the hash router, and an
+unknown hash falls back to the Power BI tab.
+
+**FR16 — Figure traceability.** Every figure shown in the UI traces to the code that computes it
+or to the static analysis JSON in `app/data/`. When the code changes a number, the affected doc is
+corrected in the same commit (CONVENTIONS §3).
+
+## 6. Non-goals
+
+| Non-goal | Reason |
 |---|---|
-| Sin auth ni gestion de usuarios | El board es publico por diseno; RLS hace segura la anon key |
-| Sin escritura desde la UI | Unica escritura del sistema: `sentinel_audit` + contadores de rate limit, ambas server-side |
-| Sin Power BI en el board | El .pbix es Layer 1 (entregable mandado); el board es Layer 2 y no lo embebe |
-| Sin datos reales | Dataset dummy siempre; el disclaimer es permanente |
-| El sentinel no toma decisiones | Recomienda una accion del enum cerrado; la decision es humana |
+| No authentication or user management | The board is public by design; RLS makes the anon key safe |
+| No writes from the UI | The system's only writes are `sentinel_audit` and the rate-limit counters, both server-side |
+| No real data | The dataset is always dummy; the disclaimer is permanent |
+| The Sentinel does not decide | It recommends one action from a closed enum; the decision is human |
+| No self-reported model confidence | Removed in favor of code-computed `evidence_strength`; the model does not grade its own certainty |
+| No hypothetical "what-if" scoring in the ML tab | The in-browser model verifies the served scores; it does not offer speculative re-scoring |
 
-## 7. Metricas de exito
+## 7. Success criteria
 
-| Metrica | Objetivo | Como se verifica |
+| Criterion | Target | How it is verified |
 |---|---|---|
-| Board carga sin errores desde el serving layer | 6 tabs renderizan con datos vivos | Smoke test manual en el deploy de Pages |
-| KPIs reproducibles | Los 8 valores coinciden con EDA_FINDINGS.md | RF1: trazabilidad de cifras |
-| Escritura imposible via anon key | INSERT/UPDATE/DELETE rechazados | Verificacion RLS post-seed (hecha 2026-07-12) |
-| Sentinel completa un run | ~30 s, 5 agentes, verdict + audit renderizados | Runner del tab AI Engine |
-| Abuso contenido | 429 al exceder 8/min/IP o 250/dia | RPC `sentinel_hit` |
-| Historia legible como portfolio | Un revisor sigue todo el camino analitico sin el repo | Recorrido Overview → Data → EDA → Findings → ML → Engine |
+| Board loads from the serving layer without errors | All seven tabs render with live data; the Power BI embed loads | Manual smoke test on the Pages deploy |
+| KPIs reproducible and traceable | The eight tile values match the live serving-layer computation | FR16: figure traceability |
+| Writes impossible via the anon key | INSERT/UPDATE/DELETE rejected | RLS verification after seeding |
+| In-browser model matches the pipeline | Every account score recomputed client-side equals the served score | ML tab in-browser verification badge |
+| Sentinel completes a run | About 30 s, five agents, verdict plus per-agent audit rendered | AI Engine runner |
+| Abuse contained | 429 returned past 8/min/IP or the daily cap | RPC `sentinel_hit` |
+| Portfolio narrative legible | A reviewer follows the full analytical path without the repository | Walkthrough Power BI → EDA → ETL → DSS → Findings → ML Model → AI Engine |
 
-## 8. Evolucion futura
+## 8. Future evolution
 
-| Evolucion | Descripcion |
+| Evolution | Description |
 |---|---|
-| Warehouse analitico | Separar la capa analitica (agregacion pesada, features, backtesting) a BigQuery o Snowflake; Postgres queda como serving operacional alimentado por marts curados |
-| Datos frescos | Reemplazar el seed estatico por ingesta periodica; "now" dejaria de estar fijado a 2026-07-11 |
-| Mas connectors | Nuevos tools deterministas para los agentes (listas de sanciones externas, adverse media, device data) sin tocar el contrato de salida (PRD §4) |
-| PII real | Enmascarado/tokenizacion antes del serving y modelo en entorno controlado, como anota el README |
+| Analytical warehouse | Move heavy aggregation, feature engineering and backtesting to a dedicated warehouse (for example BigQuery or Snowflake); keep Postgres as the operational serving layer fed by curated marts |
+| Fresh data | Replace the static seed with periodic ingestion so "now" is no longer fixed to the dataset's reference date |
+| More connectors | Add deterministic tool fetchers for the agents (external sanctions lists, adverse media, device data) without changing the output contract (PRD §4) |
+| Real PII | Masking / tokenization before both the serving layer and the model, in a controlled environment, as noted in the README |
 
 ---
 
-## Registro de decisiones
+## Decision record
 
-**2026-07-12** — v2.1 "nivel perfilador" (patron tomado de Conciliacion): se agregan RF de
-perfilado por columna en el tab Data, ejemplos before/after expandibles en la limpieza (EDA
-paso 2), panel de integridad computado live (FKs, duplicados, umbral de vacios 20%) y
-drill-down hallazgo→Data con filtros pre-aplicados (`FE.openData`). Los 5 insights del
-entregable siguen fuera de la UI (reporte anexo). **Vigente.**
+The following decisions produced the current product and are reflected in the deployed code.
+Entries describe the verified end state, not intermediate drafts.
 
-**2026-07-12** — Se elimina el tab Overview: el board abre directo en Data y el orden queda
-Data / EDA / Findings / ML Model / AI Engine. Los 8 KPI tiles con popup explicativo se mudan
-al tope del tab Findings (son el resumen de resultados, no una portada). **Vigente.**
-
-**2026-07-12** — v2.2: el tab ML gana (a) card de Validacion con los sustitutos honestos de
-accuracy/overfitting para un modelo sin labels (memorization check, confianza bootstrap por
-deteccion, estabilidad por seed, distribucion con cutoff, validez convergente con caveat,
-ablacion) y (b) Live scoring: el forest entrenado corre EN el navegador, verifica 105/105
-scores contra el pipeline y ofrece un what-if playground. Regla mantenida: ninguna metrica
-supervisada fingida. **Vigente.**
-
-**2026-07-12** — Se retira el what-if playground (analisis hipotetico fuera de alcance): el
-Live scoring conserva la verificacion 105/105 en el navegador y pasa a contar la HISTORIA de
-cada cuenta y su customer — perfil KYC, comportamiento real, lectura del modelo con sus
-desviaciones, y que hicieron (o no) las reglas y el screening — con salto al sentinel para la
-narrativa completa. **Vigente.**
-
-**2026-07-12** — v3 "deteccion multinivel": rebuild completo aprobado por el propietario
-sabiendo que cambiaban los numeros publicados. Tres modelos (TRX/cuenta/cliente) con
-roll-up; el sentinel pasa a analizar CLIENTES (el sujeto legal) agregando todas sus
-cuentas; el tab ML se reorganiza por niveles con el ranking de clientes; Findings gana
-"Needles & schemes". Los 24 registros KYC-only se excluyen del scoring y se reportan
-como hallazgo de gobernanza de datos. **Vigente.**
-
-**2026-07-12** — v3.1: andamiaje uniforme del tab ML (un patron: tier-heading + cards
-agrupados, orden 1→2→3, verificacion en navegador dentro del Tier 2) y pase editorial
-completo a copy profesional declarativo, gobernado por CONVENTIONS §5 con gate de grep
-en la verificacion. **Vigente.**
-
-**2026-07-12** — v3.2: el agente IA se renombra de "Copilot" a **Sentinel** (coherencia
-tematica del portfolio de fraude; decision del propietario consciente del proyecto homonimo).
-Rename completo: slug de la Edge Function (/functions/v1/sentinel), tablas sentinel_usage /
-sentinel_ip_usage / sentinel_audit, RPC sentinel_hit, frontend, docs y glosario. **Vigente.**
-
-**2026-07-12** — v3.3: el Account detail queda estrictamente a nivel cuenta (feedback del
-propietario: mezclaba perfil del cliente en una vista de cuenta). La informacion de cliente
-se consolida en el modal "Customer overview", invocable desde el Account detail y desde el
-ranking del Tier 3 — una sola vista de cliente para todo el board. **Vigente.**
-
-**2026-07-12** — v3.4: contrato de salida de Sentinel rediseñado. (a) `recommended_action`
-pasa de 3 a una escalera de 6 acciones graduadas (Close as FP · Continue standard monitoring ·
-Enhanced monitoring · Initiate sanctions screening · Request KYC refresh/documentation ·
-Escalate to compliance review) con rubric explicito: la accion MENOS severa que gestione el
-riesgo; Escalate solo con convergencia multi-señal, post-match o structuring. (b) `next_steps[]`:
-2-4 pasos concretos citando transacciones/fechas/gaps especificos. (c) el `confidence`
-auto-reportado por el LLM se ELIMINA (sesgado y pegajoso en 0.95): lo reemplaza
-`evidence_strength` (strong/moderate/limited) computado en CODIGO desde un checklist
-determinista de 7 familias de señal, con `signal_families` en la respuesta. Validado con
-muestra estratificada (anómalos + normales + never-screened limpios). **Vigente.**
+- **Three-tier detection.** Anomaly detection runs at the transaction, account and customer
+  levels with roll-up. The Sentinel's subject is the customer (aggregating all of the customer's
+  accounts). KYC-only records with no accounts are excluded from scoring and reported as a
+  data-governance finding.
+- **Sentinel naming.** The AI agent is the "Compliance Sentinel". The Edge Function slug
+  (`/functions/v1/sentinel`), the `sentinel_audit` table and the `sentinel_hit` RPC all use the
+  `sentinel` name.
+- **Output contract (v3.1).** `recommended_action` is a six-action ladder with an explicit rubric
+  (least severe action that manages the risk; escalation gated on strong evidence). `next_steps`
+  requires concrete, traceable steps. The model's self-reported `confidence` was removed and
+  replaced by `evidence_strength` (strong/moderate/limited) computed in code from a deterministic
+  seven-family signal checklist, with `signal_families` returned in the response.
+- **Embedded Layer 1.** The Power BI report is embedded as the board's first tab, making the
+  mandated deliverable and the exploration board reachable from a single surface.

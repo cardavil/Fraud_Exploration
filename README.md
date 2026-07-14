@@ -5,8 +5,7 @@ exploration tool**: cleaning pipeline → interpretable ML anomaly detection →
 serving layer → web board with an AI sentinel grounded on the served data.
 
 **Live board:** https://fraud-exploration.pages.dev
-**Executive summary (the 5 headline insights):** [reports/EXECUTIVE_SUMMARY.md](reports/EXECUTIVE_SUMMARY.md)
-**Full analysis:** [outputs/EDA_FINDINGS.md](outputs/EDA_FINDINGS.md) ·
+**Headline insights:** see [Key findings](#key-findings-from-the-eda) below, or the board's Findings tab.
 **Design docs:** [docs/](docs/)
 
 > **Disclaimer** — Personal portfolio project inspired by a hiring assessment, built
@@ -41,15 +40,16 @@ flowchart LR
   GH[GitHub repo] -->|git integration<br/>auto-deploy| APP
 ```
 
-## The board — six tabs, one narrative
+## The board — seven tabs, one narrative
 
 | Tab | What it shows |
 |---|---|
-| **Overview** | 8 live KPIs; every tile opens a popup with the definition, the exact formula (live numerator/denominator) and why it matters. |
-| **Data** | The serving layer raw: all 8 tables, filterable column by column. |
-| **EDA** | The analysis as a six-step process — audited cleaning (live from `cleaning_log`), verified counts, descriptives, distributions, associations. |
-| **Findings** | Thematic deep-dives, each with an evidence chart, per-mark tooltips and a "how to read" note. |
-| **ML Model** | Why Isolation Forest, the 12 features, a real parameter-sensitivity sweep, and the explained anomaly list. |
+| **Power BI** | The Layer-1 report embedded (Publish-to-web) — the four dashboard pages, inside the board. |
+| **EDA** | Exploratory analysis over the raw serving layer: the six source tables, filterable column by column, with a live data-quality panel. |
+| **ETL** | The cleaning pipeline as audited treatments (live from `cleaning_log`), each with before→after examples and integrity checks. |
+| **DSS** | Descriptive statistics, distributions and associations over the cleaned data. |
+| **Findings** | The KPI grid plus thematic deep-dives, each with an evidence chart, per-mark tooltips and a "how to read" note. |
+| **ML Model** | Why Isolation Forest, the behavioral features, a real parameter-sensitivity sweep, and the three-tier explained anomaly lists (transaction / account / customer). |
 | **AI Engine** | The sentinel's internals — five-agent pipeline, tools, model wrapper with retry/fallback, anonymization, injection defenses — plus the live runner with a per-agent audit table. |
 
 ## Stack rationale
@@ -84,18 +84,18 @@ exploration tool or a model.
    surfaces what the rules miss: $424K needle wires, $1.9M through a dormant High-risk
    account, and a customer structuring across 4 of their own accounts.
 
-Full statistical detail, methodology and the cleaning audit trail:
-[outputs/EDA_FINDINGS.md](outputs/EDA_FINDINGS.md) · [outputs/cleaning_log.csv](outputs/cleaning_log.csv)
+Cleaning audit trail: [outputs/cleaning_log.csv](outputs/cleaning_log.csv). Full statistical
+detail, methodology and the associations are explorable in the board's EDA, ETL and DSS tabs.
 
 ## Repository layout
 
 ```
-analysis/    clean.py, anomaly.py, export_eda_stats.py, model_sensitivity.py
+analysis/    clean.py, anomaly.py, feature builders, model + three-tier scripts, export scripts
 data/        raw + cleaned SQLite (dummy data, safe to commit)
-outputs/     EDA findings, cleaning log, model scores
-reports/     EXECUTIVE_SUMMARY.md — the 5-insight deliverable
+outputs/     cleaning log + model score CSVs (transaction / account / customer)
 app/         static frontend (Cloudflare Pages root; js/ modules, data/ precomputed stats)
 supabase/    seed generator + applier, edge function (5-agent sentinel), rate limit, audit
+powerbi/     Power BI package — layout_spec.md, measures.md, theme.json
 docs/        PRD, TRD, DATABASE, UI, APPFLOW, CONVENTIONS, MOCKUPS
 ```
 
@@ -119,6 +119,9 @@ Sentinel: `supabase functions deploy sentinel` + `supabase secrets set GEMINI_AP
 - **Dummy data only.** In production, PII would be masked or tokenized before reaching
   an exploration tool, and models would run in a controlled environment.
 - The sentinel **reasons only over data served to it** and returns a constrained JSON
-  schema (`Escalate / Request documentation / Close as false positive`); account data
-  is wrapped as third-party *data*, not instructions, to resist prompt injection.
+  schema — a recommended action from a fixed six-step ladder (Close as false positive →
+  Continue standard monitoring → Enhanced monitoring → Initiate sanctions screening → Request
+  KYC refresh → Escalate to compliance review), plus next steps and an evidence-strength grade
+  computed in code from a deterministic signal checklist. Account data is wrapped as third-party
+  *data*, not instructions, to resist prompt injection.
 - The anon key in `app/config.js` is intentionally public: RLS limits it to `SELECT`.

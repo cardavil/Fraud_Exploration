@@ -1,278 +1,186 @@
-# LAYOUT_SPEC — Fraud & Compliance Exploration Board
+# LAYOUT_SPEC — Fraud & Compliance Exploration Board (Power BI report)
 
-Diseno del tablero Power BI (entregable Layer 1): 4 paginas, storytelling por insight,
-mockups y mapeo visual-por-visual para armado mecanico en Desktop. Medidas y modelo en
-[measures.md](measures.md); tema en [theme.json](theme.json); convenciones de la capa
-semantica en [../docs/CONVENTIONS.md](../docs/CONVENTIONS.md) §6; cifras trazan a
-[../reports/EXECUTIVE_SUMMARY.md](../reports/EXECUTIVE_SUMMARY.md).
-Fecha del documento: 2026-07-13.
+As-built specification of the Power BI report (Layer 1 deliverable): 4 pages, one insight
+story per page, with a per-visual field mapping that matches the saved `.pbix`. Measures and
+model live in [measures.md](measures.md); the visual theme in [theme.json](theme.json); the
+semantic-layer conventions in [../docs/CONVENTIONS.md](../docs/CONVENTIONS.md). Headline
+figures trace to the "Key findings" section of [../README.md](../README.md) and the board's
+Findings tab.
+
+Document date: 2026-07-14. This document describes the report exactly as built and saved; it
+is not a wishlist. Every visual, title, and field below is taken from the live model and the
+saved report layout.
 
 ---
 
-## 1. Principios de diseno
+## 1. Design principles
 
-Sintesis de la investigacion (tendencias 2025-2026 de dashboards ejecutivos y reportes
-de compliance) aplicada a este tablero:
+Synthesis of executive-dashboard and compliance-reporting practice, applied to this report:
 
-| Principio | Aplicacion aqui |
+| Principle | Application here |
 |---|---|
-| Una pantalla, sin scroll | cada pagina cierra su mensaje en un canvas 16:9; el detalle vive en su pagina, no debajo del fold |
-| Patron Z | banda de KPI cards arriba (lo mas critico arriba-izquierda), tendencia al centro, desglose abajo-derecha |
-| Titulo de pagina = oracion | el titulo afirma el hallazgo ("Detection works; escalation does not"), no un sustantivo ("Alerts") |
-| Rejilla de 8px | gutters de 8/16px, bordes alineados, maximo 8 visuales por pagina |
-| Disciplina de color | paleta sobria navy/azul/grises; rojo y ambar RESERVADOS a semantica de riesgo (sanctioned / warning), nunca decorativos — misma regla del board |
-| Riesgo nunca solo por color | rojo/ambar siempre acompanados de etiqueta o icono (accesibilidad y lectura regulatoria) |
-| Sin metricas desnudas | todo numero lleva contexto en reference label gris ("357 of 409 flagged") |
-| Sello de frescura | "Data as of 2026-07-11" en la esquina superior derecha de cada pagina (el "now" canonico de CLAUDE.md) |
-| Nav de rail izquierdo | franja navy con Page Navigator nativo + slicer de periodo, identica jerarquia visual al topbar del board |
+| One screen, no scroll | each page resolves its message within a 16:9 canvas; detail lives on its own page, not below a fold |
+| Z-pattern reading | the most critical KPIs sit top-left, the trend in the central band, the breakdown lower and to the right |
+| 8px grid | consistent 8/16px gutters and aligned edges; a focused set of content visuals sits over the shared shell |
+| Color discipline | a sober navy/blue/grey palette; red and amber are reserved for risk semantics (sanctioned / warning) and are never decorative — the same rule as the board |
+| Risk never encoded by color alone | red/amber are always paired with a label or value (accessibility and regulatory legibility) |
+| Metrics carry context | card visuals pair each value with its category label rather than presenting a bare number |
+| Left-rail navigation | a navy shell shape carries a native page navigator and the period slicer, mirroring the board's topbar hierarchy |
 
-Solo features GA de Desktop (sin visuales custom, sin previews): new card visual,
-page navigator, button slicer, small multiples, decomposition tree, conditional
-formatting, binning nativo. El list slicer (preview) queda excluido.
+Only generally available Desktop visuals are used: the new card visual, the page navigator,
+the slicer, native binning, matrix, table, scatter chart, funnel, and line/bar/column charts.
+There are no custom or AppSource visuals and no preview features, so the file opens cleanly on
+any reasonably current Desktop.
 
-## 2. Estructura: 4 paginas, insights como historia
+## 2. Report structure: four pages
 
-Los tres niveles de deteccion (transaction → account → customer) NO son las paginas:
-el entregable se evalua por los 5 insights del executive summary, asi que las paginas
-siguen esa numeracion (que ya es la de las carpetas de medidas 01-05). Los tres niveles
-viven juntos en la pagina 4 como diferenciador que enlaza con el board (Layer 2).
+The four pages follow the insight numbering of the measure display folders (00–05) rather than
+the model's three detection tiers. The three tiers live together on the last page as the
+differentiator that links to the live board (Layer 2).
 
-| # | Pagina | Titulo (oracion) | Insights |
-|---|---|---|---|
-| 1 | Overview | Detection works; escalation does not | los 5, en 30 segundos |
-| 2 | Risk deep-dive | Where the unworked risk concentrates | 01 escalation gap · 02 screening · 03 structuring |
-| 3 | Controls & operations | Controls unenforced, monitoring unscaled | 04 account controls · 05 operations |
-| 4 | Detection layers | Three model tiers surface what rules miss | modelo ML (transaction → account → customer) |
+| # | Page | Focus |
+|---|---|---|
+| 1 | Overview | all headline KPIs plus volume-versus-alerting and unworked risk by country |
+| 2 | Risk deep-dive | 01 escalation gap · 02 sanctions screening · 03 structuring |
+| 3 | Controls & operations | 04 account controls · 05 operations |
+| 4 | Detection layers | the ML model, transaction → account → customer tiers |
 
-### Shell comun (todas las paginas)
+### Shared shell (present on all four pages)
 
-```
-+==(rail navy #0A1633, 168px)==+==(canvas #F5F7FB)=========================================+
-|                              |                                                           |
-|  FRAUD & COMPLIANCE          |  <Titulo-oracion 20px semibold>       Data as of          |
-|  EXPLORATION                 |                                       2026-07-11          |
-|   ^-- 13px, blanco           |   ^-- #0A1633                          ^-- 10px gris      |
-|                              |                                                           |
-|  [ > Overview            ]   |                                                           |
-|  [   Risk deep-dive      ]   |            (area de visuales de la pagina)                |
-|  [   Controls & ops      ]   |                                                           |
-|  [   Detection layers    ]   |                                                           |
-|   ^-- Page Navigator nativo, |                                                           |
-|       seleccionado = fondo   |                                                           |
-|       rgba blanco .12        |                                                           |
-|                              |                                                           |
-|  REPORTING PERIOD            |                                                           |
-|  [ 2025-10 |======| 2026-07 ]|                                                           |
-|   ^-- slicer Between sobre   |                                                           |
-|       DATE[Date], sync en    |                                                           |
-|       las 4 paginas          |                                                           |
-+------------------------------+-----------------------------------------------------------+
-```
-
-El rail es un rectangulo navy + Page Navigator (Insert > Buttons > Navigators); el slicer
-de periodo se sincroniza en las 4 paginas (View > Sync slicers). Cards blancos, radio 10,
-borde #E3E8F2 — los fija theme.json, no formateo manual.
-
-## 3. Tema
-
-[theme.json](theme.json) traduce los tokens de `app/styles.css` (CONVENTIONS §2):
-canvas `--bg #F5F7FB`, superficie blanca, tinta `--text #0A1633`, acento `--brand-blue
-#2E5BFF`, semantica bad/neutral/good = `#D64545 / #E8A33D / #2FA36B`. dataColors solo
-contiene azules/grises sobrios — el rojo/ambar se aplica por formato condicional o
-seleccion manual SOLO donde significa riesgo. Fuente Segoe UI (equivalente nativo del
-Inter del board). Importar via View > Browse for themes ANTES de crear visuales.
-
-## 4. Pagina 1 — Overview
+Every page carries the same four shell objects: a navy shell **shape**, a **REPORTING PERIOD**
+slicer on `DATE[Date]`, a **FRAUD & COMPLIANCE EXPLORATION** text-box banner, and a native
+**page navigator**.
 
 ```
-+==(canvas)==================================================================================+
-|  Detection works; escalation does not                            Data as of 2026-07-11    |
-|                                                                                            |
-|  +----------+ +----------+ +----------+ +----------+ +----------+ +----------+            |
-|  | $4.32M   | | 87.3%    | | 66.3%    | | $15.3M   | | 8        | | 20.1x    |            |
-|  | Unalerted| | Escalat. | | Screening| | Non-activ| | Unresolv.| | Chargebk |            |
-|  | high-risk| | gap      | | coverage | | accounts | | Crit/High| | growth   |            |
-|  | 147 txns | | 357 of   | | 28 never | | Closed+  | | median   | | Mar->Jul |            |
-|  |          | | 409 flag.| | screened | | Dorm+Frzn| | 90 days  | | monthly  |            |
-|  +----------+ +----------+ +----------+ +----------+ +----------+ +----------+            |
-|   ^-- new card visual (6 cards en 1 visual), callout 28px, reference label 10px gris;     |
-|       $4.32M y 8 con acento rojo, 66.3% y 20.1x con acento ambar (riesgo, no decorado)    |
-|                                                                                            |
-|  +--------------------------------------------------+  +--------------------------------+ |
-|  | Monthly transactions vs alerts created           |  | Unalerted high-risk value      | |
-|  | 300|                    ____ transactions (azul) |  | by counterparty country        | |
-|  |    |               ____/                         |  |  Iran        ============ $1.xM| |
-|  | 150|        ______/                              |  |  Russia      =========         | |
-|  |    | ______/                                     |  |  Syria       ======            | |
-|  |   0| .-.-.-.-.-.-.-.-.-. alerts (gris #5A6B8C)   |  |  North Korea ====              | |
-|  |    +------------------------------------------   |  |  Myanmar     ===               | |
-|  |     Oct    Dec    Feb    Apr    Jun              |  |  Afghanistan ==   (barras rojas)| |
-|  +--------------------------------------------------+  +--------------------------------+ |
-|   ^-- el mensaje central: volumen x3, alertas planas     ^-- riesgo detectado sin caso    |
-+============================================================================================+
++--(navy shell shape)--------+--(canvas #F5F7FB)-----------------------------+
+| FRAUD & COMPLIANCE         |                                               |
+| EXPLORATION   <- banner    |            (page content visuals)             |
+|                            |                                               |
+| [ > Overview            ]  |                                               |
+| [   Risk deep-dive      ]  |                                               |
+| [   Controls & ops      ]  |                                               |
+| [   Detection layers    ]  |                                               |
+|   ^ page navigator (native)|                                               |
+|                            |                                               |
+| REPORTING PERIOD           |                                               |
+| [ 2025-10 |=====| 2026-07 ]|                                               |
+|   ^ slicer on DATE[Date]   |                                               |
++----------------------------+-----------------------------------------------+
 ```
 
-| Visual | Tipo (nativo) | Campos | Nota |
-|---|---|---|---|
-| Banda KPI | Card (nuevo) x6 | [Unalerted high-risk value] · [Escalation gap] · [Screening coverage] · [Value through non-active accounts] · [Unresolved Critical / High] · [Chargeback growth] | reference labels: [Unalerted high-risk count] "txns" · "[Flagged no-alert count] of [Flagged transaction count] flagged" · "[Never-screened customers] never screened" · "Closed+Dormant+Frozen" · "median [Backlog median age (days)] days" · "Mar -> Jul monthly value" |
-| Tendencia central | Line chart | Eje X: DATE[Year-Month] · Y: [Transaction count] y [Alerts created] | ambas son conteos: un solo eje, JAMAS eje dual; transactions #2E5BFF, alerts #5A6B8C punteada; etiqueta directa al final de cada linea, sin leyenda |
-| Riesgo por pais | Bar chart horizontal | Eje: transactions[counterparty_country] · X: [Unalerted high-risk value] | solo paises HR quedan (la medida ya filtra); barras #D64545; data labels $ |
+The rail is a navy rectangle plus a page navigator (Insert > Buttons > Navigators). The period
+slicer is placed once and synced across the four pages (View > Sync slicers). Card surfaces,
+corner radius, and borders are set by `theme.json`, not by manual formatting.
 
-Interaccion: clic en un pais cruza-filtra la tendencia; cada card no filtra (son titulares).
+## 3. Theme
 
-## 5. Pagina 2 — Risk deep-dive
+[theme.json](theme.json) translates the tokens of `app/styles.css` (CONVENTIONS §2): canvas
+`--bg #F5F7FB`, white surface, ink `--text #0A1633`, accent `--brand-blue #2E5BFF`, and the
+semantic bad/neutral/good triad `#D64545 / #E8A33D / #2FA36B`. The `dataColors` list holds only
+the sober blues and greys; red and amber are applied through conditional formatting or manual
+selection ONLY where they carry risk meaning. The font is Segoe UI (the native equivalent of
+the board's Inter). Import the theme via View > Browse for themes before creating any visual.
 
-```
-+==(canvas)==================================================================================+
-|  Where the unworked risk concentrates                            Data as of 2026-07-11    |
-|                                                                                            |
-|  01 ESCALATION GAP                        02 SANCTIONS SCREENING                           |
-|  +------------------------------------+  +----------------------------------------------+ |
-|  | Flagged 409 ==================     |  | Confirmed matches — post-match activity       | |
-|  | Alerted   52 ====                  |  | customer  match date   post-match value       | |
-|  | Unworked 357 ================ (rojo)|  | CUST0079  2025-11-02   ========== $1.00M     | |
-|  |  ^-- funnel/bar de 3 pasos         |  | CUST0035  2026-01-15   ======== $844K        | |
-|  +------------------------------------+  | CUST0012  2026-02-08   == $8K                | |
-|  +------------------------------------+  | CUST0044  2026-03-19   = $2K                 | |
-|  | Unalerted high-risk transactions   |  |  ^-- matrix, data bars rojos                 | |
-|  | country      txns   value          |  +----------------------------------------------+ |
-|  | Iran          52   $1.2M           |  +----------------------+ +---------------------+ |
-|  | Russia        41   $0.9M           |  | $1.85M               | | 28 (34%)            | |
-|  |  ^-- table, data bars              |  | Post-match value     | | Never-screened      | |
-|  +------------------------------------+  +----------------------+ +---------------------+ |
-|                                                                                            |
-|  03 STRUCTURING                                                                            |
-|  +--------------------------------------------------------------------------------------+ |
-|  | Transactions per $1k band          276                                                | |
-|  |  100|  91   87   75   90  +----+   78   52      <- bins nativos de $1,000 sobre       | |
-|  |     | ==== ==== ==== ==== |####| ==== ====         transactions[amount]; banda 9-10k  | |
-|  |     | 5-6k 6-7k 7-8k 8-9k |9-10| 10-11 11-12       en ambar #E8A33D, resto #9DB1F2;   | |
-|  |     +---------------------+----+------------       card lateral: 17.4% / 3.3x vecinos | |
-|  +--------------------------------------------------------------------------------------+ |
-+============================================================================================+
-```
+## 4. Page 1 — Overview
 
-| Visual | Tipo | Campos | Nota |
-|---|---|---|---|
-| Funnel escalation | Funnel o bar | [Flagged transaction count] · [Flagged no-alert count] (+ conteo alertado por resta visual) | barra "unworked" roja; titulo con [Escalation gap] |
-| Tabla HR sin alerta | Table | transactions[counterparty_country] · [Unalerted high-risk count] · [Unalerted high-risk value] | data bars en value; orden desc |
-| Matriz post-match | Matrix | account_scores... via customers: customer_id, sanctions_screening[Screening date] (min) · [Post-match value] | data bars rojos; solo match_result = "Confirmed Match" (filtro de visual) |
-| Cards screening | Card x2 | [Post-match value] · [Never-screened customers] | never-screened con "(34%)" en reference label desde [Screening coverage] |
-| Histograma structuring | Column chart | Eje X: bins de $1,000 sobre transactions[amount] (clic derecho > New group > Bin size 1000) · Y: [Transaction count] | resaltar banda 9-10k ambar via formato condicional; cards laterales [Structuring-band count] y [Structuring-band share] |
+Content visuals over the shared shell (§2):
 
-## 6. Pagina 3 — Controls & operations
+| Idx | Visual | Type | Title | Fields |
+|---|---|---|---|---|
+| 4 | KPI band | Card (new card visual) | — | `[Unalerted high-risk value]` · `[Escalation gap]` · `[Screening coverage]` · `[Value through non-active accounts]` · `[Unresolved Critical / High]` · `[Chargeback growth]` |
+| 5 | Trend | Line chart | Monthly transactions vs alerts created | Axis `DATE[Year-Month]` · Values `[Transaction count]`, `[Alerts created]` |
+| 6 | Risk by country | Clustered bar chart | Unalerted high-risk value by country | Axis `transactions[counterparty_country]` · Value `[Unalerted high-risk value]` |
 
-```
-+==(canvas)==================================================================================+
-|  Controls unenforced, monitoring unscaled                        Data as of 2026-07-11    |
-|                                                                                            |
-|  04 ACCOUNT CONTROLS                      05 OPERATIONS                                    |
-|  +------------------------------------+  +----------------------------------------------+ |
-|  | Value by account status            |  | Alert backlog by severity and status         | |
-|  | Active  ================== $56.2M  |  |           Open  Escal.  U.Rev.  Closed       | |
-|  | Dormant ==== $8.6M  (ambar)        |  | Critical  [2]   [1]    [1]      [8]          | |
-|  | Closed  === $5.3M   (ambar)        |  | High      [3]   [.]    [1]      [15]         | |
-|  | Frozen  = $1.4M     (ambar)        |  | Medium/Lo [..]  [..]   [..]     [..]         | |
-|  |  ^-- $15.3M no deberia moverse     |  |  ^-- matrix, fondo condicional rojo en        | |
-|  +------------------------------------+  |      Critical/High no cerrados                | |
-|  +------------------------------------+  +----------------------------------------------+ |
-|  | 148                                |  +----------------------+ +---------------------+ |
-|  | sanctioned-country txns            |  | 77% False-positive   | | 90 days median      | |
-|  | marked "domestic"                  |  | rate (closed alerts) | | backlog age         | |
-|  |  ^-- card con nota                 |  +----------------------+ +---------------------+ |
-|  +------------------------------------+  +----------------------------------------------+ |
-|                                          | Monthly chargeback value       $124.9K       | |
-|                                          |  120K|                    ____/####          | |
-|                                          |      |            ____/####                  | |
-|                                          |   60K|      ____/                            | |
-|                                          |     0| ==__/     (columnas ambar)            | |
-|                                          |      +-- Mar Apr May Jun Jul --- 20.1x ->    | |
-|                                          +----------------------------------------------+ |
-+============================================================================================+
-```
+The KPI band presents six measures in a single new card visual. Verified values
+(live EVALUATE, 2026-07-14): Unalerted high-risk value **$4,323,306**; Escalation gap
+**87.3%**; Screening coverage **66.3%**; Value through non-active accounts **$15,254,133**;
+Unresolved Critical/High **8**; Chargeback growth **20.1×**. The line chart plots two counts on
+a single axis (never a dual axis): transactions climb while alerts created stay flat. The
+`[Unalerted high-risk value]` measure already filters to the sanctioned-country set, so the bar
+chart resolves to those countries only.
 
-| Visual | Tipo | Campos | Nota |
-|---|---|---|---|
-| Valor por status | Bar chart | accounts[status] · [Total transaction value] | Active gris #9DB1F2; Closed/Dormant/Frozen ambar (formato condicional por regla); titulo cita [Value through non-active accounts] |
-| Card misclasificados | Card | conteo de transactions con filtro visual counterparty_country HR + is_international = "No" | el numero canonico es 148 (EDA_FINDINGS) |
-| Backlog matrix | Matrix | filas compliance_alerts[severity] · columnas compliance_alerts[status] · valores conteo alert_id | fondo rojo condicional en Critical/High con status no "Closed…" |
-| Cards ops | Card x2 | [False-positive rate] · [Backlog median age (days)] | |
-| Chargebacks | Column chart | Eje X: DATE[Year-Month] · Y: [Monthly chargeback value] | columnas ambar; card [Chargeback growth] al lado; el eje usa la relacion inactiva via la medida puente |
+## 5. Page 2 — Risk deep-dive
 
-## 7. Pagina 4 — Detection layers
+Content visuals over the shared shell (§2):
 
-```
-+==(canvas)==================================================================================+
-|  Three model tiers surface what rules miss                       Data as of 2026-07-11    |
-|                                                                                            |
-|  +----------+     +----------+     +----------+                                            |
-|  | 80 / 1600|  -> | 9 / 105  |  -> | 5 / 59   |   <- cards: anomalias por nivel;          |
-|  | txns     |     | accounts |     | customers|      flujo transaction -> account ->       |
-|  +----------+     +----------+     +----------+      customer (flechas = shapes)           |
-|                                                                                            |
-|  +--------------------------------------------+  +--------------------------------------+ |
-|  | Tier 1 — model score vs amount             |  | Tier 2 — accounts: score vs value    | |
-|  |  score|        . x        x model-only     |  | score|         o    O = anomalo      | |
-|  |       |     .x. .  x      . rules-flagged  |  |      |      o    O  (rojo si sin     | |
-|  |       |  . .:.::.                          |  |      |  o o   O     alerta previa)   | |
-|  |       +--------------- amount ($ log)      |  |      +-------------- total value     | |
-|  +--------------------------------------------+  +--------------------------------------+ |
-|                                                                                            |
-|  +--------------------------------------------------------------------------------------+ |
-|  | Tier 3 — anomalous customers                                                          | |
-|  | customer  score  anomalous accts  structuring days  never screened  post-match value | |
-|  | CUST0054  -0.08        0                12               si   (!)         $0         | |
-|  | CUST00xx  ...          ...              ...              ...              ...        | |
-|  |  ^-- table: iconos condicionales en structuring days > 0 y never screened            | |
-|  +--------------------------------------------------------------------------------------+ |
-|  Verificacion en navegador y detalle por cuenta: fraud-exploration.pages.dev (Layer 2)    |
-+============================================================================================+
-```
+| Idx | Visual | Type | Title | Fields |
+|---|---|---|---|---|
+| 4 | Escalation funnel | Funnel | Escalation funnel | `[Flagged transaction count]` → `[Flagged no-alert count]` |
+| 5 | Unworked high-risk | Table | Unalerted high-risk transactions | `transactions[counterparty_country]` · `[Unalerted high-risk count]` · `[Unalerted high-risk value]` |
+| 6 | Amount distribution | Clustered column chart | Transactions per $1,000 band | Axis `transactions[amount (bins)]` · Value `[Transaction count]` |
+| 7 | Post-match activity | Matrix | Confirmed matches — activity after the match | `customers[customer_id]` · Min of `sanctions_screening[Screening date]` · `[Post-match value]` |
+| 8 | Screening card | Card (new card visual) | — | `[Post-match value]` · `[Never-screened customers]` |
+| 9 | Structuring card | Card (new card visual) | — | `[Structuring-band count]` · `[Structuring-band share]` |
 
-| Visual | Tipo | Campos | Nota |
-|---|---|---|---|
-| Cards por nivel | Card x3 | conteos de transaction_scores / account_scores / customer_scores con filtro visual anomaly = -1 | subtitulos "of 1,600 / of 105 / of 59 active" |
-| Scatter tier 1 | Scatter | X: transaction_scores[amount] · Y: transaction_scores[score] · leyenda: flagged_by_rules | model-only en azul #2E5BFF, rules-flagged gris; eje X escala log si el sesgo molesta |
-| Scatter tier 2 | Scatter | X: account_scores[total] · Y: account_scores[score] · tamano: n_tx · leyenda: anomaly | anomalos con borde; rojo solo si has_alert = false (riesgo sin caso) |
-| Tabla tier 3 | Table | customer_scores: customer_id, score, n_anomalous_accounts, structuring_days, never_screened, post_match_value, nationality | filtro visual anomaly = -1; iconos condicionales (! en structuring_days > 0 y never_screened = 1) |
-| Nota Layer 2 | Text box | enlace al board | cierra la historia de dos capas |
+The escalation funnel has exactly **two stages**: `[Flagged transaction count]` (409) narrowing
+to `[Flagged no-alert count]` (357); the gap between them is the 87.3% `[Escalation gap]`. The
+column chart uses the calculated `transactions[amount (bins)]` column (native $1,000 bins) on
+its axis, which isolates the $9,000–9,999 structuring band. Verified values (2026-07-14):
+Post-match value **$1,856,243**; Never-screened customers **28** (34% of 83); Structuring-band
+count **276**; Structuring-band share **17.4%**.
 
-## 8. Interacciones
+## 6. Page 3 — Controls & operations
 
-- Cross-filtering por defecto entre visuales de la misma pagina; sin drillthrough
-  obligatorio (opcional: clic derecho pais -> Risk deep-dive).
-- Tooltips por defecto enriquecidos: agregar [Total transaction value] al pozo de
-  tooltip de los charts de transacciones.
-- El slicer de periodo (DATE) se sincroniza en las 4 paginas. Las medidas con fecha
-  fija ([Backlog median age (days)], [Chargeback growth], [Post-match value]) son
-  inmunes por diseno — documentado en measures.md.
-- Sin visuales custom de AppSource, sin features preview: el archivo abre limpio en
-  cualquier Desktop razonablemente actual.
+Content visuals over the shared shell (§2):
 
-## 9. Checklist de armado (orden mecanico)
+| Idx | Visual | Type | Title | Fields |
+|---|---|---|---|---|
+| 4 | Value by status | Card (new card visual) | Value by account status | `[Value through non-active accounts]` |
+| 5 | Alert backlog | Matrix | — | Rows `compliance_alerts[severity]` · Columns `compliance_alerts[status]` · Values Min of `compliance_alerts[alert_id]` |
+| 6 | Volume by status | Bar chart | — | Axis `accounts[status]` · Value `[Transaction count]` |
+| 7 | Operations card | Card (new card visual) | — | `[False-positive rate]` · `[Backlog median age (days)]` |
+| 8 | Chargeback trend | Clustered column chart | — | Axis `DATE[Year-Month]` · Value `[Monthly chargeback value]` |
+| 9 | Misclassification card | Card (new card visual) | Sanctioned-country txns marked domestic | Min of `transactions[transaction_id]` |
 
-1. View > Browse for themes > `powerbi/theme.json`.
-2. Canvas: Page view 16:9; fondo lo da el tema. Crear las 4 paginas con sus nombres.
-3. Shell en pagina 1: rectangulo navy 168px + titulo + Page Navigator + slicer DATE
-   (estilo Between) -> copiar el shell a las otras 3 paginas; View > Sync slicers.
-4. Overview: card visual x6 -> line chart -> bar por pais (tabla §4).
-5. Risk deep-dive: funnel + tabla HR + matrix post-match + cards + bins de $1,000
-   sobre transactions[amount] + histograma (tabla §5).
-6. Controls & ops: bar por status + card 148 + matrix backlog + cards + columnas
-   mensuales de chargebacks (tabla §6).
-7. Detection layers: 3 cards + 2 scatters + tabla tier 3 + text box con el enlace
-   (tabla §7).
-8. Sello "Data as of 2026-07-11" (text box 10px gris) en cada pagina.
-9. Revision final contra §1: sin eje dual, rojo/ambar solo semantico, sin metricas
-   desnudas, alineacion a la rejilla, y numeros contra EXECUTIVE_SUMMARY.md.
+The "Value by account status" card reports `[Value through non-active accounts]`
+(**$15,254,133** verified) — the value flowing through Closed, Dormant, and Frozen accounts.
+The backlog matrix cross-tabulates alerts by severity and status. The volume bar chart plots
+`[Transaction count]` by `accounts[status]`. Operations card verified values (2026-07-14):
+False-positive rate **76.9%**; Backlog median age **90.5 days**. The chargeback column chart
+uses `[Monthly chargeback value]`, which activates the inactive `chargebacks[Chargeback date]`
+→ `DATE[Date]` relationship via USERELATIONSHIP; total chargeback value is **$497,020** across
+**70** chargebacks (verified 2026-07-14). The final card surfaces sanctioned-country
+transactions flagged as domestic.
 
-## Registro de decisiones
+## 7. Page 4 — Detection layers
 
-- 2026-07-13 — 4 paginas tematicas (insights) y NO una pagina por nivel de deteccion:
-  el entregable se evalua por los 5 insights; los 3 niveles del modelo son UNA pagina
-  (Detection layers) que enlaza al board. Overview no falta: es la pagina 1.
-- 2026-07-13 — new card visual (GA nov-2025) para la banda KPI; fallback documentado:
-  cards clasicos si el Desktop del revisor fuera anterior a 2024.
-- 2026-07-13 — rojo/ambar excluidos de dataColors del tema para que el motor no los
-  asigne a series decorativas; se aplican solo por formato condicional o seleccion
-  manual en visuales de riesgo (regla heredada del board, CONVENTIONS §2).
+Content visuals over the shared shell (§2):
+
+| Idx | Visual | Type | Title | Fields |
+|---|---|---|---|---|
+| 4 | Tier 1 counter | Card (new card visual) | Tier 1 · transactions | Min of `transaction_scores[transaction_id]` |
+| 5 | Tier 1 scatter | Scatter chart | Tier 1 — model score vs amount | Details `transaction_scores[transaction_id]` · X Sum of `transaction_scores[amount]` · Y Sum of `transaction_scores[score]` · Legend `transaction_scores[flagged_by_rules]` |
+| 6 | Tier 2 scatter | Scatter chart | Tier 2 — accounts: score vs value | Details `account_scores[account_id]` · X Sum of `account_scores[total]` · Y Sum of `account_scores[score]` · Legend `account_scores[anomaly]` · Size Sum of `account_scores[n_tx]` |
+| 7 | Tier 2 counter | Card (new card visual) | Tier 2 · accounts | Min of `account_scores[account_id]` |
+| 8 | Tier 3 counter | Card (new card visual) | Tier 3 · customers | Min of `customer_scores[customer_id]` |
+| 9 | Tier 3 table | Table | — | `customer_scores[customer_id]` · Sum of `customer_scores[score]` · Sum of `customer_scores[n_anomalous_accounts]` · Sum of `customer_scores[structuring_days]` · Sum of `customer_scores[never_screened]` · Sum of `customer_scores[post_match_value]` · `customer_scores[nationality]` |
+
+The page carries three tier counter cards (transaction / account / customer) alongside the two
+scatter charts and the customer-level table. The Tier 1 scatter separates rules-flagged from
+model-only transactions via the `flagged_by_rules` legend; the Tier 2 scatter sizes each account
+by transaction count and colors it by `anomaly`. The Tier 3 table lists the model's anomalous
+customers with their score and supporting features.
+
+## 8. Interactions
+
+- Cross-filtering is left at the Desktop default between visuals on the same page.
+- The REPORTING PERIOD slicer on `DATE[Date]` is present on all four pages and synced across
+  them (View > Sync slicers).
+- Measures anchored to a fixed date are unaffected by the slicer by design:
+  `[Backlog median age (days)]` is anchored to 2026-07-11, `[Chargeback growth]` compares the
+  latest month against a 2026-03 baseline, and `[Post-match value]` is measured from each
+  customer's first confirmed-match date. This is documented in measures.md.
+- No custom or AppSource visuals and no preview features are used.
+
+## 9. Decision log
+
+- 2026-07-14 — Page 4 renamed from "Direction layers" to "Detection layers" (confirmed in the
+  saved file).
+- 2026-07-13 — Four thematic (insight) pages rather than one page per detection tier: the
+  deliverable is judged on its headline insights, and the three model tiers are consolidated on
+  a single page (Detection layers) that links to the board. Overview is page 1.
+- 2026-07-13 — The new card visual is used for the KPI band on Overview; classic cards remain a
+  fallback for older Desktop builds.
+- 2026-07-13 — Red and amber are excluded from the theme's `dataColors` so the engine cannot
+  assign them to decorative series; they are applied only through conditional formatting or
+  manual selection on risk visuals (a rule inherited from the board, CONVENTIONS §2).

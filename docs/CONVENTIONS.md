@@ -1,133 +1,134 @@
 # CONVENTIONS — Fraud & Compliance Exploration Board
 
-Terminologia canonica y reglas de codigo, documentacion y commits del proyecto.
-Definicion de producto en [PRD.md](PRD.md); analisis en [../outputs/EDA_FINDINGS.md](../outputs/EDA_FINDINGS.md).
-Fecha del documento: 2026-07-12.
+Canonical terminology and the project's rules for code, documentation, and commits.
+Product definition in [PRD.md](PRD.md); the analysis lives in the board's Findings tab and the
+README "Key findings" section.
+Document date: 2026-07-14.
 
 ---
 
-## 1. Terminologia canonica
+## 1. Canonical terminology
 
-Regla: **un concepto = un termino**. Si un termino nuevo entra al codigo o a un doc,
-este glosario se actualiza en el mismo commit.
+Rule: **one concept = one term**. When a new term enters the code or a doc, this glossary is
+updated in the same commit.
 
-| Termino | Significado | Evitar |
+| Term | Meaning | Avoid |
 |---|---|---|
-| **board** | La web estatica completa en Cloudflare Pages (`app/`) | "dashboard", "app", "sitio" |
-| **tab** | Una de las 6 vistas del board (Overview, Data, EDA, Findings, ML Model, AI Engine); modulo `app/js/tab-*.js` | "pagina", "seccion", "panel" |
-| **serving layer** | Supabase Postgres + PostgREST con RLS SELECT-only para anon | "backend", "la base", "API" |
-| **anon key** | Key publica del frontend; segura porque RLS la limita a SELECT | "api key publica", "token" |
-| **finding** | Hallazgo tematico con card + chart en el tab Findings (son 6) | confundir con "insight" |
-| **insight** | Uno de los 5 del entregable ejecutivo (`reports/EXECUTIVE_SUMMARY.md`) — NO es UI | confundir con "finding" |
-| **KPI** | Tile del tab Overview (son 8); cada uno abre popup con definicion, formula viva y "why it matters" | "metrica", "indicador", "card" |
-| **sentinel** | El Edge Function `supabase/functions/sentinel/index.ts` completo (pipeline v2) | "el bot", "la IA", "el asistente" |
-| **agente** | Uno de los 5 del pipeline del sentinel: profile_analyst, behavior_analyst, anomaly_interpreter, risk_synthesizer, compliance_reviewer | "paso", "prompt", "modelo" |
-| **tool** | Fetcher determinista que alimenta a un agente (profileFetcher, screeningFetcher, txnAggregator, txnSampler, scoreFetcher, alertFetcher) | "helper", "query", "funcion" |
-| **model wrapper** | `callModel`: unico punto de llamada a Gemini, con retry + backoff + fallback chain y key en header | "cliente", "SDK" |
-| **fallback chain** | Cadena de aliases de modelo: `gemini-flash-latest → gemini-flash-lite-latest → gemini-2.0-flash` | "backup model", "plan B" |
-| **audit trail** | La tabla `sentinel_audit` (una fila por agente por run: run_id, model_used, attempts, fallback_used, latency_ms, ok) y su eco en la respuesta | "logs", "historial" |
-| **banda structuring** | Transacciones de $9,000–9,999, justo bajo el umbral de reporte de $10,000 | "smurfing band", "rango sospechoso" |
-| **HR country** | Pais del set de alto riesgo: Iran, North Korea, Syria, Russia, Myanmar, Afghanistan (`HIGH_RISK` en codigo) | "pais sancionado" a secas, listas ad-hoc |
-| **offshore** | Pais del set offshore: Cayman Islands, British Virgin Islands, Panama, Cyprus, Malta (`OFFSHORE` en codigo) | "paraiso fiscal", listas ad-hoc |
-| **cleaning log** | `outputs/cleaning_log.csv` y su tabla servida `cleaning_log`: los 31 issues tratados por `clean.py`, uno por fila | "log de errores", "changelog" |
+| **board** | The complete static web app on Cloudflare Pages (`app/`) | "dashboard", "app", "site" |
+| **tab** | One of the board's 7 views (Power BI, EDA, ETL, DSS, Findings, ML Model, AI Engine); an `app/js/tab-*.js` module | "page", "section", "panel" |
+| **serving layer** | Supabase Postgres + PostgREST with SELECT-only RLS for anon | "backend", "the database", "API" |
+| **anon key** | The frontend's public key; safe because RLS limits it to SELECT | "public API key", "token" |
+| **finding** | A thematic card + chart in the Findings tab | confusing it with "insight" |
+| **insight** | One of the up-to-five insights in the executive summary (surfaced in the README "Key findings" section and the board's Findings tab) — not a UI element | confusing it with "finding" |
+| **KPI** | A headline metric tile on the board's Findings tab (there are 8); each opens a popup with its definition, live formula, and "why it matters" | "metric", "indicator", "card" |
+| **sentinel** | The complete Edge Function `supabase/functions/sentinel/index.ts` (pipeline v3.1) | "the bot", "the AI", "the assistant" |
+| **agent** | One of the sentinel pipeline's 5: profile_analyst, behavior_analyst, anomaly_interpreter, risk_synthesizer, compliance_reviewer | "step", "prompt", "model" |
+| **tool** | A deterministic fetcher that feeds an agent (profileFetcher, screeningFetcher, txnAggregator, txnSampler, txnOutlierFetcher, scoreFetcher, alertFetcher) | "helper", "query", "function" |
+| **model wrapper** | `callModel`: the single point of call to Gemini, with retry + backoff + fallback chain and the key in the header | "client", "SDK" |
+| **fallback chain** | The chain of model aliases: `gemini-flash-latest → gemini-flash-lite-latest → gemini-2.0-flash` | "backup model", "plan B" |
+| **audit trail** | The `sentinel_audit` table (one row per agent per run: run_id, model_used, attempts, fallback_used, latency_ms, ok) and its echo in the response | "logs", "history" |
+| **structuring band** | Transactions of $9,000–9,999, just under the $10,000 reporting threshold | "smurfing band", "suspicious range" |
+| **HR country** | A country in the high-risk set: Iran, North Korea, Syria, Russia, Myanmar, Afghanistan (`HIGH_RISK` in code) | plain "sanctioned country", ad-hoc lists |
+| **offshore** | A country in the offshore set: Cayman Islands, British Virgin Islands, Panama, Cyprus, Malta (`OFFSHORE` in code) | "tax haven", ad-hoc lists |
+| **cleaning log** | `outputs/cleaning_log.csv` and its served table `cleaning_log`: the 31 issues handled by `clean.py`, one per row | "error log", "changelog" |
 
-## 2. Codigo
+## 2. Code
 
-**Vanilla JS sin build**: el board es HTML/JS/CSS plano; ningun bundler, framework ni
-paso de compilacion. Cloudflare Pages sirve `app/` tal cual en cada push.
+**Vanilla JS, no build**: the board is plain HTML/JS/CSS — no bundler, framework, or compile
+step. Cloudflare Pages serves `app/` as-is on every push.
 
-**Modulos por tab**: cada tab vive en su propio `app/js/tab-*.js` y se registra en
-`window.FE.tabs`; render lazy en la primera activacion. Lo compartido (estado, fetch
-Supabase, router por hash, modal, formatters) vive solo en `app/js/core.js`; los charts
-solo en `app/js/charts.js`.
+**Per-tab modules**: each tab lives in its own `app/js/tab-*.js` and registers on
+`window.FE.tabs`; it renders lazily on first activation. Shared code (state, Supabase fetch,
+hash router, modal, formatters) lives only in `app/js/core.js`; charts only in
+`app/js/charts.js`.
 
-**Tokens CSS en `:root`**: todo color, espaciado o radio sale de las custom properties
-de `:root` — nunca hex sueltos en reglas ni en JS. La semantica de riesgo es fija:
-rojo = sanctioned, ambar = offshore/warn.
+**CSS tokens in `:root`**: every color, spacing, or radius comes from the `:root` custom
+properties — never loose hex values in rules or in JS. Risk semantics are fixed:
+red = sanctioned, amber = offshore/warn.
 
-**Nombres descriptivos, nunca genericos**: `summarizeTransactions`, `withinLimits`,
-`persistAudit` — no `helper`, `process`, `doStuff`. Aplica a funciones, variables,
-tablas y clases CSS.
+**Descriptive names, never generic**: `summarizeTransactions`, `withinLimits`, `persistAudit`
+— not `helper`, `process`, `doStuff`. Applies to functions, variables, tables, and CSS classes.
 
-**Comentarios = restricciones funcionales, nunca tareas**: un comentario explica por que
-el codigo es asi ("Fail open: a limiter outage must not take the demo down", "URLs leak
-into logs"), no que falta por hacer. Sin TODO/FIXME en main.
+**Comments = functional constraints, never tasks**: a comment explains why the code is the way
+it is ("Fail open: a limiter outage must not take the demo down", "URLs leak into logs"), not
+what is left to do. No TODO/FIXME on main.
 
-**Python re-ejecutable desde la raiz**: `python analysis/clean.py` →
-`python analysis/anomaly.py` → `python supabase/generate_seed.py` reconstruyen todo
-end-to-end. Nunca "arreglar" datos sospechosos en silencio: todo tratamiento se registra
-en el patron del cleaning log (CONVENTIONS §1).
+**Python re-runnable from the repo root**: `python analysis/clean.py` →
+`python analysis/anomaly.py` → `python supabase/generate_seed.py` rebuild everything
+end-to-end. Never silently "fix" suspicious data: every treatment is recorded in the
+cleaning-log pattern (CONVENTIONS §1).
 
-## 3. Documentacion
+## 3. Documentation
 
-**Code as source of truth**: ante cualquier discrepancia entre un doc y el codigo, manda
-el codigo, y el doc se corrige **en el mismo commit** que detecto o creo la discrepancia.
+**Code as the source of truth**: on any discrepancy between a doc and the code, the code wins,
+and the doc is corrected **in the same commit** that detected or created the discrepancy.
 
-**Cifras siempre trazables**: todo numero en docs o en copy de UI traza a
-`outputs/EDA_FINDINGS.md` o a `app/data/eda_stats.json` (PRD §5, RF1). Si un script
-cambia un numero, EDA_FINDINGS.md se actualiza en el mismo commit.
+**Numbers always traceable**: every number in the docs or in UI copy traces to
+`app/data/eda_stats.json`, the board's Findings tab, and the README "Key findings" section
+(PRD §5, RF1). If a script changes a number, the README "Key findings" section is updated in
+the same commit.
 
-**Estandar de casa**: espanol sin acentos; apertura
-`# TITULO — Fraud & Compliance Exploration Board` + alcance de 1-3 lineas con links a
-docs hermanos + `---`; secciones numeradas `## 1.`; tablas para lo enumerable; diagramas
-solo ASCII en code fences (nunca mermaid); cross-refs estilo `PRD §4`; lead-ins en bold
-`**RF1 — nombre**:`; fechas `yyyy-mm-dd`.
+**House standard**: docs are written in English; opening
+`# TITLE — Fraud & Compliance Exploration Board` + a 1–3 line scope with links to sibling docs
++ `---`; numbered sections `## 1.`; tables for anything enumerable; diagrams only as ASCII in
+code fences (never mermaid); cross-references in the style `PRD §4`; bold lead-ins
+`**RF1 — name**:`; dates as `yyyy-mm-dd`.
 
-**Sin datos personales del propietario**: los docs se refieren a "el propietario" u
-"owner"; nunca nombre, email ni caracterizaciones. El disclaimer de no-afiliacion y
-datos dummy se mantiene en README y PRD.
+**No personal data about the owner**: the docs refer to "the author" or "the owner"; never a
+name, email, or personal characterization. The non-affiliation and dummy-data disclaimer stays
+in README and PRD.
 
 ## 4. Commits
 
-**Conventional commits**: `feat:`, `fix:`, `docs:`, `refactor:`, `chore:` con scope
-opcional (`feat(engine): ...`). Mensaje en el mismo tono del proyecto: conciso, primero
-el que y el por que.
+**Conventional commits**: `feat:`, `fix:`, `docs:`, `refactor:`, `chore:` with an optional
+scope (`feat(engine): ...`). Message in the project's tone: concise, the what and the why
+first.
 
-**Un cambio logico por commit**: codigo + su doc/glosario actualizado viajan juntos
-(CONVENTIONS §3); cambios no relacionados se separan.
+**One logical change per commit**: code plus its updated doc/glossary travel together
+(CONVENTIONS §3); unrelated changes are split apart.
 
-**Sin trailers de coautoria**: ningun `Co-Authored-By` ni firmas de herramientas. La
-historia de git es parte del portfolio y debe leerse como trabajo del propietario.
+**No co-authorship trailers**: no `Co-Authored-By` and no tool signatures. The git history is
+part of the portfolio and must read as the author's own work.
 
-**La historia es parte del portfolio**: no se reescribe main; los mensajes cuentan la
-evolucion del proyecto (limpieza → modelo → serving → board → sentinel) y un revisor debe
-poder auditarla commit a commit.
+**The history is part of the portfolio**: main is never rewritten; the messages tell the
+project's evolution (cleaning → model → serving → board → sentinel) and a reviewer must be able
+to audit it commit by commit.
 
 ---
 
-## 5. Copy de UI (v3.1, 2026-07-12)
+## 5. UI copy (v3.1, 2026-07-12)
 
-- Tono profesional y declarativo: hechos con numeros, maximo una frase interpretativa por
-  bloque. Sin metaforas, sin meta-comentario sobre el propio analisis, sin dramatizacion,
-  sin retorica de guiones.
-- Titulos = frases nominales descriptivas ("Parameter sensitivity", "Account detail").
-- El registro de la conversacion de desarrollo NUNCA se traslada al producto.
-- Terminos del glosario, tambien en identificadores de codigo. Filas nuevas:
+- Professional, declarative tone: facts with numbers, at most one interpretive sentence per
+  block. No metaphors, no meta-commentary on the analysis itself, no dramatization, no scripted
+  rhetoric.
+- Titles = descriptive noun phrases ("Parameter sensitivity", "Account detail").
+- The development conversation log NEVER carries over into the product.
+- Glossary terms apply in code identifiers too. New rows:
 
-| Termino | Significado | Evitar |
+| Term | Meaning | Avoid |
 |---|---|---|
-| model-only detection | deteccion del modelo sin flag del motor de reglas | needle, aguja |
-| account detail | vista de perfil+actividad+modelo+controles de una cuenta | story, dossier, historia |
-| in-browser verification | recomputo local de scores contra el pipeline | live scoring, demo |
+| model-only detection | a model detection with no rules-engine flag | needle |
+| account detail | the profile + activity + model + controls view of a single account | story, dossier, narrative |
+| in-browser verification | local recomputation of scores against the pipeline | live scoring, demo |
 
-| Sentinel | agente IA de analisis de sujetos (pipeline de 5 agentes en Edge Function) | copilot, Compliance Copilot |
+| Sentinel | the subject-analysis AI (five-agent pipeline in the Edge Function) | copilot, Compliance Copilot |
 
-- Los bloques colapsables de notas (`details.notes` / `details.criteria-legend`) van SIEMPRE
-  al final del card o seccion, despues de los datos que anotan — nunca antes.
+- Collapsible note blocks (`details.notes` / `details.criteria-legend`) ALWAYS go at the end of
+  the card or section, after the data they annotate — never before.
 
-| evidence strength | fuerza de evidencia computada del checklist de señales (strong/moderate/limited) | confidence, confianza del modelo |
+| evidence strength | evidence strength computed from the signal checklist (strong / moderate / limited) | confidence, model confidence |
 
-## 6. Capa semantica Power BI (2026-07-13)
+## 6. Power BI semantic layer (2026-07-13)
 
-El .pbix (entregable Layer 1) importa las 9 tablas del dataset `fraud_exploration`
-de BigQuery (proyecto `fraud-exploration-cd`). Reglas del modelo semantico:
+The `.pbix` (the Layer 1 deliverable) imports the 9 warehouse tables from the BigQuery dataset
+`fraud_exploration`. Semantic-model rules:
 
-| Objeto | Convencion |
+| Object | Convention |
 |---|---|
-| Tablas y columnas fisicas | snake_case identico al warehouse — lineage 1:1 con BigQuery; nunca se renombran |
-| Columnas de fecha | las fisicas (texto ISO) permanecen ocultas; cada una tiene su columna calculada tipada Date en sentence case ("Transaction date") |
-| Medidas | termino canonico del KPI tile o del glosario, verbatim, en sentence case ("Unalerted high-risk value", "Unresolved Critical / High"); un concepto nuevo exige su fila de glosario en el mismo commit (§1) |
-| Formulas | identicas a la superficie canonica (KPI tile / `eda_stats.json`); toda cifra reproduce EDA_FINDINGS (§3) |
-| Tabla de medidas | todas las medidas viven en `KPI` (tabla calculada dummy con su unica columna oculta; termino del glosario §1 — "Measures" a secas es nombre reservado del motor) |
-| Display folders | numerados por el orden de insights del executive summary: 00 Base, 01 Escalation gap, 02 Sanctions screening, 03 Structuring, 04 Account controls, 05 Operations |
-| Tabla DATE | calculada (CALENDAR 2025-2026) y marcada como date table; unica relacion activa a `transactions[Transaction date]`; Alert/Chargeback/Screening date se activan con USERELATIONSHIP en medidas puente (Alerts created, Monthly chargeback value). Tablas de modelo (KPI, DATE) van en MAYUSCULAS — distinguen a simple vista de las snake_case del warehouse |
+| Physical tables and columns | snake_case identical to the warehouse — 1:1 lineage with BigQuery; never renamed |
+| Date columns | the physical ones (ISO text) stay hidden; each has its own calculated date column in sentence case ("Transaction date") |
+| Measures | the canonical term from the KPI tile or glossary, verbatim, in sentence case ("Unalerted high-risk value", "Unresolved Critical / High"); a new concept requires its glossary row in the same commit (§1) |
+| Formulas | identical to the canonical surface (KPI tile / `eda_stats.json`); every figure reproduces the traceable numbers per §3 |
+| Measure table | all measures live in `KPI` (a dummy calculated table whose single column is hidden; glossary term §1 — plain "Measures" is a reserved engine name) |
+| Display folders | numbered by the executive summary's insight order: 00 Base, 01 Escalation gap, 02 Sanctions screening, 03 Structuring, 04 Account controls, 05 Operations |
+| DATE table | calculated calendar, marked as the date table; the only active date relationship is `transactions[Transaction date] → DATE[Date]`. The Alert-date, Chargeback-date, and Screening-date relationships are all inactive; two are activated per-measure via USERELATIONSHIP — Alert date by [Alerts created] and Chargeback date by [Monthly chargeback value] — while the Screening-date relationship is never activated (measures such as [Post-match value] reach screening dates through `ALL(sanctions_screening)` instead). Model tables (KPI, DATE) are UPPERCASE — instantly distinguishable from the warehouse's snake_case tables |

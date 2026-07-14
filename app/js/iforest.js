@@ -1,7 +1,7 @@
 /* Isolation Forest inference in the browser — no libraries.
    Consumes app/data/isolation_forest.json (exported by analysis/export_model.py,
    fidelity-checked against sklearn to 1e-9) and reproduces two things exactly:
-   the 12-feature engineering of analysis/anomaly.py and sklearn's score_samples
+   the 16-feature engineering of analysis/account_features.py and sklearn's score_samples
    semantics (anomaly score = 2^(−E[path]/c(max_samples)), higher = worse). */
 window.FE.iforest = (() => {
   const { HIGH_RISK, OFFSHORE } = window.FE;

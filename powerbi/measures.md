@@ -1,18 +1,17 @@
 # MEASURES — Fraud & Compliance Exploration Board
 
-Catalogo de la capa semantica del .pbix, generado del modelo en vivo el 2026-07-13
-(via TOM contra el Analysis Services local de Desktop). Nombres y formulas siguen
-[../docs/CONVENTIONS.md](../docs/CONVENTIONS.md) §6: termino canonico del KPI tile,
-formula identica a la superficie canonica del board. Layout en
-[layout_spec.md](layout_spec.md).
+Catalog of the .pbix semantic layer, generated from the live model on 2026-07-13
+(via TOM against Desktop's local Analysis Services). Names and formulas follow
+[../docs/CONVENTIONS.md](../docs/CONVENTIONS.md) §6: the canonical KPI-tile term, with the
+formula identical to the board's canonical surface. Layout in [layout_spec.md](layout_spec.md).
 
 ---
 
-## 1. Modelo
+## 1. Model
 
-9 tablas del warehouse (BigQuery `fraud-exploration-cd.fraud_exploration`, snake_case)
-+ 2 tablas de modelo en mayusculas: `KPI` (todas las medidas) y `DATE` (calendario
-2025-2026 marcado como date table).
+11 tables total: 9 warehouse tables (BigQuery dataset `fraud_exploration`, snake_case) plus
+2 uppercase model tables: `KPI` (all measures) and `DATE` (a calculated calendar, marked as
+the date table).
 
 ```
 customers 1--* accounts 1--* transactions 1--* chargebacks
@@ -20,31 +19,31 @@ customers 1--1 customer_scores        transactions 1--1 transaction_scores
 customers 1--* sanctions_screening    accounts 1--1 account_scores
                                       accounts 1--* compliance_alerts
 
-DATE[Date] 1--* transactions[Transaction date]        (ACTIVA)
-DATE[Date] 1--* compliance_alerts[Alert date]         (inactiva -> USERELATIONSHIP)
-DATE[Date] 1--* chargebacks[Chargeback date]          (inactiva -> USERELATIONSHIP)
-DATE[Date] 1--* sanctions_screening[Screening date]   (inactiva -> USERELATIONSHIP)
+DATE[Date] 1--* transactions[Transaction date]        (ACTIVE)
+DATE[Date] 1--* compliance_alerts[Alert date]         (inactive -> USERELATIONSHIP)
+DATE[Date] 1--* chargebacks[Chargeback date]          (inactive -> USERELATIONSHIP)
+DATE[Date] 1--* sanctions_screening[Screening date]   (inactive -> USERELATIONSHIP)
 ```
 
-Las columnas de fecha fisicas (texto ISO) estan ocultas; las visibles son columnas
-calculadas tipadas Date en sentence case ("Transaction date", "Alert date", ...).
+The physical date columns (ISO text) are hidden; the visible ones are calculated, Date-typed
+columns in sentence case ("Transaction date", "Alert date", ...).
 
-## 2. Medidas (22, tabla KPI)
+## 2. Measures (22, table KPI)
 
-Fechas fijas por diseno: el "now" canonico es 2026-07-11 (CLAUDE.md) en
-[Backlog median age (days)]; el ancla 2026-03 de [Chargeback growth] replica el KPI
-tile del board (core.js). Ambas son inmunes al slicer de periodo.
+Dates fixed by design: the canonical "now" is 2026-07-11 (CLAUDE.md) in
+[Backlog median age (days)]; the 2026-03 anchor in [Chargeback growth] mirrors the board's KPI
+tile (core.js). Both are immune to the reporting-period slicer.
 
 ### 00 Base
 
-| Medida | Formato | DAX |
+| Measure | Format | DAX |
 |---|---|---|
 | Total transaction value | `$#,0` | `SUM(transactions[amount])` |
 | Transaction count | `#,0` | `COUNTROWS(transactions)` |
 
 ### 01 Escalation gap
 
-| Medida | Formato | DAX |
+| Measure | Format | DAX |
 |---|---|---|
 | Escalation gap | `0.0%` | `DIVIDE([Flagged no-alert count], [Flagged transaction count])` |
 | Flagged transaction count | `#,0` | `CALCULATE(COUNTROWS(transactions), transactions[flagged_for_review] = "Yes")` |
@@ -55,7 +54,7 @@ tile del board (core.js). Ambas son inmunes al slicer de periodo.
 
 ### 02 Sanctions screening
 
-| Medida | Formato | DAX |
+| Measure | Format | DAX |
 |---|---|---|
 | Screening coverage | `0.0%` | `DIVIDE(DISTINCTCOUNT(sanctions_screening[customer_id]), COUNTROWS(customers))` |
 | Never-screened customers | `0` | `COUNTROWS(customers) - DISTINCTCOUNT(sanctions_screening[customer_id])` |
@@ -63,43 +62,46 @@ tile del board (core.js). Ambas son inmunes al slicer de periodo.
 
 ### 03 Structuring
 
-| Medida | Formato | DAX |
+| Measure | Format | DAX |
 |---|---|---|
 | Structuring-band count | `#,0` | `COUNTROWS(FILTER(transactions, transactions[amount] >= 9000 && transactions[amount] < 10000))` |
 | Structuring-band share | `0.0%` | `DIVIDE([Structuring-band count], COUNTROWS(FILTER(transactions, NOT ISBLANK(transactions[amount]) && transactions[amount] > 0)))` |
 
 ### 04 Account controls
 
-| Medida | Formato | DAX |
+| Measure | Format | DAX |
 |---|---|---|
 | Value through non-active accounts | `$#,0` | `CALCULATE(SUM(transactions[amount]), accounts[status] IN {"Closed", "Dormant", "Frozen"})` |
 
 ### 05 Operations
 
-| Medida | Formato | DAX |
+| Measure | Format | DAX |
 |---|---|---|
 | Unresolved Critical / High | `0` | `COUNTROWS(FILTER(compliance_alerts, compliance_alerts[severity] IN {"Critical", "High"} && LEFT(compliance_alerts[status], 6) <> "Closed"))` |
 | False-positive rate | `0.0%` | `DIVIDE(CALCULATE(COUNTROWS(compliance_alerts), compliance_alerts[status] = "Closed - False Positive"), COUNTROWS(FILTER(compliance_alerts, LEFT(compliance_alerts[status], 6) = "Closed")))` |
 | Backlog median age (days) | `0` | `MEDIANX(FILTER(compliance_alerts, LEFT(compliance_alerts[status], 6) <> "Closed"), INT(DATE(2026, 7, 11) - compliance_alerts[Alert date]))` |
-| Alerts created | `#,0` | `CALCULATE(COUNTROWS(compliance_alerts), USERELATIONSHIP('DATE'[Date], compliance_alerts[Alert date]))` |
+| Alerts created | `#,0` | `CALCULATE(COUNTROWS(compliance_alerts), USERELATIONSHIP('Date'[Date], compliance_alerts[Alert date]))` |
 | Chargeback value | `$#,0` | `SUM(chargebacks[amount])` |
 | Chargeback count | `#,0` | `COUNTROWS(chargebacks)` |
-| Monthly chargeback value | `$#,0` | `CALCULATE(SUM(chargebacks[amount]), USERELATIONSHIP('DATE'[Date], chargebacks[Chargeback date]))` |
-| Chargeback growth | `0.0"x"` | `VAR mcur = EOMONTH(MAX(chargebacks[Chargeback date]), 0) VAR cur = CALCULATE(SUM(chargebacks[amount]), FILTER(ALL(chargebacks), EOMONTH(chargebacks[Chargeback date], 0) = mcur)) VAR base = CALCULATE(SUM(chargebacks[amount]), FILTER(ALL(chargebacks), EOMONTH(chargebacks[Chargeback date], 0) = DATE(2026, 3, 31))) RETURN DIVIDE(cur, base)` |
+| Monthly chargeback value | `$#,0` | `CALCULATE(SUM(chargebacks[amount]), USERELATIONSHIP('Date'[Date], chargebacks[Chargeback date]))` |
+| Chargeback growth | `0.0"×"` | `VAR mcur = EOMONTH(MAX(chargebacks[Chargeback date]), 0) VAR cur = CALCULATE(SUM(chargebacks[amount]), FILTER(ALL(chargebacks), EOMONTH(chargebacks[Chargeback date], 0) = mcur)) VAR base = CALCULATE(SUM(chargebacks[amount]), FILTER(ALL(chargebacks), EOMONTH(chargebacks[Chargeback date], 0) = DATE(2026, 3, 31))) RETURN DIVIDE(cur, base)` |
 
-## 3. Valores verificados (2026-07-13, EVALUATE contra el modelo)
+## 3. Verified values (2026-07-14, EVALUATE against the model)
 
-| Medida | Valor | Fuente canonica |
+| Measure | Value | Canonical source |
 |---|---|---|
-| Escalation gap | 87.3% (357 de 409) | EDA_FINDINGS / KPI tile |
-| Flagged no-alert value | $7,664,215 | $7.66M |
-| Unalerted high-risk count / value | 147 / $4,323,306 | 147 / $4.32M |
-| Post-match value | $1,856,243 | ~$1.85M |
-| Screening coverage / Never-screened | 66.3% / 28 | 34% de 83 nunca |
-| Structuring-band count / share | 276 / 17.4% | 276 / 17.4% (base 1,587 valid-amount) |
-| Value through non-active accounts | $15,254,133 | $15.3M |
-| Unresolved Critical / High | 8 | 8 |
-| False-positive rate | 76.9% | 77% |
-| Backlog median age (days) | 90.5 | 90d |
-| Chargeback growth | 20.1x | ~20x (2026-03 -> 2026-07) |
-| Monthly chargeback value (2026-03 / 2026-06) | $5,694 / $124,945 | eda_stats.json exacto |
+| Total transaction value | $71,466,414 | live EVALUATE |
+| Transaction count | 1,600 | live EVALUATE |
+| Escalation gap | 87.3% (357 of 409) | README Key findings #1 |
+| Flagged no-alert value | $7,664,215 | $7.66M (Key findings #1) |
+| Unalerted high-risk count / value | 147 / $4,323,306 | 147 / $4.32M (Key findings #1) |
+| Screening coverage / Never-screened | 66.3% / 28 | 34% of 83 never screened (Key findings #2) |
+| Post-match value | $1,856,243 | ~$1.85M (Key findings #2) |
+| Structuring-band count / share | 276 / 17.4% | 276 / 17.4% (base 1,587 valid-amount, Key findings #3) |
+| Value through non-active accounts | $15,254,133 | $15.3M (Key findings #4) |
+| Unresolved Critical / High | 8 | 8 open (Key findings #5) |
+| False-positive rate | 76.9% | 77% (Key findings #5) |
+| Backlog median age (days) | 90.5 | 90d (Key findings #5) |
+| Chargeback count | 70 | live EVALUATE |
+| Chargeback value | $497,020 | live EVALUATE |
+| Chargeback growth | 20.1× | ~20× (2026-03 → latest month, Key findings #5) |
