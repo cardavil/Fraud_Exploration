@@ -334,6 +334,72 @@ window.FE.tabs.ml = {
       const screenings = state.data.sanctions_screening.filter((s) => s.customer_id === customerId);
       const match = screenings.find((s) => s.match_result === "Confirmed Match");
 
+      // Full record detail across every table related to this customer.
+      const accountIds = new Set(accounts.map((a) => a.account_id));
+      const txns = state.data.transactions.filter((t) => accountIds.has(t.account_id));
+      const alerts = state.data.compliance_alerts.filter((a) => accountIds.has(a.account_id));
+      const cbs = state.data.chargebacks.filter((c) => accountIds.has(c.account_id));
+      const txnScore = new Map(state.data.transaction_scores.map((s) => [s.transaction_id, s]));
+      const anomCell = (s) => (s ? `${s.score.toFixed(3)}${s.anomaly === -1 ? ' <span class="badge badge-sanctioned">anom</span>' : ""}` : "—");
+      const detailTable = (title, rows, cols) => (rows.length
+        ? `<details class="notes"><summary>${title} (${fmtInt(rows.length)})</summary>
+            <div class="table-wrap"><table>
+              <thead><tr>${cols.map((c) => `<th class="${c.num ? "num" : ""}">${escapeHtml(c.label)}</th>`).join("")}</tr></thead>
+              <tbody>${rows.map((r) => `<tr>${cols.map((c) => `<td class="${c.num ? "num" : ""}">${c.cell(r)}</td>`).join("")}</tr>`).join("")}</tbody>
+            </table></div></details>`
+        : `<details class="notes"><summary>${title} (0)</summary><p class="muted">none</p></details>`);
+      const recordSections = `
+        ${detailTable("Accounts", accounts, [
+          { label: "Account", cell: (a) => escapeHtml(a.account_id) },
+          { label: "Type", cell: (a) => escapeHtml(a.account_type ?? "—") },
+          { label: "Currency", cell: (a) => escapeHtml(a.currency ?? "—") },
+          { label: "Opened", cell: (a) => escapeHtml(a.open_date ?? "—") },
+          { label: "Status", cell: (a) => escapeHtml(a.status ?? "—") },
+          { label: "Branch", cell: (a) => escapeHtml(a.branch_country ?? "—") },
+          { label: "Balance", num: true, cell: (a) => (a.account_balance == null ? "—" : fmtMoney(a.account_balance)) },
+          { label: "Tier-2", num: true, cell: (a) => anomCell(scoreById.get(a.account_id)) },
+        ])}
+        ${detailTable("Transactions", txns, [
+          { label: "Txn", cell: (t) => escapeHtml(t.transaction_id) },
+          { label: "Date", cell: (t) => escapeHtml(t.transaction_date ?? "—") },
+          { label: "Amount", num: true, cell: (t) => (t.amount == null ? "—" : fmtMoney(t.amount)) },
+          { label: "Type", cell: (t) => escapeHtml(t.transaction_type ?? "—") },
+          { label: "Channel", cell: (t) => escapeHtml(t.channel ?? "—") },
+          { label: "Counterparty", cell: (t) => escapeHtml(t.counterparty_name ?? "—") },
+          { label: "Country", cell: (t) => escapeHtml(t.counterparty_country ?? "—") },
+          { label: "Intl", cell: (t) => escapeHtml(t.is_international ?? "—") },
+          { label: "Flagged", cell: (t) => escapeHtml(t.flagged_for_review ?? "—") },
+          { label: "Tier-1", num: true, cell: (t) => anomCell(txnScore.get(t.transaction_id)) },
+        ])}
+        ${detailTable("Compliance alerts", alerts, [
+          { label: "Alert", cell: (a) => escapeHtml(a.alert_id) },
+          { label: "Date", cell: (a) => escapeHtml(a.alert_date ?? "—") },
+          { label: "Type", cell: (a) => escapeHtml(a.alert_type ?? "—") },
+          { label: "Severity", cell: (a) => escapeHtml(a.severity ?? "—") },
+          { label: "Status", cell: (a) => escapeHtml(a.status ?? "—") },
+          { label: "Analyst", cell: (a) => escapeHtml(a.assigned_analyst ?? "—") },
+          { label: "Resolved", cell: (a) => escapeHtml(a.resolution_date ?? "—") },
+          { label: "SAR", cell: (a) => escapeHtml(a.sar_filed ?? "—") },
+        ])}
+        ${detailTable("Sanctions screening", screenings, [
+          { label: "Screening", cell: (s) => escapeHtml(s.screening_id) },
+          { label: "Date", cell: (s) => escapeHtml(s.screening_date ?? "—") },
+          { label: "List", cell: (s) => escapeHtml(s.list_checked ?? "—") },
+          { label: "Result", cell: (s) => escapeHtml(s.match_result ?? "—") },
+          { label: "Reviewer", cell: (s) => escapeHtml(s.reviewed_by ?? "—") },
+          { label: "Review status", cell: (s) => escapeHtml(s.review_status ?? "—") },
+        ])}
+        ${detailTable("Chargebacks", cbs, [
+          { label: "Chargeback", cell: (c) => escapeHtml(c.chargeback_id) },
+          { label: "Date", cell: (c) => escapeHtml(c.chargeback_date ?? "—") },
+          { label: "Amount", num: true, cell: (c) => (c.amount == null ? "—" : fmtMoney(c.amount)) },
+          { label: "Network", cell: (c) => escapeHtml(c.card_network ?? "—") },
+          { label: "Merchant", cell: (c) => escapeHtml(c.merchant_name ?? "—") },
+          { label: "Reason", cell: (c) => escapeHtml(c.reason_category ?? "—") },
+          { label: "Status", cell: (c) => escapeHtml(c.status ?? "—") },
+          { label: "Liability", cell: (c) => escapeHtml(c.liability_party ?? "—") },
+        ])}`;
+
       openModal(`Customer overview — ${customerId}`, `
         <p><strong>${escapeHtml(customer.full_name ?? customerId)}</strong> ·
         ${escapeHtml(customer.occupation ?? "occupation unknown")} ·
@@ -366,6 +432,7 @@ window.FE.tabs.ml = {
           : '<span class="badge badge-sanctioned">never screened</span>'}</p>
         <p class="muted">Structuring days = calendar days with combined transactions of $10,000+
         split under the threshold across at least two of the customer's own accounts.</p>
+        ${recordSections}
         <p><a href="#engine" class="modal-link" id="ov-run-sentinel">Run Sentinel on this customer &rarr;</a></p>`);
 
       document.getElementById("ov-run-sentinel")?.addEventListener("click", (e) => {
