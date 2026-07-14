@@ -34,15 +34,15 @@ window.FE.tabs.dss = {
 
       ${step(2, "Distributions and trends", "4 figures", `<div class="chart-grid" id="dss-charts"></div>`)}
 
-      ${step(3, "Correlation — what relates to risk flags", "5 pairs · 1 null result", `
+      ${step(3, "Association and correlation", "5 pairs · 1 null result", `
         <div class="table-wrap"><table>
           <thead><tr><th>Variable pair</th><th class="num">Cramér's V</th><th class="num">p</th><th>Reading</th></tr></thead>
           <tbody>${S.associations.map((a) => {
             const strong = a.cramers_v >= 0.3;
             const none = a.cramers_v < 0.1;
             const reading = a.pair.startsWith("risk_rating")
-              ? "<strong>The KYC risk rating has no relationship with flagged activity</strong>"
-              : none ? "No meaningful relationship"
+              ? "<strong>The KYC risk rating has no association with flagged activity</strong>"
+              : none ? "No meaningful association"
               : strong ? "Strong driver" : "Weak but real effect";
             return `<tr><td>${escapeHtml(a.pair)}</td>
               <td class="num"><strong>${a.cramers_v.toFixed(3)}</strong></td>
@@ -53,10 +53,13 @@ window.FE.tabs.dss = {
         disconnected from observed behavior.</strong></p>
         <details class="notes">
           <summary>Definitions and supporting detail</summary>
-          <p><strong>Cramér's V</strong> measures the strength of the relationship between two
-          categorical variables, from 0 (none) to 1 (perfect); <strong>p</strong> is the
-          probability of seeing an association at least this strong by chance.</p>
-          <p>Per-customer correlations between the assigned rating and observed behavior:
+          <p>Two measures, one per variable type. <strong>Cramér's V</strong> measures
+          <em>association</em> between two <strong>categorical</strong> variables (0 = none,
+          1 = perfect); <strong>p</strong> is the probability of an association at least this
+          strong by chance. <strong>Spearman's ρ</strong> measures rank <em>correlation</em> for
+          the <strong>ordinal</strong> risk rating against observed behavior — a different measure
+          because the rating is ordered, not nominal.</p>
+          <p>Per-customer Spearman correlations (rating vs behavior):
           ${S.spearman_vs_rating.map((s) => `${escapeHtml(s.feature)} ρ=${s.rho >= 0 ? "+" : ""}${s.rho} (p=${s.p})`).join(", ")}.
           Only % cash reaches statistical significance.</p>
         </details>`)}
