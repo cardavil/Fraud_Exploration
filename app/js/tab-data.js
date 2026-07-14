@@ -11,7 +11,7 @@ window.FE.tabs.data = {
     const PAGE = 25;
     const NULL_WARN = 0.2;     // empty share above this gets an amber badge
     const TABLE_NOTES = {
-      customers: "Customer master (KYC), as delivered.",
+      customers: "Customer master (KYC).",
       accounts: "Accounts with status and balance.",
       transactions: "The transaction ledger.",
       compliance_alerts: "Alerts raised by the monitoring rules.",
