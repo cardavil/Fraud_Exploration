@@ -109,13 +109,13 @@ window.FE = (() => {
   }
   const goTo = (name) => { activateTab(name); window.scrollTo({ top: 0 }); };
 
-  // Deep-link into the Data tab with a table and pre-applied filters.
+  // Deep-link into the EDA explorer with a table and pre-applied filters.
   // presetFilters: [{ col, kind: "categorical"|"min"|"max"|"from"|"to"|"contains", value }]
   let pendingDataPreset = null;
   function openData(table, presetFilters) {
     pendingDataPreset = { table, filters: presetFilters ?? [] };
-    goTo("data");
-    if (tabs.data.rendered) tabs.data.applyPreset?.();
+    goTo("eda");
+    if (tabs.eda.rendered) tabs.eda.applyPreset?.();
   }
   const takeDataPreset = () => {
     const p = pendingDataPreset;

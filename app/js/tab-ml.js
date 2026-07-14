@@ -124,8 +124,7 @@ window.FE.tabs.ml = {
         <details class="criteria-legend">
           <summary>Table notes — selection, driver criteria and rules-engine definitions</summary>
           <p>The table shows the <strong>10 highest-scored</strong> of the
-          ${fmtInt(t1v.n_flagged)} flagged transactions.
-          <a href="#data" class="drill-link" id="t1-see-all">View all ${fmtInt(t1v.n_flagged)} in the Data tab &rarr;</a></p>
+          ${fmtInt(t1v.n_flagged)} flagged transactions.</p>
           <p><strong>Score</strong> — the tier-1 anomaly score (higher = more anomalous);
           the top 5% of transactions flag as anomalous under the model's contamination setting.</p>
           <p>The chips name the strongest signals behind each score (up to 3 shown; the model
@@ -143,7 +142,7 @@ window.FE.tabs.ml = {
           (<code>flagged_for_review</code>): <span class="badge badge-plain">also flagged</span>
           the rules marked it too · <span class="badge badge-sanctioned">model only</span>
           flagged only by the model. The full feature values per transaction are in the
-          <code>transaction_scores</code> table (Data tab).</p>
+          <code>transaction_scores</code> table on the serving layer.</p>
         </details>
       </div>
 
@@ -325,14 +324,6 @@ window.FE.tabs.ml = {
       <p class="tab-foot">Three unsupervised Isolation Forests score risk at the transaction,
       account and customer level. The account model also runs in the browser for independent
       verification.</p>`;
-
-    el.querySelector("#t1-see-all").addEventListener("click", (e) => {
-      e.preventDefault();
-      window.FE.openData("transaction_scores", [
-        { col: "anomaly", kind: "min", value: -1 },
-        { col: "anomaly", kind: "max", value: -1 },
-      ]);
-    });
 
     /* Customer overview modal — the single customer-level view, opened from the
        account detail and from the tier-3 ranking. */

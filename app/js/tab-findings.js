@@ -16,7 +16,7 @@ window.FE.tabs.findings = {
         <div class="chart-slot" id="fc-${id}"></div>
       </div>`;
     const drillLink = (label, table, filters) =>
-      `<a href="#data" class="drill-link" data-drill='${JSON.stringify({ table, filters })}'>${label} &rarr;</a>`;
+      `<a href="#eda" class="drill-link" data-drill='${JSON.stringify({ table, filters })}'>${label} &rarr;</a>`;
 
     // Post-match activity per confirmed sanctions match (live computation).
     const confirmed = d.sanctions_screening.filter((s) => s.match_result === "Confirmed Match");

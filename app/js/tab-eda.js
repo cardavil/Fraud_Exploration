@@ -1,84 +1,36 @@
-/* EDA as a visible process: six steps from raw data to associations.
-   Step 2 reads the cleaning audit trail live from the database and every
-   treatment expands into real before→after examples (cleaning_examples.json).
-   Step 3 closes with a computed integrity panel: FKs, duplicate keys and
-   empty-share thresholds. Statistics come from analysis/export_eda_stats.py. */
+/* EDA: explore the raw source data (as delivered, pre-cleaning) and surface its
+   quality issues — the phase that decides what the ETL must fix.
+   A quality panel (row counts, duplicate keys, empty columns computed live on
+   the raw tables) sits above the explorer:
+   Rows  — the records, filterable on demand (add a filter per column) and sortable.
+   Profile — one row per COLUMN: detected type, non-null share, uniques,
+           min/median/max, sample values, PK badge and a >20%-empty warning.
+   FE.openData(table, filters) deep-links here with filters pre-applied. */
 window.FE.tabs.eda = {
   render(el) {
-    const { state, fmtInt, fmtMoney, fmtPct, escapeHtml, openData } = window.FE;
-    const { barChart, lineChart } = window.FE.charts;
-    const S = state.stats;
-    const log = state.data.cleaning_log;
-    const EXPECTED = { customers: 83, accounts: 105, transactions: 1600,
-      compliance_alerts: 65, sanctions_screening: 95, chargebacks: 70 };
-
-    const byTable = {};
-    for (const row of log) (byTable[row.table_name] ??= []).push(row);
-    const totalTreated = log.reduce((s, r) => s + r.rows_affected, 0);
-    const dupes = log.filter((r) => r.issue.startsWith("Duplicate"))
-      .reduce((s, r) => s + r.rows_affected, 0);
-
-    /* Deep-links for treatments whose rows are expressible as explorer filters. */
-    const DRILL = {
-      3: { table: "customers", filters: [{ col: "pep_flag", kind: "categorical", value: "Unknown" }] },
-      4: { table: "customers", filters: [{ col: "nationality", kind: "categorical", value: "Unknown" }] },
-      10: { table: "accounts", filters: [{ col: "currency", kind: "categorical", value: "Unknown" }] },
-      11: { table: "accounts", filters: [{ col: "account_balance", kind: "max", value: -0.01 }] },
-      16: { table: "transactions", filters: [{ col: "amount", kind: "max", value: 0 }] },
-      18: { table: "transactions", filters: [{ col: "counterparty_country", kind: "categorical", value: "Unknown" }] },
-      23: { table: "compliance_alerts", filters: [{ col: "assigned_analyst", kind: "categorical", value: "Unassigned" }] },
-      27: { table: "sanctions_screening", filters: [{ col: "reviewed_by", kind: "categorical", value: "Unreviewed" }] },
+    const { state, fmtInt, fmtMoney, fmtPct, escapeHtml, takeDataPreset } = window.FE;
+    const PAGE = 25;
+    const NULL_WARN = 0.2;     // empty share above this gets an amber badge
+    const TABLE_NOTES = {
+      customers: "Customer master (KYC).",
+      accounts: "Accounts with status and balance.",
+      transactions: "The transaction ledger.",
+      compliance_alerts: "Alerts raised by the monitoring rules.",
+      sanctions_screening: "Screening events.",
+      chargebacks: "Disputes.",
     };
-    const KIND_BADGE = {
-      kept: '<span class="badge badge-offshore">kept &amp; flagged</span>',
-      dropped: '<span class="badge badge-plain">rows dropped</span>',
-    };
+    let current = "transactions", view = "rows", filters = {}, page = 0;
+    let activeCols = [], sort = { col: null, dir: 1 };
+    const profileCache = new Map();
 
-    /* ---------- integrity checks (computed live, client-side) ---------- */
-    const d = state.data;
-    const keySet = (table, col) => new Set(d[table].map((r) => r[col]));
-    const FKS = [
-      ["accounts", "customer_id", "customers"],
-      ["transactions", "account_id", "accounts"],
-      ["compliance_alerts", "account_id", "accounts"],
-      ["compliance_alerts", "transaction_id", "transactions"],
-      ["sanctions_screening", "customer_id", "customers"],
-      ["chargebacks", "transaction_id", "transactions"],
-      ["account_scores", "account_id", "accounts"],
-    ];
-    const PARENT_PK = { customers: "customer_id", accounts: "account_id", transactions: "transaction_id" };
-    const fkResults = FKS.map(([child, col, parent]) => {
-      const parents = keySet(parent, PARENT_PK[parent]);
-      const violations = d[child].filter((r) => r[col] != null && !parents.has(r[col])).length;
-      return { label: `${child}.${col} → ${parent}`, violations };
-    });
+    /* ---------- data-quality panel: computed live on the raw source ---------- */
     const PKS = { customers: "customer_id", accounts: "account_id", transactions: "transaction_id",
       compliance_alerts: "alert_id", sanctions_screening: "screening_id", chargebacks: "chargeback_id" };
-    const dupResults = Object.entries(PKS).map(([table, pk]) =>
-      ({ table, dupes: d[table].length - keySet(table, pk).size }));
-    const NULL_WARN = 0.2;
-    const nullWarnings = [];
-    for (const table of Object.keys(PKS)) {
-      const rows = d[table];
-      for (const col of Object.keys(rows[0] ?? {})) {
-        const empty = rows.filter((r) => r[col] === null || r[col] === undefined || r[col] === "").length;
-        if (empty / rows.length > NULL_WARN) {
-          nullWarnings.push({ label: `${table}.${col}`, share: empty / rows.length, n: empty });
-        }
-      }
-    }
-    const fkTotal = fkResults.reduce((s, f) => s + f.violations, 0);
-    const dupTotal = dupResults.reduce((s, x) => s + x.dupes, 0);
-    const countsOk = Object.entries(EXPECTED).filter(([t, n]) => d[t].length === n).length;
-
-    /* The same checks on the RAW source (state.raw) — these surface the issues
-       live, before cleaning: duplicate primary keys and empty columns. */
-    const draw = state.raw;
     const rawDupResults = Object.entries(PKS).map(([table, pk]) =>
-      ({ table, dupes: draw[table].length - new Set(draw[table].map((r) => r[pk])).size }));
+      ({ table, dupes: state.raw[table].length - new Set(state.raw[table].map((r) => r[pk])).size }));
     const rawNullWarnings = [];
     for (const table of Object.keys(PKS)) {
-      const rows = draw[table];
+      const rows = state.raw[table];
       for (const col of Object.keys(rows[0] ?? {})) {
         const empty = rows.filter((r) => r[col] === null || r[col] === undefined || r[col] === "").length;
         if (empty / rows.length > NULL_WARN) {
@@ -86,207 +38,297 @@ window.FE.tabs.eda = {
         }
       }
     }
-    const rawDupTotal = rawDupResults.reduce((s, x) => s + x.dupes, 0);
 
-    const step = (n, title, chip, body) => `
-      <div class="eda-step">
-        <div class="eda-step-head">
-          <span class="eda-step-n">${n}</span><h3>${title}</h3>
-          ${chip ? `<span class="eda-chip">${chip}</span>` : ""}
-        </div>
-        <div class="eda-step-body">${body}</div>
-      </div>`;
+    const isDate = (v) => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v);
+    // Raw values arrive as text; detect type by parsing so amounts behave as
+    // numbers for filtering and sorting even though the column is stored as text.
+    const asNum = (v) => {
+      if (v === null || v === undefined || v === "") return null;
+      const n = Number(v);
+      return Number.isNaN(n) ? null : n;
+    };
+    const columnKind = (rows, col) => {
+      const sample = rows.map((r) => r[col]).filter((v) => v !== null && v !== undefined && v !== "");
+      if (!sample.length) return "text";
+      if (sample.every((v) => asNum(v) !== null)) return "number";
+      if (sample.every(isDate)) return "date";
+      return new Set(sample).size <= 25 ? "categorical" : "text";
+    };
+
+    /* ---------- profile view ---------- */
+    function profileFor(table) {
+      if (profileCache.has(table)) return profileCache.get(table);
+      const rows = state.raw[table];
+      const cols = Object.keys(rows[0] ?? {});
+      const profile = cols.map((col) => {
+        const values = rows.map((r) => r[col]);
+        const present = values.filter((v) => v !== null && v !== undefined && v !== "");
+        const uniques = new Set(present).size;
+        const kind = columnKind(rows, col);
+        const p = {
+          col, kind,
+          nonNull: present.length, total: values.length,
+          emptyShare: (values.length - present.length) / values.length,
+          uniques,
+          isPk: uniques === present.length && present.length === values.length && col.endsWith("_id")
+            && rows.length > 1 && uniques === rows.length,
+          sample: [...new Set(present)].slice(0, 4),
+        };
+        if (kind === "number") {
+          const nums = present.map(Number).sort((a, b) => a - b);
+          const mid = Math.floor(nums.length / 2);
+          p.min = nums[0];
+          p.median = nums.length % 2 ? nums[mid] : (nums[mid - 1] + nums[mid]) / 2;
+          p.max = nums[nums.length - 1];
+        }
+        return p;
+      });
+      profileCache.set(table, profile);
+      return profile;
+    }
+
+    const fmtNum = (v) => (Math.abs(v) >= 10000 ? fmtMoney(v, true) : fmtInt(Math.round(v * 100) / 100));
+
+    function renderProfile() {
+      const profile = profileFor(current);
+      el.querySelector("#dx-head").innerHTML = `<tr>
+        <th>Column</th><th>Type</th><th class="num">Non-null</th><th class="num">Unique</th>
+        <th class="num">Min / Median / Max</th><th>Sample</th><th>Flags</th></tr>`;
+      el.querySelector("#dx-body").innerHTML = profile.map((p) => `
+        <tr>
+          <td><strong>${escapeHtml(p.col)}</strong></td>
+          <td><span class="badge badge-plain">${p.kind}</span></td>
+          <td class="num">${fmtInt(p.nonNull)}/${fmtInt(p.total)} (${fmtPct(p.nonNull / p.total)})</td>
+          <td class="num">${fmtInt(p.uniques)}</td>
+          <td class="num">${p.kind === "number" ? `${fmtNum(p.min)} / ${fmtNum(p.median)} / ${fmtNum(p.max)}` : "—"}</td>
+          <td class="sample-cell">${p.sample.map((v) => escapeHtml(String(v))).join(" · ")}</td>
+          <td>
+            ${p.isPk ? '<span class="badge badge-clear">PK</span>' : ""}
+            ${p.emptyShare > NULL_WARN ? `<span class="badge badge-offshore">${fmtPct(p.emptyShare)} empty</span>` : ""}
+          </td>
+        </tr>`).join("");
+      el.querySelector("#dx-page").textContent =
+        `${profile.length} columns · ${fmtInt(state.raw[current].length)} rows`;
+      el.querySelector("#dx-prev").disabled = true;
+      el.querySelector("#dx-next").disabled = true;
+      el.querySelector("#dx-filters").classList.add("hidden");
+      el.querySelector("#dx-profile-legend").classList.remove("hidden");
+    }
+
+    /* ---------- rows view: on-demand filters + sort + pagination ---------- */
+    function filterWidget(col) {
+      const rows = state.raw[current];
+      const kind = columnKind(rows, col);
+      if (kind === "categorical") {
+        const values = [...new Set(rows.map((r) => r[col]).filter((v) => v != null && v !== ""))].sort();
+        return `<select data-col="${escapeHtml(col)}" data-kind="categorical">
+          <option value="">All</option>
+          ${values.map((v) => `<option>${escapeHtml(v)}</option>`).join("")}</select>`;
+      }
+      if (kind === "number") {
+        return `<span class="range-pair">
+          <input type="number" placeholder="min" data-col="${escapeHtml(col)}" data-kind="min">
+          <input type="number" placeholder="max" data-col="${escapeHtml(col)}" data-kind="max"></span>`;
+      }
+      if (kind === "date") {
+        return `<span class="range-pair">
+          <input type="date" data-col="${escapeHtml(col)}" data-kind="from">
+          <input type="date" data-col="${escapeHtml(col)}" data-kind="to"></span>`;
+      }
+      return `<input type="search" placeholder="contains…" data-col="${escapeHtml(col)}" data-kind="contains">`;
+    }
+
+    // Filters are added on demand: a picker adds a column's filter as a removable
+    // chip; only the active filters are shown, never a wall of every column.
+    function renderFilters() {
+      const cols = Object.keys(state.raw[current][0] ?? {});
+      const available = cols.filter((c) => !activeCols.includes(c));
+      const dxf = el.querySelector("#dx-filters");
+      dxf.innerHTML = `
+        ${available.length ? `<select id="dx-add-filter" class="filter-add">
+          <option value="">+ Add filter…</option>
+          ${available.map((c) => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join("")}
+        </select>` : ""}
+        ${activeCols.map((col) => `<span class="filter-chip">
+          <span class="filter-chip-label">${escapeHtml(col)}</span>
+          ${filterWidget(col)}
+          <button class="filter-chip-x" type="button" data-remove="${escapeHtml(col)}" aria-label="Remove ${escapeHtml(col)} filter">&times;</button>
+        </span>`).join("")}`;
+      dxf.querySelectorAll(".filter-chip [data-col]").forEach((input) => {
+        const key = `${input.dataset.col}::${input.dataset.kind}`;
+        if (filters[key] != null) input.value = filters[key];
+        input.addEventListener(input.tagName === "SELECT" ? "change" : "input", () => {
+          filters[key] = input.value;
+          page = 0;
+          renderRows();
+        });
+      });
+      const adder = dxf.querySelector("#dx-add-filter");
+      if (adder) adder.addEventListener("change", (e) => {
+        if (e.target.value) { activeCols.push(e.target.value); renderFilters(); }
+      });
+      dxf.querySelectorAll("[data-remove]").forEach((btn) => btn.addEventListener("click", () => {
+        const col = btn.dataset.remove;
+        activeCols = activeCols.filter((c) => c !== col);
+        Object.keys(filters).forEach((k) => { if (k.startsWith(`${col}::`)) delete filters[k]; });
+        page = 0;
+        renderFilters();
+        renderRows();
+      }));
+    }
+
+    function applyFilters(rows) {
+      return rows.filter((r) => Object.entries(filters).every(([key, val]) => {
+        if (val === "" || val === null) return true;
+        const [col, kind] = key.split("::");
+        const v = r[col];
+        if (kind === "categorical") return String(v).toLowerCase() === String(val).toLowerCase();
+        if (kind === "min") return asNum(v) != null && asNum(v) >= Number(val);
+        if (kind === "max") return asNum(v) != null && asNum(v) <= Number(val);
+        if (kind === "from") return v != null && v >= val;
+        if (kind === "to") return v != null && v <= val;
+        if (kind === "contains") return String(v ?? "").toLowerCase().includes(val.toLowerCase());
+        return true;
+      }));
+    }
+
+    function renderRows() {
+      const cols = Object.keys(state.raw[current][0] ?? {});
+      let rows = applyFilters(state.raw[current]);
+      if (sort.col) {
+        rows = [...rows].sort((a, b) => {
+          const na = asNum(a[sort.col]), nb = asNum(b[sort.col]);
+          const r = (na !== null && nb !== null)
+            ? na - nb
+            : String(a[sort.col] ?? "").localeCompare(String(b[sort.col] ?? ""));
+          return r * sort.dir;
+        });
+      }
+      const numCols = new Set(cols.filter((c) => columnKind(state.raw[current], c) === "number"));
+      const start = page * PAGE;
+      const slice = rows.slice(start, start + PAGE);
+      el.querySelector("#dx-head").innerHTML = `<tr>${cols.map((c) => {
+        const ind = sort.col === c ? (sort.dir === 1 ? " ▲" : " ▼") : "";
+        return `<th class="sortable ${numCols.has(c) ? "num" : ""}" data-sort="${escapeHtml(c)}">${escapeHtml(c)}${ind}</th>`;
+      }).join("")}</tr>`;
+      el.querySelector("#dx-body").innerHTML = slice.length ? slice.map((r) =>
+        `<tr>${cols.map((c) => {
+          const v = r[c];
+          return `<td class="${numCols.has(c) ? "num" : ""}">${v == null || v === "" ? "—" : escapeHtml(String(v))}</td>`;
+        }).join("")}</tr>`).join("")
+        : `<tr><td colspan="${cols.length}" class="loading-cell">No rows match the current filters.</td></tr>`;
+      el.querySelectorAll("#dx-head .sortable").forEach((th) => th.addEventListener("click", () => {
+        const c = th.dataset.sort;
+        if (sort.col === c) sort.dir = -sort.dir; else { sort.col = c; sort.dir = 1; }
+        page = 0;
+        renderRows();
+      }));
+      const pages = Math.max(1, Math.ceil(rows.length / PAGE));
+      el.querySelector("#dx-page").textContent =
+        `Page ${page + 1} of ${pages} · ${fmtInt(rows.length)} of ${fmtInt(state.raw[current].length)} rows`;
+      el.querySelector("#dx-prev").disabled = page === 0;
+      el.querySelector("#dx-next").disabled = page >= pages - 1;
+      el.querySelector("#dx-filters").classList.remove("hidden");
+      el.querySelector("#dx-profile-legend").classList.add("hidden");
+    }
+
+    const renderView = () => (view === "profile" ? renderProfile() : renderRows());
+
+    function mountTable() {
+      el.querySelector("#dx-note").textContent = TABLE_NOTES[current];
+      el.querySelector("#dx-table").value = current;
+      filters = {}; activeCols = []; sort = { col: null, dir: 1 }; page = 0;
+      renderFilters();
+      renderView();
+    }
+
+    // Consume a deep-link preset from FE.openData (table + expressible filters).
+    function applyPreset() {
+      const preset = takeDataPreset();
+      if (!preset) return;
+      current = (preset.table in TABLE_NOTES) ? preset.table : "transactions";
+      view = "rows";
+      setViewButtons();
+      el.querySelector("#dx-note").textContent = TABLE_NOTES[current];
+      el.querySelector("#dx-table").value = current;
+      filters = {}; activeCols = []; sort = { col: null, dir: 1 }; page = 0;
+      for (const f of preset.filters) {
+        if (!activeCols.includes(f.col)) activeCols.push(f.col);
+        filters[`${f.col}::${f.kind}`] = String(f.value);
+      }
+      renderFilters();
+      renderRows();
+    }
+    window.FE.tabs.eda.applyPreset = applyPreset;
+
+    function setViewButtons() {
+      el.querySelector("#dx-view-rows").classList.toggle("active", view === "rows");
+      el.querySelector("#dx-view-profile").classList.toggle("active", view === "profile");
+    }
 
     el.innerHTML = `
-      ${step(1, "Raw dataset intake", `raw source · ${rawDupTotal} duplicate keys`, `
-        <p>The six source tables are served raw, exactly as delivered. The checks below run live
-        on that raw data — row counts, duplicate primary keys and empty columns — the issues that
-        cleaning then resolves.</p>
-        <h4 class="integrity-title">Row counts — raw source</h4>
+      <div class="card">
+        <div class="card-head"><h3>Data quality — raw source</h3></div>
+        <p class="muted">Computed live on the raw tables, before any cleaning — the issues the ETL then resolves.</p>
         <div class="check-row">${Object.keys(PKS).map((t) =>
-          `<span class="badge badge-plain">${t}: ${fmtInt(draw[t].length)}</span>`).join(" ")}
-        </div>
-        <h4 class="integrity-title">Duplicate primary keys found live</h4>
+          `<span class="badge badge-plain">${t}: ${fmtInt(state.raw[t].length)}</span>`).join(" ")}</div>
+        <h4 class="integrity-title">Duplicate primary keys</h4>
         <div class="check-row">${rawDupResults.map((x) =>
-          `<span class="badge ${x.dupes ? "badge-sanctioned" : "badge-clear"}">${x.table}: ${x.dupes}</span>`).join(" ")}
-        </div>
+          `<span class="badge ${x.dupes ? "badge-sanctioned" : "badge-clear"}">${x.table}: ${x.dupes}</span>`).join(" ")}</div>
+        ${rawNullWarnings.length ? `<h4 class="integrity-title">Empty columns</h4>
         <div class="check-row">${rawNullWarnings.map((w) =>
-          `<span class="badge badge-offshore">${escapeHtml(w.label)}: ${fmtPct(w.share)} empty (${fmtInt(w.n)})</span>`).join(" ")}
-        </div>`)}
+          `<span class="badge badge-offshore">${escapeHtml(w.label)}: ${fmtPct(w.share)} empty (${fmtInt(w.n)})</span>`).join(" ")}</div>` : ""}
+      </div>
 
-      ${step(2, "Audited cleaning — every treatment logged", "31 treatments · expandable examples", `
-        <p>Every treatment is written to an audit trail, served live from the
-        <code>cleaning_log</code> table. Compliance-relevant decisions are explicit: an empty PEP
-        flag is recoded <em>Unknown</em>, never assumed <em>No</em>, and suspicious values are
-        retained and flagged rather than deleted. Click a row to see its examples.</p>
+      <div class="card">
+        <div class="card-head">
+          <label class="table-pick">Table
+            <select id="dx-table">
+              ${Object.keys(TABLE_NOTES).map((t) =>
+                `<option value="${t}">${t} (${fmtInt(state.raw[t].length)})</option>`).join("")}
+            </select>
+          </label>
+          <div class="view-toggle" role="group" aria-label="View">
+            <button class="btn btn-ghost active" id="dx-view-rows" type="button">Rows</button>
+            <button class="btn btn-ghost" id="dx-view-profile" type="button">Profile</button>
+          </div>
+          <span class="muted" id="dx-note"></span>
+        </div>
+        <div class="filter-row wrap" id="dx-filters"></div>
         <div class="table-wrap">
-          <table>
-            <thead><tr><th></th><th>Table</th><th>Issue</th><th>Treatment</th><th class="num">Rows</th></tr></thead>
-            <tbody id="clean-log-body">${log.map((r) => {
-              const ex = state.examples?.[String(r.step_id)];
-              const hasExamples = ex && ex.examples.length;
-              return `
-              <tr class="log-row ${hasExamples ? "expandable" : ""}" data-step="${r.step_id}">
-                <td class="chev">${hasExamples ? "&#9656;" : ""}</td>
-                <td><strong>${escapeHtml(r.table_name)}</strong></td>
-                <td>${escapeHtml(r.issue)} ${KIND_BADGE[ex?.kind] ?? ""}</td>
-                <td>${escapeHtml(r.treatment)}</td>
-                <td class="num">${fmtInt(r.rows_affected)}</td>
-              </tr>
-              ${hasExamples ? `
-              <tr class="example-row hidden" data-for="${r.step_id}">
-                <td></td>
-                <td colspan="4">
-                  <table class="example-table">
-                    <thead><tr><th>Key</th><th>Column</th><th>Before</th><th>After</th></tr></thead>
-                    <tbody>${ex.examples.map((e) => `
-                      <tr><td>${escapeHtml(e.key)}</td><td><code>${escapeHtml(e.column)}</code></td>
-                      <td class="ex-before">${escapeHtml(String(e.before))}</td>
-                      <td class="ex-after">${escapeHtml(String(e.after))}</td></tr>`).join("")}
-                    </tbody>
-                  </table>
-                  ${DRILL[r.step_id] ? `<a href="#data" class="drill-link" data-step="${r.step_id}">See the affected rows in the Data tab &rarr;</a>` : ""}
-                </td>
-              </tr>` : ""}`;
-            }).join("")}
-            </tbody>
-          </table>
-        </div>`)}
-
-      ${step(3, "Typed, keyed and verified", `counts ${countsOk}/6 ✓ · FKs ${fkTotal} violations`, `
-        <p>Dates are parsed to date types, primary/foreign keys enforced on the serving layer,
-        and the clean row counts verified live against the pipeline's expected output:</p>
-        <div class="check-row">${Object.entries(EXPECTED).map(([t, n]) => {
-          const ok = d[t].length === n;
-          return `<span class="badge ${ok ? "badge-clear" : "badge-sanctioned"}">${t}: ${fmtInt(d[t].length)}${ok ? " ✓" : ` (expected ${n})`}</span>`;
-        }).join(" ")}</div>
-        <h4 class="integrity-title">Integrity panel — computed live on the cleaned data</h4>
-        <div class="check-row">${fkResults.map((f) =>
-          `<span class="badge ${f.violations ? "badge-sanctioned" : "badge-clear"}">${escapeHtml(f.label)}: ${f.violations} violations</span>`).join(" ")}
+          <table><thead id="dx-head"></thead><tbody id="dx-body"></tbody></table>
         </div>
-        <div class="check-row">${dupResults.map((x) =>
-          `<span class="badge ${x.dupes ? "badge-sanctioned" : "badge-clear"}">${x.table}: ${x.dupes} duplicate keys</span>`).join(" ")}
+        <details class="notes hidden" id="dx-profile-legend">
+          <summary>Column definitions</summary>
+          <p><strong>Type</strong> — detected from the data: number, date (ISO), categorical
+          (25 or fewer distinct values) or text. <strong>Non-null</strong> — populated cells
+          out of total rows. <strong>Unique</strong> — distinct values.
+          <span class="badge badge-clear">PK</span> — 100% unique identifier column.
+          <span class="badge badge-offshore">N% empty</span> — flagged when more than 20% of
+          the column is empty.</p>
+        </details>
+        <div class="table-foot">
+          <span id="dx-page" class="muted"></span>
+          <div>
+            <button class="btn btn-ghost" id="dx-prev" type="button">&larr; Prev</button>
+            <button class="btn btn-ghost" id="dx-next" type="button">Next &rarr;</button>
+          </div>
         </div>
-        <div class="check-row">${nullWarnings.length
-          ? nullWarnings.map((w) =>
-              `<span class="badge badge-offshore">${escapeHtml(w.label)}: ${fmtPct(w.share)} empty (${fmtInt(w.n)})</span>`).join(" ")
-          : ""}
-          <span class="badge badge-clear">every other column &lt; ${fmtPct(NULL_WARN)} empty</span>
-        </div>
-        <details class="notes">
-          <summary>Notes on the amber items</summary>
-          <p>Empty <code>resolution_date</code> values correspond to unresolved alerts and
-          disputes — structurally expected, and their share is itself the backlog finding.
-<code>is_international</code> remains unreliable after cleaning (148
-          sanctioned-country transactions marked domestic) and is treated as a finding, not a
-          usable field.</p>
-        </details>`)}
+      </div>
+      <p class="tab-foot">Read live from Supabase — public anon key, row-level security allows
+      <code>SELECT</code> only. The quality panel is computed on the raw source; the explorer's
+      <strong>Rows</strong> and <strong>Profile</strong> views assess it column by column before cleaning.</p>`;
 
-      ${step(4, "Descriptive statistics", "", `
-        <div class="stat-row">
-          ${[["n (valid amounts)", fmtInt(S.descriptive.n_valid)],
-             ["Mean", fmtMoney(S.descriptive.mean)],
-             ["Median", fmtMoney(S.descriptive.median)],
-             ["Std dev", fmtMoney(S.descriptive.std)],
-             ["CV", S.descriptive.cv],
-             ["Skewness", `+${S.descriptive.skewness}`],
-             ["Kurtosis", `+${S.descriptive.kurtosis_excess}`],
-             ["P95 / Max", `${fmtMoney(S.descriptive.p95, true)} / ${fmtMoney(S.descriptive.max, true)}`],
-            ].map(([l, v]) => `<div class="stat-tile"><span class="kpi-label">${l}</span><span class="stat-value">${v}</span></div>`).join("")}
-        </div>
-        <p>The mean is ~5× the median: a small number of very large wires dominates total value.
-        Operational thresholds should key off the <strong>median</strong>, not the mean.</p>`)}
+    el.querySelector("#dx-table").addEventListener("change", (e) => {
+      current = e.target.value;
+      mountTable();
+    });
+    el.querySelector("#dx-view-rows").addEventListener("click", () => { view = "rows"; setViewButtons(); renderView(); });
+    el.querySelector("#dx-view-profile").addEventListener("click", () => { view = "profile"; setViewButtons(); renderView(); });
+    el.querySelector("#dx-prev").addEventListener("click", () => { page--; renderRows(); });
+    el.querySelector("#dx-next").addEventListener("click", () => { page++; renderRows(); });
 
-      ${step(5, "Distributions and trends", "4 figures", `<div class="chart-grid" id="eda-charts"></div>`)}
-
-      ${step(6, "Associations — what drives risk flags", "5 pairs · 1 null result", `
-        <div class="table-wrap"><table>
-          <thead><tr><th>Association</th><th class="num">Cramér's V</th><th class="num">p</th><th>Reading</th></tr></thead>
-          <tbody>${S.associations.map((a) => {
-            const strong = a.cramers_v >= 0.3;
-            const none = a.cramers_v < 0.1;
-            const reading = a.pair.startsWith("risk_rating")
-              ? "<strong>The KYC risk rating has no relationship with flagged activity</strong>"
-              : none ? "No meaningful association"
-              : strong ? "Strong driver" : "Weak but real effect";
-            return `<tr><td>${escapeHtml(a.pair)}</td>
-              <td class="num"><strong>${a.cramers_v.toFixed(3)}</strong></td>
-              <td class="num">${a.p < 0.001 ? "&lt;0.001" : a.p.toFixed(3)}</td><td>${reading}</td></tr>`;
-          }).join("")}</tbody>
-        </table></div>
-        <p><strong>Risk in this dataset is categorical and geographic; the static KYC rating is
-        disconnected from observed behavior.</strong></p>
-        <details class="notes">
-          <summary>Definitions and supporting detail</summary>
-          <p><strong>Cramér's V</strong> measures the strength of association between two
-          categorical variables, from 0 (none) to 1 (perfect); <strong>p</strong> is the
-          probability of seeing an association at least this strong by chance.</p>
-          <p>Per-customer correlations between the assigned rating and observed behavior:
-          ${S.spearman_vs_rating.map((s) => `${escapeHtml(s.feature)} ρ=${s.rho >= 0 ? "+" : ""}${s.rho} (p=${s.p})`).join(", ")}.
-          Only % cash reaches statistical significance.</p>
-        </details>`)}
-
-      <p class="tab-foot">Cleaning runs in <code>analysis/clean.py</code> with every treatment
-      logged; click any treatment to see before&rarr;after examples, or jump to the affected rows
-      in the Data tab.</p>
-    `;
-
-    /* expandable treatment rows + drill links */
-    el.querySelectorAll(".log-row.expandable").forEach((row) => {
-      row.addEventListener("click", () => {
-        const sub = el.querySelector(`.example-row[data-for="${row.dataset.step}"]`);
-        const open = !sub.classList.contains("hidden");
-        sub.classList.toggle("hidden");
-        row.querySelector(".chev").innerHTML = open ? "&#9656;" : "&#9662;";
-      });
-    });
-    el.querySelectorAll(".drill-link").forEach((link) => {
-      link.addEventListener("click", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        const preset = DRILL[link.dataset.step];
-        openData(preset.table, preset.filters);
-      });
-    });
-
-    const charts = el.querySelector("#eda-charts");
-    barChart(charts, {
-      title: "Transactions per $1,000 band around the $10k reporting threshold",
-      howToRead: "Each bar is the number of transactions whose amount falls in that $1,000 band. Organic amounts decay smoothly; the amber spike just under $10,000 — collapsing right above it — is the structuring signature.",
-      fmt: fmtInt,
-      data: S.structuring.bands.map((b) => ({
-        label: `$${b.band}`, value: b.count,
-        color: b.lo === 9000 ? "#E8A33D" : "#2E5BFF",
-        emphasize: b.lo === 9000,
-        tip: `<strong>$${b.band}</strong><br>${fmtInt(b.count)} txns${b.lo === 9000 ? ` · ${fmtPct(S.structuring.band_9k_share, 1)} of all — ${S.structuring.ratio_vs_neighbors}× neighbors` : ""}`,
-      })),
-    });
-    lineChart(charts, {
-      title: "Monthly transaction count vs alerts created",
-      howToRead: "Both lines share one axis (counts per month). Transactions triple over the window while alert creation stays flat — monitoring capacity never scaled with volume.",
-      fmt: fmtInt,
-      series: [
-        { name: "Transactions", color: "#2E5BFF",
-          points: S.monthly.transactions.map((m) => ({ x: m.month, y: m.count })) },
-        { name: "Alerts", color: "#D64545",
-          points: S.monthly.transactions.map((m) => ({
-            x: m.month,
-            y: S.monthly.alerts.find((a) => a.month === m.month)?.count ?? 0 })) },
-      ],
-    });
-    lineChart(charts, {
-      title: "Monthly transaction value",
-      howToRead: "Total dollar value moved per month. Growth compounds the un-scaled monitoring problem: more value flows through the same flat alerting capacity.",
-      fmt: (v) => fmtMoney(v, true),
-      series: [{ name: "Value", color: "#2E5BFF",
-        points: S.monthly.transactions.map((m) => ({ x: m.month, y: m.value })) }],
-    });
-    lineChart(charts, {
-      title: "Monthly chargeback value",
-      howToRead: "Dollar value of chargebacks filed per month. The sharp climb from March 2026 suggests a recently opened fraud vector — chargebacks lag the fraud itself by weeks.",
-      fmt: (v) => fmtMoney(v, true),
-      series: [{ name: "Chargeback value", color: "#D64545",
-        points: S.monthly.chargebacks.map((m) => ({ x: m.month, y: m.value })) }],
-    });
+    if (window.FE.peekDataPreset()) applyPreset();
+    else mountTable();
   },
 };

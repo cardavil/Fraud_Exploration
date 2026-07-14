@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="build" content="2026-07-13-r40">
+  <meta name="build" content="2026-07-13-r41">
   <title>Fraud &amp; Compliance Exploration Board</title>
   <link rel="stylesheet" href="styles.css">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#128737;</text></svg>">
@@ -23,8 +23,9 @@
   <nav class="tabbar" aria-label="Sections">
     <div class="tabbar-inner" id="tabbar">
       <button class="tab-btn" data-tab="powerbi">Power BI</button>
-      <button class="tab-btn" data-tab="data">Data</button>
       <button class="tab-btn" data-tab="eda">EDA</button>
+      <button class="tab-btn" data-tab="etl">ETL</button>
+      <button class="tab-btn" data-tab="dss">DSS</button>
       <button class="tab-btn" data-tab="findings">Findings</button>
       <button class="tab-btn" data-tab="ml">ML Model</button>
       <button class="tab-btn" data-tab="engine">AI Engine</button>
@@ -36,8 +37,9 @@
     <div id="global-loading" class="loading-cell">Loading the serving layer&hellip;</div>
 
     <section id="tab-powerbi" class="tab-panel hidden" aria-label="Power BI report"></section>
-    <section id="tab-data" class="tab-panel hidden" aria-label="Data explorer"></section>
     <section id="tab-eda" class="tab-panel hidden" aria-label="Exploratory data analysis"></section>
+    <section id="tab-etl" class="tab-panel hidden" aria-label="ETL cleaning"></section>
+    <section id="tab-dss" class="tab-panel hidden" aria-label="Descriptive statistics"></section>
     <section id="tab-findings" class="tab-panel hidden" aria-label="Findings"></section>
     <section id="tab-ml" class="tab-panel hidden" aria-label="ML model"></section>
     <section id="tab-engine" class="tab-panel hidden" aria-label="AI engine"></section>
@@ -66,8 +68,9 @@
   <script src="js/charts.js"></script>
   <script src="js/iforest.js"></script>
   <script src="js/tab-powerbi.js"></script>
-  <script src="js/tab-data.js"></script>
   <script src="js/tab-eda.js"></script>
+  <script src="js/tab-etl.js"></script>
+  <script src="js/tab-dss.js"></script>
   <script src="js/tab-findings.js"></script>
   <script src="js/tab-ml.js"></script>
   <script src="js/tab-engine.js"></script>
