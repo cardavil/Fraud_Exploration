@@ -272,6 +272,18 @@ details.notes p { margin: 8px 0 0; }
 .tab-intro a { color: var(--brand-blue-ink); }
 .tab-foot { color: var(--muted); font-size: .8rem; margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--line); }
 
+/* Data explorer: on-demand filter chips + sortable headers */
+.filter-add { max-width: 220px; }
+.filter-chip { display: inline-flex; align-items: center; gap: 8px; background: var(--surface);
+  border: 1px solid var(--line); border-radius: var(--radius); padding: 4px 6px 4px 11px; }
+.filter-chip-label { font-size: .72rem; text-transform: uppercase; letter-spacing: .04em;
+  color: var(--muted); font-weight: 600; white-space: nowrap; }
+.filter-chip-x { border: 0; background: transparent; cursor: pointer; color: var(--muted);
+  font-size: 1.1rem; line-height: 1; padding: 0 2px; }
+.filter-chip-x:hover { color: var(--risk-red); }
+th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+th.sortable:hover { color: var(--brand-blue-ink); }
+
 /* Power BI embed: 16:9 to match the report canvas, responsive to the card width. */
 .pbi-frame {
   width: 100%; aspect-ratio: 16 / 9; border: 1px solid var(--line);

@@ -1,6 +1,7 @@
 /* Data explorer: the raw source tables (as delivered, pre-cleaning), in two views.
-   Rows  — the records, filterable column by column (filters derive from the
-           data itself: categoricals→select, numerics→min/max, dates→range).
+   Rows  — the records, filterable on demand (add a filter per column) and sortable
+           by clicking a header. Filters derive from the data itself:
+           categoricals→select, numerics→min/max, dates→range, else→contains.
    Profile — one row per COLUMN: detected type, non-null share, uniques,
            min/median/max, sample values, PK badge and a >20%-empty warning.
    FE.openData(table, filters) deep-links here with filters pre-applied. */
@@ -18,16 +19,23 @@ window.FE.tabs.data = {
       chargebacks: "Disputes.",
     };
     let current = "transactions", view = "rows", filters = {}, page = 0;
+    let activeCols = [], sort = { col: null, dir: 1 };
     const profileCache = new Map();
 
     const isDate = (v) => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v);
+    // Raw values arrive as text; detect type by parsing so amounts behave as
+    // numbers for filtering and sorting even though the column is stored as text.
+    const asNum = (v) => {
+      if (v === null || v === undefined || v === "") return null;
+      const n = Number(v);
+      return Number.isNaN(n) ? null : n;
+    };
     const columnKind = (rows, col) => {
-      const sample = rows.map((r) => r[col]).filter((v) => v !== null && v !== undefined);
+      const sample = rows.map((r) => r[col]).filter((v) => v !== null && v !== undefined && v !== "");
       if (!sample.length) return "text";
-      if (sample.every((v) => typeof v === "number")) return "number";
+      if (sample.every((v) => asNum(v) !== null)) return "number";
       if (sample.every(isDate)) return "date";
-      const distinct = new Set(sample);
-      return distinct.size <= 25 ? "categorical" : "text";
+      return new Set(sample).size <= 25 ? "categorical" : "text";
     };
 
     /* ---------- profile view ---------- */
@@ -50,7 +58,7 @@ window.FE.tabs.data = {
           sample: [...new Set(present)].slice(0, 4),
         };
         if (kind === "number") {
-          const nums = [...present].sort((a, b) => a - b);
+          const nums = present.map(Number).sort((a, b) => a - b);
           const mid = Math.floor(nums.length / 2);
           p.min = nums[0];
           p.median = nums.length % 2 ? nums[mid] : (nums[mid - 1] + nums[mid]) / 2;
@@ -66,8 +74,6 @@ window.FE.tabs.data = {
 
     function renderProfile() {
       const profile = profileFor(current);
-      el.querySelector("#dx-summary").textContent =
-        `${profile.length} columns · ${fmtInt(state.raw[current].length)} rows`;
       el.querySelector("#dx-head").innerHTML = `<tr>
         <th>Column</th><th>Type</th><th class="num">Non-null</th><th class="num">Unique</th>
         <th class="num">Min / Median / Max</th><th>Sample</th><th>Flags</th></tr>`;
@@ -84,45 +90,74 @@ window.FE.tabs.data = {
             ${p.emptyShare > NULL_WARN ? `<span class="badge badge-offshore">${fmtPct(p.emptyShare)} empty</span>` : ""}
           </td>
         </tr>`).join("");
-      el.querySelector("#dx-page").textContent = "";
+      el.querySelector("#dx-page").textContent =
+        `${profile.length} columns · ${fmtInt(state.raw[current].length)} rows`;
       el.querySelector("#dx-prev").disabled = true;
       el.querySelector("#dx-next").disabled = true;
       el.querySelector("#dx-filters").classList.add("hidden");
       el.querySelector("#dx-profile-legend").classList.remove("hidden");
     }
 
-    /* ---------- rows view (filters + pagination) ---------- */
-    function buildFilters() {
+    /* ---------- rows view: on-demand filters + sort + pagination ---------- */
+    function filterWidget(col) {
       const rows = state.raw[current];
-      const cols = Object.keys(rows[0] ?? {});
-      filters = {};
-      return cols.map((col) => {
-        const kind = columnKind(rows, col);
-        if (kind === "categorical") {
-          const values = [...new Set(rows.map((r) => r[col]).filter((v) => v != null))].sort();
-          return `<label>${escapeHtml(col)}
-            <select data-col="${escapeHtml(col)}" data-kind="categorical">
-              <option value="">All</option>
-              ${values.map((v) => `<option>${escapeHtml(v)}</option>`).join("")}
-            </select></label>`;
-        }
-        if (kind === "number") {
-          return `<label>${escapeHtml(col)}
-            <span class="range-pair">
-              <input type="number" placeholder="min" data-col="${escapeHtml(col)}" data-kind="min">
-              <input type="number" placeholder="max" data-col="${escapeHtml(col)}" data-kind="max">
-            </span></label>`;
-        }
-        if (kind === "date") {
-          return `<label>${escapeHtml(col)}
-            <span class="range-pair">
-              <input type="date" data-col="${escapeHtml(col)}" data-kind="from">
-              <input type="date" data-col="${escapeHtml(col)}" data-kind="to">
-            </span></label>`;
-        }
-        return `<label>${escapeHtml(col)}
-          <input type="search" placeholder="contains…" data-col="${escapeHtml(col)}" data-kind="contains"></label>`;
-      }).join("");
+      const kind = columnKind(rows, col);
+      if (kind === "categorical") {
+        const values = [...new Set(rows.map((r) => r[col]).filter((v) => v != null && v !== ""))].sort();
+        return `<select data-col="${escapeHtml(col)}" data-kind="categorical">
+          <option value="">All</option>
+          ${values.map((v) => `<option>${escapeHtml(v)}</option>`).join("")}</select>`;
+      }
+      if (kind === "number") {
+        return `<span class="range-pair">
+          <input type="number" placeholder="min" data-col="${escapeHtml(col)}" data-kind="min">
+          <input type="number" placeholder="max" data-col="${escapeHtml(col)}" data-kind="max"></span>`;
+      }
+      if (kind === "date") {
+        return `<span class="range-pair">
+          <input type="date" data-col="${escapeHtml(col)}" data-kind="from">
+          <input type="date" data-col="${escapeHtml(col)}" data-kind="to"></span>`;
+      }
+      return `<input type="search" placeholder="contains…" data-col="${escapeHtml(col)}" data-kind="contains">`;
+    }
+
+    // Filters are added on demand: a picker adds a column's filter as a removable
+    // chip; only the active filters are shown, never a wall of every column.
+    function renderFilters() {
+      const cols = Object.keys(state.raw[current][0] ?? {});
+      const available = cols.filter((c) => !activeCols.includes(c));
+      const dxf = el.querySelector("#dx-filters");
+      dxf.innerHTML = `
+        ${available.length ? `<select id="dx-add-filter" class="filter-add">
+          <option value="">+ Add filter…</option>
+          ${available.map((c) => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join("")}
+        </select>` : ""}
+        ${activeCols.map((col) => `<span class="filter-chip">
+          <span class="filter-chip-label">${escapeHtml(col)}</span>
+          ${filterWidget(col)}
+          <button class="filter-chip-x" type="button" data-remove="${escapeHtml(col)}" aria-label="Remove ${escapeHtml(col)} filter">&times;</button>
+        </span>`).join("")}`;
+      dxf.querySelectorAll(".filter-chip [data-col]").forEach((input) => {
+        const key = `${input.dataset.col}::${input.dataset.kind}`;
+        if (filters[key] != null) input.value = filters[key];
+        input.addEventListener(input.tagName === "SELECT" ? "change" : "input", () => {
+          filters[key] = input.value;
+          page = 0;
+          renderRows();
+        });
+      });
+      const adder = dxf.querySelector("#dx-add-filter");
+      if (adder) adder.addEventListener("change", (e) => {
+        if (e.target.value) { activeCols.push(e.target.value); renderFilters(); }
+      });
+      dxf.querySelectorAll("[data-remove]").forEach((btn) => btn.addEventListener("click", () => {
+        const col = btn.dataset.remove;
+        activeCols = activeCols.filter((c) => c !== col);
+        Object.keys(filters).forEach((k) => { if (k.startsWith(`${col}::`)) delete filters[k]; });
+        page = 0;
+        renderFilters();
+        renderRows();
+      }));
     }
 
     function applyFilters(rows) {
@@ -131,8 +166,8 @@ window.FE.tabs.data = {
         const [col, kind] = key.split("::");
         const v = r[col];
         if (kind === "categorical") return String(v) === val;
-        if (kind === "min") return v != null && v >= Number(val);
-        if (kind === "max") return v != null && v <= Number(val);
+        if (kind === "min") return asNum(v) != null && asNum(v) >= Number(val);
+        if (kind === "max") return asNum(v) != null && asNum(v) <= Number(val);
         if (kind === "from") return v != null && v >= val;
         if (kind === "to") return v != null && v <= val;
         if (kind === "contains") return String(v ?? "").toLowerCase().includes(val.toLowerCase());
@@ -141,27 +176,39 @@ window.FE.tabs.data = {
     }
 
     function renderRows() {
-      const rows = applyFilters(state.raw[current]);
       const cols = Object.keys(state.raw[current][0] ?? {});
+      let rows = applyFilters(state.raw[current]);
+      if (sort.col) {
+        rows = [...rows].sort((a, b) => {
+          const na = asNum(a[sort.col]), nb = asNum(b[sort.col]);
+          const r = (na !== null && nb !== null)
+            ? na - nb
+            : String(a[sort.col] ?? "").localeCompare(String(b[sort.col] ?? ""));
+          return r * sort.dir;
+        });
+      }
+      const numCols = new Set(cols.filter((c) => columnKind(state.raw[current], c) === "number"));
       const start = page * PAGE;
       const slice = rows.slice(start, start + PAGE);
-      const amountCol = cols.find((c) => c === "amount" || c === "account_balance");
-      const value = amountCol ? rows.reduce((s, r) => s + (r[amountCol] || 0), 0) : null;
-      el.querySelector("#dx-summary").textContent =
-        `${fmtInt(rows.length)} of ${fmtInt(state.raw[current].length)} rows` +
-        (value !== null ? ` · ${fmtMoney(value, true)} total ${amountCol.replace("_", " ")}` : "");
-      el.querySelector("#dx-head").innerHTML =
-        `<tr>${cols.map((c) => `<th>${escapeHtml(c)}</th>`).join("")}</tr>`;
+      el.querySelector("#dx-head").innerHTML = `<tr>${cols.map((c) => {
+        const ind = sort.col === c ? (sort.dir === 1 ? " ▲" : " ▼") : "";
+        return `<th class="sortable ${numCols.has(c) ? "num" : ""}" data-sort="${escapeHtml(c)}">${escapeHtml(c)}${ind}</th>`;
+      }).join("")}</tr>`;
       el.querySelector("#dx-body").innerHTML = slice.length ? slice.map((r) =>
         `<tr>${cols.map((c) => {
           const v = r[c];
-          const num = typeof v === "number";
-          return `<td class="${num ? "num" : ""}">${v == null ? "—"
-            : num ? (Number.isInteger(v) ? fmtInt(v) : v.toFixed(3)) : escapeHtml(v)}</td>`;
+          return `<td class="${numCols.has(c) ? "num" : ""}">${v == null || v === "" ? "—" : escapeHtml(String(v))}</td>`;
         }).join("")}</tr>`).join("")
         : `<tr><td colspan="${cols.length}" class="loading-cell">No rows match the current filters.</td></tr>`;
+      el.querySelectorAll("#dx-head .sortable").forEach((th) => th.addEventListener("click", () => {
+        const c = th.dataset.sort;
+        if (sort.col === c) sort.dir = -sort.dir; else { sort.col = c; sort.dir = 1; }
+        page = 0;
+        renderRows();
+      }));
       const pages = Math.max(1, Math.ceil(rows.length / PAGE));
-      el.querySelector("#dx-page").textContent = `Page ${page + 1} of ${pages}`;
+      el.querySelector("#dx-page").textContent =
+        `Page ${page + 1} of ${pages} · ${fmtInt(rows.length)} of ${fmtInt(state.raw[current].length)} rows`;
       el.querySelector("#dx-prev").disabled = page === 0;
       el.querySelector("#dx-next").disabled = page >= pages - 1;
       el.querySelector("#dx-filters").classList.remove("hidden");
@@ -173,15 +220,8 @@ window.FE.tabs.data = {
     function mountTable() {
       el.querySelector("#dx-note").textContent = TABLE_NOTES[current];
       el.querySelector("#dx-table").value = current;
-      el.querySelector("#dx-filters").innerHTML = buildFilters();
-      el.querySelectorAll("#dx-filters [data-col]").forEach((input) => {
-        input.addEventListener(input.tagName === "SELECT" ? "change" : "input", () => {
-          filters[`${input.dataset.col}::${input.dataset.kind}`] = input.value;
-          page = 0;
-          renderRows();
-        });
-      });
-      page = 0;
+      filters = {}; activeCols = []; sort = { col: null, dir: 1 }; page = 0;
+      renderFilters();
       renderView();
     }
 
@@ -189,16 +229,17 @@ window.FE.tabs.data = {
     function applyPreset() {
       const preset = takeDataPreset();
       if (!preset) return;
-      current = preset.table;
+      current = (preset.table in TABLE_NOTES) ? preset.table : "transactions";
       view = "rows";
       setViewButtons();
-      mountTable();
+      el.querySelector("#dx-note").textContent = TABLE_NOTES[current];
+      el.querySelector("#dx-table").value = current;
+      filters = {}; activeCols = []; sort = { col: null, dir: 1 }; page = 0;
       for (const f of preset.filters) {
-        const input = el.querySelector(`#dx-filters [data-col="${f.col}"][data-kind="${f.kind}"]`);
-        if (!input) continue;
-        input.value = f.value;
+        if (!activeCols.includes(f.col)) activeCols.push(f.col);
         filters[`${f.col}::${f.kind}`] = String(f.value);
       }
+      renderFilters();
       renderRows();
     }
     window.FE.tabs.data.applyPreset = applyPreset;
@@ -222,7 +263,6 @@ window.FE.tabs.data = {
             <button class="btn btn-ghost" id="dx-view-profile" type="button">Profile</button>
           </div>
           <span class="muted" id="dx-note"></span>
-          <span class="muted" id="dx-summary"></span>
         </div>
         <div class="filter-row wrap" id="dx-filters"></div>
         <div class="table-wrap">
@@ -246,8 +286,9 @@ window.FE.tabs.data = {
         </div>
       </div>
       <p class="tab-foot">Read live from Supabase — public anon key, row-level security allows
-      <code>SELECT</code> only. <strong>Rows</strong> lists records with data-driven filters;
-      <strong>Profile</strong> summarizes each column: type, completeness, cardinality, sample values.</p>`;
+      <code>SELECT</code> only. <strong>Rows</strong> lists records with on-demand filters and
+      sortable columns; <strong>Profile</strong> summarizes each column: type, completeness,
+      cardinality, sample values.</p>`;
 
     el.querySelector("#dx-table").addEventListener("change", (e) => {
       current = e.target.value;
