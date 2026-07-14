@@ -97,7 +97,7 @@ window.FE.tabs.etl = {
           </table>
         </div>`)}
 
-      ${step(2, "Typed, keyed and verified", `counts ${countsOk}/6 ✓ · FKs ${fkTotal} violations`, `
+      ${step(2, "Validation and integrity", `counts ${countsOk}/6 ✓ · FKs ${fkTotal} violations`, `
         <p>Dates are parsed to date types, primary/foreign keys enforced on the serving layer,
         and the clean row counts verified live against the pipeline's expected output:</p>
         <div class="check-row">${Object.entries(EXPECTED).map(([t, n]) => {
