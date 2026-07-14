@@ -27,10 +27,6 @@ window.FE.tabs.engine = {
     ];
 
     el.innerHTML = `
-      <p class="tab-intro">The Compliance Sentinel is a five-agent pipeline in a Supabase Edge
-      Function: retry and fallback handling, data anonymization, prompt-injection defenses and a
-      per-agent audit trail. The runner at the bottom executes a live analysis.</p>
-
       <div class="card">
         <h3>Pipeline</h3>
         <div class="pipeline">
@@ -83,7 +79,10 @@ window.FE.tabs.engine = {
         </div>
         <div id="sn-output" class="sentinel-output hidden"></div>
         <div id="sn-error" class="banner banner-error hidden" role="alert"></div>
-      </div>`;
+      </div>
+      <p class="tab-foot">The Compliance Sentinel is a five-agent pipeline in a Supabase Edge
+      Function: retry and fallback handling, data anonymization, prompt-injection defenses and a
+      per-agent audit trail. The runner at the bottom executes a live analysis.</p>`;
 
     /* runner */
     const $q = (sel) => el.querySelector(sel);

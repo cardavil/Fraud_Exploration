@@ -92,7 +92,7 @@ window.FE.tabs.eda = {
       <div class="eda-step">
         <div class="eda-step-head">
           <span class="eda-step-n">${n}</span><h3>${title}</h3>
-          <span class="eda-chip">${chip}</span>
+          ${chip ? `<span class="eda-chip">${chip}</span>` : ""}
         </div>
         <div class="eda-step-body">${body}</div>
       </div>`;
@@ -182,7 +182,7 @@ window.FE.tabs.eda = {
           usable field.</p>
         </details>`)}
 
-      ${step(4, "Descriptive statistics", `n = ${fmtInt(S.descriptive.n_valid)}`, `
+      ${step(4, "Descriptive statistics", "", `
         <div class="stat-row">
           ${[["n (valid amounts)", fmtInt(S.descriptive.n_valid)],
              ["Mean", fmtMoney(S.descriptive.mean)],

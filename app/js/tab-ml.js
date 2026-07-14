@@ -96,10 +96,6 @@ window.FE.tabs.ml = {
     const custRows = [...state.data.customer_scores].sort((a, b) => b.score - a.score).slice(0, 15);
 
     el.innerHTML = `
-      <p class="tab-intro">Three unsupervised Isolation Forests score risk at the transaction,
-      account and customer level. The account model also runs in the browser for independent
-      verification.</p>
-
       <h3 class="tier-heading">Tier 1 — Transaction-level detection</h3>
       <div class="card">
         <div class="card-head">
@@ -325,7 +321,10 @@ window.FE.tabs.ml = {
           is ${t3v.cross_tier.spearman_score_vs_max_account_score} — the customer tier re-ranks
           with information of its own rather than duplicating the account tier.</p>
         </details>
-      </div>`;
+      </div>
+      <p class="tab-foot">Three unsupervised Isolation Forests score risk at the transaction,
+      account and customer level. The account model also runs in the browser for independent
+      verification.</p>`;
 
     el.querySelector("#t1-see-all").addEventListener("click", (e) => {
       e.preventDefault();

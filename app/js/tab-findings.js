@@ -102,12 +102,6 @@ window.FE.tabs.findings = {
     ];
 
     el.innerHTML = `
-      <p class="tab-intro">The tiles are the live KPI surface — click one for its definition, exact
-      formula and why it matters. Below, each theme has its evidence chart with hover tooltips and an
-      <span class="muted">&#9432; how to read</span> note. The five headline insights distilled from
-      these findings live in the
-      <a href="https://github.com/cardavil/Fraud_Exploration/blob/main/reports/EXECUTIVE_SUMMARY.md"
-         target="_blank" rel="noopener">executive summary</a>.</p>
       <div class="kpi-strip kpi-grid-4">
         ${KPIS.map((x) => `
           <button class="kpi-tile ${x.cls}" data-kpi="${x.id}">
@@ -169,7 +163,13 @@ window.FE.tabs.findings = {
            (${fmtMoney(k.chargebacks.from, true)} → ${fmtMoney(k.chargebacks.to, true)}).
            Fraud-coded cases (CNP + Unauthorized) account for 21% of disputes; top-6 merchants
            concentrate 64% of cases.`)}
-      </div>`;
+      </div>
+      <p class="tab-foot">The tiles are the live KPI surface — click one for its definition, exact
+      formula and why it matters. Each theme has its evidence chart with hover tooltips and an
+      <span class="muted">&#9432; how to read</span> note. The five headline insights distilled from
+      these findings live in the
+      <a href="https://github.com/cardavil/Fraud_Exploration/blob/main/reports/EXECUTIVE_SUMMARY.md"
+         target="_blank" rel="noopener">executive summary</a>.</p>`;
 
     el.querySelectorAll(".kpi-tile").forEach((tile) => {
       tile.addEventListener("click", () => {
